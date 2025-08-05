@@ -2188,7 +2188,10 @@ export function handleRowClick(entity) {
 export function handleCloseEntityModal() {
     appState.isEntityModalOpen = false;
     appState.selectedEntity = null;
-    d3.select(".d3-tooltip").style("opacity", 0);
+
+    // FIX: Forcefully remove any D3 tooltips attached to the main body.
+    d3.select("body").selectAll(".d3-tooltip").remove();
+
     renderUI();
 }
 
@@ -2364,4 +2367,5 @@ export const renderViewDropdown = () => {
         const viewItem = createViewListItem(viewName, true);
         savedViewsList.appendChild(viewItem);
     });
+
 };
