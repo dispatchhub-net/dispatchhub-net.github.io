@@ -586,15 +586,19 @@ export const initializeStubsEventListeners = () => {
         tableWrapper._listenersAttached = true;
     }
     
-   // Listener for closing the modal with the ESC key
-   if (!document.body._escListenerAttached) {
-    document.body.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && appState.isStubsModalOpen) {
-            appState.isStubsModalOpen = false;
-            appState.selectedDriverForModal = null;
-            renderDriverDeepDiveModal();
-        }
-    });
-    document.body._escListenerAttached = true;
+// Listener for closing the modal with the ESC key
+if (!document.body._escListenerAttached) {
+ document.body.addEventListener('keydown', (e) => {
+     if (e.key === 'Escape' && appState.isStubsModalOpen) {
+         appState.isStubsModalOpen = false;
+         appState.selectedDriverForModal = null;
+         renderDriverDeepDiveModal();
+
+         // FIX: Forcefully remove the D3 tooltip associated with the stubs modal.
+         d3.select("#stubs-modal-container .d3-tooltip").remove();
+     }
+ });
+ document.body._escListenerAttached = true;
 }
+
 };
