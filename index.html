@@ -69,9 +69,9 @@
                          <svg class="sidebar-text nav-arrow w-5 h-5 transition-transform duration-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
                     </a>
                     <ul id="profiles-submenu" class="pl-16 space-y-2 overflow-hidden">
-                        <li><a href="#" class="sub-nav-item">Dispatch</a></li>
-                        <li><a href="#" class="sub-nav-item">Team</a></li>
-                        <li><a href="#" class="sub-nav-item">Drivers</a></li>
+                        <li><a href="#" class="sub-nav-item" data-view="profiles-dispatch">Dispatch</a></li>
+                        <li><a href="#" class="sub-nav-item" data-view="profiles-team">Team</a></li>
+                        <li><a href="#" class="sub-nav-item" data-view="profiles-drivers">Drivers</a></li>
                     </ul>
                 </li>
                 <li id="stubs-menu-item">
@@ -211,20 +211,16 @@
                             </div>
                         </div>
                     
-                        <!-- ZONE 3: DETAILED ANALYSIS DASHBOARD -->
                         <div id="detailed-analysis-dashboard" class="flex-grow flex flex-col min-h-0">
-                            <!-- Dashboard Switcher -->
                             <div id="dashboard-switcher" class="flex-shrink-0">
                                 <button data-view="performance" class="switcher-btn">Performance</button>
                                 <button data-view="profit" class="switcher-btn">Profit & Efficiency</button>
                                 <button data-view="market" class="switcher-btn">Market Intelligence</button>
                                 <button data-view="anomalies" class="switcher-btn">Anomaly Feed</button>
-                                <button data-view="state-deep-dive" class="switcher-btn">State Deep Dive</button>
+                                <button data-view="deep-dive" class="switcher-btn">Deep Dive</button>
                                 <button data-view="load-planner" class="switcher-btn">Load Planner</button>
                             </div>
-                            <!-- Dashboard Content Area -->
                             <div class="dashboard-content-area flex-grow">
-                                <!-- Performance Dashboard -->
                                 <div id="performance-dashboard" class="dashboard-view">
                                     <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                                         <div class="kpi-card">
@@ -257,8 +253,7 @@
                                         <span class="chart-placeholder-title">Weekly Performance Trends Chart</span>
                                     </div>
                                 </div>
-                    
-                                <!-- Profit & Efficiency Dashboard -->
+                        
                                 <div id="profit-efficiency-dashboard" class="dashboard-view">
                                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                                         <div class="kpi-card">
@@ -291,8 +286,7 @@
                                         </div>
                                     </div>
                                 </div>
-                    
-                                <!-- Market Intelligence Dashboard -->
+                        
                                 <div id="market-intelligence-dashboard" class="dashboard-view">
                                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                         <div class="lg:col-span-2 chart-placeholder h-96">
@@ -310,8 +304,7 @@
                                         </div>
                                     </div>
                                 </div>
-                    
-                                <!-- Anomaly Feed Dashboard -->
+                        
                                 <div id="anomaly-feed-dashboard" class="dashboard-view">
                                     <div class="anomaly-feed">
                                         <div class="anomaly-item">
@@ -329,24 +322,57 @@
                                             <p class="anomaly-details">Truck #152 assigned to Load #84329 has <span class="font-semibold text-amber-400">150 miles</span> of deadhead (avg. 45 miles).</p>
                                             <p class="anomaly-time">3 hours ago</p>
                                         </div>
-                                        <div id="state-deep-dive-dashboard" class="dashboard-view">
-                                            <div class="chart-placeholder">
-                                                <span class="chart-placeholder-title">State Deep Dive Dashboard</span>
-                                            </div>
-                                        </div>
-                                        <div id="load-planner-dashboard" class="dashboard-view">
-                                            <div class="chart-placeholder">
-                                                <span class="chart-placeholder-title">Intelligent Load Planner Dashboard</span>
-                                            </div>
-                                        </div>
-                                    
+                                    </div>
+                                </div>
+                        
+                                <div id="deep-dive-dashboard" class="dashboard-view">
+                                </div>
+                        
+                                <div id="load-planner-dashboard" class="dashboard-view">
+                                    <div class="chart-placeholder">
+                                        <span class="chart-placeholder-title">Intelligent Load Planner Dashboard</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    
+                    <!-- START: New Profiles Content Container -->
+                        <div id="profiles-content" class="h-full flex flex-col p-1 md:p-4 space-y-4 hidden">
+                            <!-- Header: Team Name and Selector -->
+                            <div id="profiles-header" class="flex-shrink-0 flex justify-between items-center">
+                                <!-- Populated by profiles_ui.js -->
+                            </div>
+
+                            <!-- KPIs / Fleet Health -->
+                            <div id="profiles-kpi-container" class="flex-shrink-0 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                                <!-- Populated by profiles_ui.js -->
+                            </div>
+
+                            <!-- Wrapper for the two main tables to control layout -->
+<div class="profile-tables-wrapper">
+    <!-- Dispatch Breakdown Table -->
+    <div id="profiles-dispatch-breakdown" class="profile-table-container">
+        <div class="flex justify-between items-center mb-3">
+            <h3 class="text-lg font-bold text-gray-200">Dispatch Breakdown</h3>
+            <div class="relative">
+                <button id="dispatch-table-settings-btn" class="toolbar-btn !p-2" title="Table Settings">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924-1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                </button>
+                <div id="dispatch-column-settings-dropdown" class="absolute right-0 mt-2 w-72 bg-gray-700 border border-gray-600 rounded-lg shadow-xl z-50 hidden p-2"></div>
+            </div>
+        </div>
+        <div id="profiles-dispatch-table-container" class="overflow-auto"></div>
+    </div>
+
+    <!-- Driver Health Breakdown Table -->
+    <div id="profiles-driver-health" class="profile-table-container">
+        <div id="profiles-driver-toolbar" class="flex-shrink-0 flex flex-wrap items-center justify-between gap-4 mb-3"></div>
+        <div id="profiles-driver-table-container" class="flex-grow overflow-auto"></div>
+    </div>
+</div>
+                        </div>
+                        <!-- END: New Profiles Content Container -->
 
                     <div id="loads-content" class="hidden h-full flex flex-col p-1 md:p-4 space-y-4">
 
@@ -882,11 +908,72 @@
             </div>
         </div>
 
+        <div id="profiles-driver-filter-modal" class="settings-modal-backdrop hidden">
+            <div class="settings-modal-container !max-w-xl">
+                <div class="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
+                    <h2 class="text-lg font-bold text-gray-200 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="w-5 h-5 mr-2">
+                            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                        </svg>
+                        Driver Table Filters
+                    </h2>
+                    <button id="close-driver-filter-modal-btn" class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
+                </div>
+        
+                <div id="driver-filter-modal-content" class="p-4 text-sm">
+                    <div id="driver-filter-criteria-container" class="space-y-3">
+                        </div>
+                    <button id="add-driver-filter-criteria-btn" class="add-criteria-btn mt-4">+ Add Criterion</button>
+                    
+                    <div class="filter-logic-container mt-6">
+                        <label class="text-gray-400 text-xs font-bold uppercase">Match</label>
+                        <div class="flex items-center gap-1 bg-gray-700 rounded-lg p-1">
+                            <button data-logic="AND" class="filter-logic-btn flex-1 px-3 py-1 text-xs rounded-md">AND</button>
+                            <button data-logic="OR" class="filter-logic-btn flex-1 px-3 py-1 text-xs rounded-md">OR</button>
+                        </div>
+                    </div>
+                </div>
+        
+                <div class="flex justify-between items-center p-4 mt-auto border-t border-gray-700 bg-gray-800 flex-shrink-0">
+                    <button id="clear-driver-filters-btn" class="text-sm text-gray-400 hover:text-red-400 transition-colors">Clear All Filters</button>
+                    <div class="flex gap-x-2">
+                        <button id="cancel-driver-filter-btn" class="cancel-btn">Cancel</button>
+                        <button id="apply-driver-filter-btn" class="save-btn">Apply Filters</button>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+
+        <div id="profiles-driver-settings-modal" class="settings-modal-backdrop hidden">
+            <div class="settings-modal-container !max-w-xl">
+                <div class="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
+                    <h2 class="text-lg font-bold text-gray-200 flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426-1.756-2.924-1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        Driver Health Settings
+                    </h2>
+                    <button id="close-driver-settings-modal-btn" class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
+                </div>
+        
+                <div class="p-4 text-sm">
+                    <p class="text-gray-400">Settings for the Driver Health table will be built here.</p>
+                </div>
+        
+                <div class="flex justify-end items-center p-4 mt-auto border-t border-gray-700 bg-gray-800 flex-shrink-0">
+                    <button id="save-driver-settings-btn" class="save-btn">Save Settings</button>
+                </div>
+            </div>
+        </div>
+
 <!-- ADD THIS LINE in index.html -->
 <script src="https://d3js.org/topojson.v3.min.js"></script>
 <script type="module" src="loads/loads_maps.js"></script>
 <script type="module" src="main.js"></script>
 
-</body>
+<div id="dispatch-tooltip" class="dispatch-tooltip"></div>
+<script type="module" src="main.js"></script>
 
+</body>
 </html>
