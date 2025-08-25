@@ -3,6 +3,7 @@ import { renderStubsUI, initializeStubsEventListeners } from './stubs/stubs_ui.j
 import { renderLoadsUI, initializeLoadsEventListeners, renderLoadsAnalyticsUI, initializeAnalyticsEventListeners } from './loads/loads_ui.js';
 import { appState, allColumns, setDraggedColumnId, setDraggedViewName } from './state.js';
 import { generateAllColumns } from './config.js';
+import { renderTeamProfileUI } from './profiles/profiles_ui.js';
 import {
     fetchAllHistoricalData,
     processDataForMode,
@@ -234,36 +235,39 @@ const addEventListeners = () => {
     const loadsAnalyticsContent = document.getElementById('loads-analytics-content');
     const stubsContent = document.getElementById('stubs-content'); // Get the stubs content div
 
-    const switchView = (view) => {
+    const switchView = async (view) => {
         appState.currentView = view;
-
-        // Hide all content panels
-        rankingsContent.classList.add('hidden');
-        keyMetricsOverview.classList.add('hidden');
-        loadsContent.classList.add('hidden');
-        loadsAnalyticsContent.classList.add('hidden');
-        stubsContent.classList.add('hidden'); // Hide stubs content
-
-        // Show the correct content panel
+    
+        // Hide all content panels first
+        document.getElementById('main-content').classList.add('hidden');
+        document.getElementById('key-metrics-overview').classList.add('hidden');
+        document.getElementById('loads-content').classList.add('hidden');
+        document.getElementById('loads-analytics-content').classList.add('hidden');
+        document.getElementById('stubs-content').classList.add('hidden');
+        document.getElementById('profiles-content').classList.add('hidden');
+    
+        // Show the correct content panel based on the view
         if (view === 'rankings') {
-            rankingsContent.classList.remove('hidden');
-            keyMetricsOverview.classList.remove('hidden');
+            document.getElementById('main-content').classList.remove('hidden');
+            document.getElementById('key-metrics-overview').classList.remove('hidden');
             renderUI();
         } else if (view === 'loads-table') {
-            loadsContent.classList.remove('hidden');
+            document.getElementById('loads-content').classList.remove('hidden');
             renderLoadsUI();
         } else if (view === 'loads-analytics') {
-            loadsAnalyticsContent.classList.remove('hidden');
-            // FIX: Delay execution to allow the DOM to update and render the container
+            document.getElementById('loads-analytics-content').classList.remove('hidden');
             setTimeout(() => {
                 renderLoadsAnalyticsUI();
                 initializeAnalyticsEventListeners();
             }, 0);
-        } else if (view === 'stubs') { // Handle stubs view
-            stubsContent.classList.remove('hidden');
+        } else if (view === 'stubs') {
+            document.getElementById('stubs-content').classList.remove('hidden');
             renderStubsUI();
+        } else if (view.startsWith('profiles-')) { // Simplified this to handle all profile views
+            document.getElementById('profiles-content').classList.remove('hidden');
+            renderTeamProfileUI(); // Assuming this is the main entry for all profile views for now
         }
-
+    
         updateNavActiveState();
     };
 
