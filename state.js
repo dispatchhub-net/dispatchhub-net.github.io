@@ -71,6 +71,61 @@ export let appState = {
     pinnedLeftColumns: ['rank', 'entityName', 'dispatcherTeam'],
     pinnedRightColumns: ['mainCriteria_current', 'mainCriteria_4wkAvg'],
 
+    // --- START ADDITION FOR PROFILES ---
+   profiles: {
+        selectedTeam: 'SMT',
+        isKpiSettingsOpen: false,
+        selectedDispatcherId: null,
+        dateRangeStart: null,
+        dateRangeEnd: null,
+        activeDetails: { 
+            dispatcherId: null,
+            metricId: null
+        },
+        driverFilters: {
+            isFilterModalOpen: false,
+            activeFilters: [],
+            filterLogic: 'AND', // Default to AND
+        },
+        isDriverSettingsModalOpen: false, // Add this line
+        // ADD THIS OBJECT FOR THE NEW DISPATCH TABLE STATE
+
+        isKpiSettingsOpen: false, // To track if the dropdown is open
+        kpiSettings: {
+            // A master list of all possible KPIs
+            allKpis: [
+                { id: 'totalGross', label: 'Total Weekly Gross' },
+                { id: 'teamRpm', label: 'Team RPM (All)' },
+                { id: 'teamMargin', label: 'Team Margin ($)' },
+                { id: 'activeTrucks', label: 'Active Trucks' },
+                { id: 'dispatchers', label: 'Dispatchers' },
+                { id: 'medianDropRisk', label: 'Median Drop Risk' },
+                // Company-specific KPIs will be added dynamically
+            ],
+            // The IDs of the KPIs that are visible by default
+            visibleKpiIds: [
+                'totalGross', 'teamRpm', 'teamMargin', 'activeTrucks', 'dispatchers', 'medianDropRisk', 'SMT_gross'
+            ]
+        },
+
+        dispatchTable: {
+            columnOrder: [
+                'name', 'company', 'allTrucks', 'ooTrucks', 'looTrucks', 
+                'dryvan', 'reefer', 'flatbed', // <-- New columns added to order
+                'rank1w', 'rank4w', 'trend1w', 'trend4w', 'goodMoves', 
+                'badMoves', 'hiddenMiles', 'lowRpm', 'newStarts', 'wellness'
+            ],
+            visibleColumnIds: [
+                'name', 'company', 'allTrucks', 'ooTrucks', 'looTrucks',
+                'rank1w', 'rank4w', 'trend4w', 'goodMoves', 'badMoves', 'lowRpm'
+            ],
+            pinnedLeftColumns: ['name'],
+            pinnedRightColumns: [],
+            draggedColumnId: null,
+        },
+    },
+    // --- END ADDITION FOR PROFILES ---
+
     liveDriverFlagsCache: {},
 
      // --- START ADDITION FOR LOADS ---
@@ -137,6 +192,9 @@ export let appState = {
         selectedDriverForModal: null,
         historicalStubsData: [], // <-- To store the new historical data
         stubsModalChartView: 'net_pay', // <-- To track the selected chart metric
+
+        mapBEndDate: '',
+        deepDiveSelection: null,
 
 
 
