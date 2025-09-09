@@ -196,9 +196,36 @@ function initializeThreeJsMap(container, data, direction, tooltip) {
     const onMouseEnter = () => { isMouseOverCanvas = true; };
     const onMouseLeave = () => { isMouseOverCanvas = false; };
 
+    const onClick = (event) => {
+        if (intersectedObject) { // An object is currently being hovered/intersected
+            const stateName = intersectedObject.userData.name;
+            const stateAbbr = Object.keys(stateAbbrToFullName).find(key => stateAbbrToFullName[key] === stateName);
+    
+            if (stateAbbr && window.showDeepDive) {
+                 const clickedLoads = container.threejs_scene.raw_data.filter(load => {
+                    const locField = container.threejs_scene.direction === 'inbound' ? 'do_location' : 'pu_location';
+                    const location = load[locField] || '';
+                    const stateAbbrMatch = location.match(/,\s*([A-Z]{2})$/);
+                    return stateAbbrMatch && stateAbbrMatch[1] === stateAbbr;
+                });
+    
+                window.showDeepDive({
+                    type: 'State',
+                    name: stateName,
+                    data: clickedLoads,
+                    definition: {
+                        stateAbbr: stateAbbr,
+                        direction: container.threejs_scene.direction
+                    }
+                });
+            }
+        }
+    };
+
     renderer.domElement.addEventListener('mousemove', onMouseMove, false);
     renderer.domElement.addEventListener('mouseenter', onMouseEnter, false);
     renderer.domElement.addEventListener('mouseleave', onMouseLeave, false);
+    renderer.domElement.addEventListener('click', onClick, false);
 
 
     const animate = () => {
@@ -261,6 +288,8 @@ function initializeThreeJsMap(container, data, direction, tooltip) {
     };
 
     const update = (newData, newDirection) => {
+        container.threejs_scene.raw_data = newData;
+        container.threejs_scene.direction = newDirection;
         const processedData = processLoadsForStateView(newData, newDirection);
         const stateDataMap = new Map(processedData.map(d => [stateAbbrToFullName[d.state.toUpperCase()], d]));
 
@@ -306,7 +335,7 @@ function initializeThreeJsMap(container, data, direction, tooltip) {
         }
     };
     
-    container.threejs_scene = { update, destroy };
+    container.threejs_scene = { update, destroy, raw_data: data, direction: direction };
 
     d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json").then(us => {
         const unwantedFips = ["02", "15", "72", "60", "66", "69", "78"];
@@ -411,8 +440,42 @@ function renderClusterMap(container, data, clusterSize, direction, metric, toolt
                            .style("top", (event.pageY - 28) + "px");
                 }).on("mouseout", function() {
                     d3.select(this).classed('hovered', false);
-                    tooltip.classed('hidden', true);
+                tooltip.classed('hidden', true);
+            })
+            .on("click", function(event, d) {
+                // When a cluster is clicked, find all raw loads that belong to it
+                const clickedLoads = data.filter(load => {
+                    const latField = direction === 'inbound' ? 'do_latitude' : 'pu_latitude';
+                    const lonField = direction === 'inbound' ? 'do_longitude' : 'pu_longitude';
+                    const lat = parseFloat(load[latField]);
+                    const lon = parseFloat(load[lonField]);
+                    if (isNaN(lat) || isNaN(lon)) return false;
+            
+                    const GRID_SIZE = clusterSize;
+                    const loadGridKey = `${Math.round(lat / GRID_SIZE) * GRID_SIZE},${Math.round(lon / GRID_SIZE) * GRID_SIZE}`;
+            
+                    const centroidLat = d.totalLat / d.loadVolume;
+                    const centroidLon = d.totalLon / d.loadVolume;
+                    const clusterGridKey = `${Math.round(centroidLat / GRID_SIZE) * GRID_SIZE},${Math.round(centroidLon / GRID_SIZE) * GRID_SIZE}`;
+            
+                    return loadGridKey === clusterGridKey;
                 });
+            
+                // Trigger the global function to show the deep dive with a detailed definition
+                if (window.showDeepDive) {
+                    window.showDeepDive({
+                        type: 'Cluster',
+                        name: d.name,
+                        data: clickedLoads,
+                        definition: {
+                            lat: d.lat,
+                            lon: d.lon,
+                            clusterSize: clusterSize,
+                            direction: direction
+                        }
+                    });
+                }
+            })
         });
     });
 }
