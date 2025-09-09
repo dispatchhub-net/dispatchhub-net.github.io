@@ -43,7 +43,7 @@
 
     <div id="app-wrapper" class="flex hidden h-screen">
 
-        <nav id="sidebar" class="flex flex-col h-screen bg-gray-800 border-r border-gray-700 shadow-lg transition-all duration-300 ease-in-out">
+        <nav id="sidebar" class="flex flex-col h-screen bg-gray-800 border-r border-gray-700 shadow-lg transition-all duration-300 ease-in-out minimized">
             <div class="flex items-center justify-center h-20 border-b border-gray-700 flex-shrink-0">
                 <div class="sidebar-logo-icon">
                     <svg class="w-8 h-8 text-teal-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -60,31 +60,14 @@
                         <span class="sidebar-text">Rankings</span>
                     </a>
                 </li>
-                <li id="profiles-menu-item">
-                    <a href="#" class="nav-item justify-between">
-                        <div class="flex items-center">
-                            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
-                            <span class="sidebar-text">Profiles</span>
-                        </div>
-                         <svg class="sidebar-text nav-arrow w-5 h-5 transition-transform duration-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
-                    </a>
-                    <ul id="profiles-submenu" class="pl-16 space-y-2 overflow-hidden">
-                        <li><a href="#" class="sub-nav-item" data-view="profiles-dispatch">Dispatch</a></li>
-                        <li><a href="#" class="sub-nav-item" data-view="profiles-team">Team</a></li>
-                        <li><a href="#" class="sub-nav-item" data-view="profiles-drivers">Drivers</a></li>
-                    </ul>
-                </li>
-                <li id="stubs-menu-item">
+                <li id="fleet-health-menu-item">
                     <a href="#" class="nav-item">
-                        <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="12" y1="1" x2="12" y2="23"></line>
-                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                        </svg>
-                        <span class="sidebar-text">Stubs</span>
+                        <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.602-3.751m-.228-4.014A11.959 11.959 0 0012 2.25c-2.997 0-5.717.93-8.002 2.503" /></svg>
+                        <span class="sidebar-text">Fleet Health</span>
                     </a>
                 </li>
                 <li id="loads-menu-item">
-                    <a href="#" class="nav-item justify-between">
+                    <a href="#" class="nav-item">
                         <div class="flex items-center">
                             <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                                 <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 1 6"></polygon>
@@ -93,12 +76,7 @@
                             </svg>
                             <span class="sidebar-text">Loads</span>
                         </div>
-                        <svg class="sidebar-text nav-arrow w-5 h-5 transition-transform duration-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
                     </a>
-                    <ul id="loads-submenu" class="pl-16 space-y-2 overflow-hidden">
-                        <li><a href="#" class="sub-nav-item" data-view="loads-table">Table</a></li>
-                        <li><a href="#" class="sub-nav-item" data-view="loads-analytics">Analytics</a></li>
-                    </ul>
                 </li>
         </ul>
             <div class="p-4 border-t border-gray-700 flex-shrink-0">
@@ -115,10 +93,8 @@
                 <div id="app" class="h-full flex flex-col">
 
                     <div id="loads-analytics-content" class="h-full flex flex-col p-2 md:p-4 space-y-4 hidden">
-                        <!-- ZONE 1: STRATEGIC MAP VIEW -->
                         <div id="strategic-map-view" class="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-shrink-0">
-                            <!-- MAP A (LEFT) with Sidebar -->
-                        <div class="map-container relative">
+                            <div class="map-container relative">
                             <div class="map-sidebar">
                                 <button class="sidebar-btn" title="Date Range">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zM4.5 6.75a1.25 1.25 0 011.25-1.25h8.5a1.25 1.25 0 011.25 1.25v8.5a1.25 1.25 0 01-1.25 1.25h-8.5a1.25 1.25 0 01-1.25-1.25v-8.5z" clip-rule="evenodd" /></svg>
@@ -158,8 +134,7 @@
                         </div>
                              
                     
-                            <!-- SECONDARY MAP (RIGHT) with Sidebar -->
-                        <div class="map-container relative">
+                            <div class="map-container relative">
                             <div class="map-sidebar">
                                 <button class="sidebar-btn" title="Date Range">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zM4.5 6.75a1.25 1.25 0 011.25-1.25h8.5a1.25 1.25 0 011.25 1.25v8.5a1.25 1.25 0 01-1.25 1.25h-8.5a1.25 1.25 0 01-1.25-1.25v-8.5z" clip-rule="evenodd" /></svg>
@@ -199,7 +174,6 @@
                         </div>
                         </div>
                     
-                        <!-- ZONE 2: LIVE INTELLIGENCE TICKER -->
                         <div id="live-intelligence-ticker">
                             <div class="ticker-wrap">
                                 <div class="ticker-move">
@@ -337,211 +311,26 @@
                         </div>
                     </div>
                     
-                    <!-- START: New Profiles Content Container -->
-                        <div id="profiles-content" class="h-full flex flex-col p-1 md:p-4 space-y-4 hidden">
-                            <!-- Header: Team Name and Selector -->
+                    <div id="profiles-content" class="h-full flex flex-col p-1 md:p-4 space-y-4 hidden">
                             <div id="profiles-header" class="flex-shrink-0 flex justify-between items-center">
-                                <!-- Populated by profiles_ui.js -->
-                            </div>
+                                </div>
 
-                            <!-- KPIs / Fleet Health -->
                             <div id="profiles-kpi-container" class="flex-shrink-0 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-                                <!-- Populated by profiles_ui.js -->
-                            </div>
+                                </div>
 
-                            <!-- Wrapper for the two main tables to control layout -->
-<div class="profile-tables-wrapper">
-    <!-- Dispatch Breakdown Table -->
-    <div id="profiles-dispatch-breakdown" class="profile-table-container">
-        <div class="flex justify-between items-center mb-3">
-            <h3 class="text-lg font-bold text-gray-200">Dispatch Breakdown</h3>
-            <div class="relative">
-                <button id="dispatch-table-settings-btn" class="toolbar-btn !p-2" title="Table Settings">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924-1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                </button>
-                <div id="dispatch-column-settings-dropdown" class="absolute right-0 mt-2 w-72 bg-gray-700 border border-gray-600 rounded-lg shadow-xl z-50 hidden p-2"></div>
-            </div>
-        </div>
-        <div id="profiles-dispatch-table-container" class="overflow-auto"></div>
-    </div>
-
-    <!-- Driver Health Breakdown Table -->
-    <div id="profiles-driver-health" class="profile-table-container">
-        <div id="profiles-driver-toolbar" class="flex-shrink-0 flex flex-wrap items-center justify-between gap-4 mb-3"></div>
-        <div id="profiles-driver-table-container" class="flex-grow overflow-auto"></div>
-    </div>
-</div>
-                        </div>
-                        <!-- END: New Profiles Content Container -->
-
-                    <div id="loads-content" class="hidden h-full flex flex-col p-1 md:p-4 space-y-4">
-
-                        <div class="flex-shrink-0 bg-gray-800 border-2 border-gray-600 p-2 rounded-xl shadow-lg">
-                            <div id="loads-toolbar" class="flex flex-wrap items-center justify-between gap-2">
-                                <div class="flex items-center gap-2 text-sm">
-                                    <div id="loads-date-range-container" class="flex items-center gap-2 text-sm">
-                                        <label for="loads-start-date" class="sr-only">Start Date:</label>
-                                        <input type="date" id="loads-start-date" class="toolbar-input" value="2025-07-13">
-                                        <span class="text-gray-500">to</span>
-                                        <label for="loads-end-date" class="sr-only">End Date:</label>
-                                        <input type="date" id="loads-end-date" class="toolbar-input" value="2025-07-20">
+                                <div class="profile-tables-wrapper">
+                                    <div id="profiles-dispatch-breakdown" class="profile-table-container">
+                                    </div>
+                                
+                                    <div id="fleet-health-flag-summary" class="flex-shrink-0"></div>
+                                
+                                    <div id="profiles-driver-health" class="profile-table-container">
+                                        <div id="profiles-driver-toolbar" class="flex-shrink-0 flex flex-wrap items-center justify-between gap-4 mb-3"></div>
+                                        <div id="profiles-driver-table-container" class="flex-grow overflow-auto"></div>
                                     </div>
                                 </div>
-                            
-                                <div class="flex-grow flex justify-center px-4">
-                                    <div id="loads-search-component" class="relative w-full max-w-lg">
-                                        </div>
-                                </div>
-                            
-                                <div class="flex items-center gap-2">
-                                    <label for="compact-flags-toggle" class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none pr-4">
-                                        <input type="checkbox" id="compact-flags-toggle" class="form-checkbox h-4 w-4 text-teal-500 rounded border-gray-500 focus:ring-teal-500 bg-gray-900">
-                                        <span>Compact Flags</span>
-                                    </label>
-                                    <button id="add-custom-load-filter-btn" class="toolbar-btn" title="Add Custom Filter">
-                                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                                        <span>Add Filter</span>
-                                    </button>
-                                    <button id="loads-settings-btn" class="toolbar-btn" title="Settings">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924-1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                                        <span>Settings</span>
-                                    </button>
-                                </div>
-                            </div>
-                            <div id="saved-filters-bar" class="flex flex-wrap items-center gap-2 pt-2 mt-2 border-t border-gray-700"></div>
                         </div>
-
-                        <div id="loads-main-content" class="flex-grow flex flex-col bg-gray-800 border-2 border-gray-600 p-2 rounded-xl shadow-lg overflow-auto">
-                            <div id="loads-table-container" class=""></div>
-                            <div id="loads-pagination-controls" class="flex-shrink-0 pt-2"></div>
-                        </div>
-                        <div id="summary-cards-container">
-                            <div id="low-rpm-summary-card" class="summary-card theme-yellow collapsed">
-                                </div>
-                            <div id="not-closed-summary-card" class="summary-card theme-green collapsed">
-                                </div>
-                            <div id="hidden-mileage-summary-card" class="summary-card theme-purple collapsed">
-                                </div>
-                            <div id="moved-loads-summary-card" class="summary-card theme-red collapsed">
-                                </div>
-                        </div>
-                    </div>
-
-                    <div id="loads-settings-modal" class="settings-modal-backdrop hidden">
-                        <div class="settings-modal-container">
-                            <div class="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
-                                <h2 class="text-lg font-bold text-gray-200 flex items-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 mr-2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0-.33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.82.33h.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33-1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-.33 1.82Z"></path></svg>
-                                    Loads Settings
-                                </h2>
-                                <button id="close-loads-settings-btn" class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
-                            </div>
-                    
-                            <div class="p-0 text-sm" id="settings-modal-content">
-                                <div class="settings-section">
-                                    <h4 class="settings-section-title">Flag Thresholds</h4>
-                                    <div class="space-y-4">
-                                        <div class="setting-item">
-                                            <label for="moved-load-threshold-input" class="setting-label">Moved Load (avg. miles/day)</label>
-                                            <input id="moved-load-threshold-input" type="number" class="settings-input">
-                                        </div>
-                                        <div class="setting-item">
-                                            <label for="not-closed-days-threshold-input" class="setting-label">Not Closed (days past DO)</label>
-                                            <input id="not-closed-days-threshold-input" type="number" class="settings-input">
-                                        </div>
-                                        <div class="setting-item">
-                                            <label for="low-rpm-threshold-input" class="setting-label">Low RPM ($/mile)</label>
-                                            <input id="low-rpm-threshold-input" type="number" step="0.01" class="settings-input">
-                                        </div>
-                                    </div>
-                                </div>
-                    
-                                <div class="settings-section">
-                                    <h4 class="settings-section-title">"Good Move" Thresholds</h4>
-                                    <div id="good-move-thresholds-container" class="space-y-3"></div>
-                                </div>
-                    
-                                <div class="settings-section">
-                                    <h4 class="settings-section-title">Display Settings</h4>
-                                    <div class="space-y-4">
-                                        <div class="setting-item">
-                                            <label class="setting-label">Visible Filter Buttons</label>
-                                            <div id="loads-filter-visibility-dropdown" class="relative w-48"></div>
-                                        </div>
-                                        <div class="setting-item">
-                                            <label class="setting-label">Table Columns</label>
-                                            <div id="loads-column-dropdown" class="relative w-48"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                    
-                                 <div class="p-4">
-                                    <div class="flex justify-end items-center">
-                                        <button id="save-loads-settings-btn" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm transition duration-200">Save Settings</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div id="add-custom-load-filter-modal" class="settings-modal-backdrop hidden">
-                        <div class="settings-modal-container !max-w-xl"> <div class="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
-                                <h2 class="text-lg font-bold text-gray-200 flex items-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 mr-2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-                                    Add/Edit Custom Load Filter
-                                </h2>
-                                <button id="close-add-custom-load-filter-modal-btn" class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
-                            </div>
-                    
-                            <div id="custom-filter-modal-content" class="p-0 text-sm">
-                                <div class="settings-section">
-                                    <h4 class="settings-section-title">Filter Details</h4>
-                                    <div class="grid grid-cols-[1fr_auto] gap-4 items-end">
-                                        <div class="setting-item !flex-col !items-start">
-                                            <label for="load-filter-name-input" class="setting-label mb-2">Filter Name</label>
-                                            <input type="text" id="load-filter-name-input" placeholder="e.g., High-Value Loads" class="settings-input w-full">
-                                        </div>
-                                        <div class="setting-item !flex-col !items-start">
-                                             <label for="load-filter-color-input" class="setting-label mb-2">Color</label>
-                                             <input type="color" id="load-filter-color-input" value="#374151" class="h-10 w-14 p-1 border border-gray-600 rounded-md cursor-pointer block bg-gray-700">
-                                        </div>
-                                    </div>
-                                </div>
-                    
-                                <div class="settings-section">
-                                    <h4 class="settings-section-title">Filter Criteria</h4>
-                                    <div id="load-filter-criteria-container" class="space-y-3">
-                                        </div>
-                                    <button id="add-load-filter-criteria-btn" class="w-full mt-4">+ Add Criterion</button>
-                                </div>
-                            </div>
-                    
-                            <div class="flex justify-end items-center p-4 mt-auto border-t border-gray-700 bg-gray-800 flex-shrink-0">
-                                <div class="flex gap-x-2">
-                                     <button id="cancel-load-filter-btn" class="cancel-btn">Cancel</button>
-                                     <button id="save-load-filter-btn" class="save-btn">Save Filter</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="stubs-content" class="h-full flex flex-col p-1 md:p-4 space-y-2 hidden">
-                        <div class="flex-shrink-0">
-                            <div id="stubs-main-header" class="flex justify-between items-center mb-2">
-                                </div>
-
-                            <div id="stubs-kpi-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
-                                </div>
-                        </div>
-
-                        <div id="stubs-table-wrapper" class="flex-grow flex flex-col bg-gray-800 border-2 border-gray-600 rounded-xl shadow-lg overflow-hidden min-height: 0;">
-                            <div id="stubs-table-container" class="flex-grow overflow-y-auto">
-                                </div>
-                        </div>
-                    </div>
-
-
-                    <div id="main-content" class="hidden">
+                        <div id="main-content" class="hidden">
                         <section class="flex flex-wrap justify-start gap-4 pb-2 mb-2" id="key-metrics-overview"></section>
                         <div id="loading-indicator" class="text-center py-8 text-blue-400 hidden">
                             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
@@ -885,24 +674,32 @@
             </div>
         </main>
         </div>
+        
         <div id="loads-tooltip" class="hidden"></div>
 
-        <div id="stubs-deep-dive-modal" class="settings-modal-backdrop hidden">
-            <div id="stubs-modal-container" class="settings-modal-container !max-w-4xl !h-[85vh]">
-                <div class="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0" id="stubs-modal-header">
-                    <div id="stubs-modal-header-content" class="w-full">
+        <div id="profiles-driver-deep-dive-modal" class="settings-modal-backdrop hidden">
+            <div id="profiles-modal-container" class="settings-modal-container !max-w-6xl !h-[90vh]">
+                <div id="profiles-modal-header" class="flex justify-between items-center p-4 border-b border-gray-700 flex-shrink-0">
+                    <div id="profiles-modal-header-left">
+                        </div>
+                
+                    <div id="profiles-modal-header-center">
+                        </div>
+                
+                    <div id="profiles-modal-header-right">
+                        <button id="close-profiles-deep-dive-modal-btn" class="text-gray-400 hover:text-white transition-colors text-3xl">&times;</button>
                     </div>
                 </div>
                 
-                <div id="stubs-modal-content" class="p-4 flex flex-col gap-4 overflow-y-auto flex-grow">
-                     <div id="stubs-modal-table-container" class="flex-grow h-3/5 overflow-y-auto border border-gray-700 rounded-lg">
-                    </div>
+                <div id="profiles-modal-content" class="p-4 flex flex-col gap-4 overflow-y-auto flex-grow">
+                     <div id="profiles-modal-table-container" class="flex-grow h-3/5 overflow-y-auto border border-gray-700 rounded-lg">
+                        </div>
         
                     <div class="flex-shrink-0 flex gap-4 h-2/5">
-                        <div id="stubs-modal-kpi-container" class="w-1/3 grid grid-cols-2 gap-4">
-                        </div>
-                        <div id="stubs-modal-chart-container" class="w-2/3 border border-gray-700 rounded-lg">
-                        </div>
+                        <div id="profiles-modal-kpi-container" class="w-1/3 grid grid-cols-2 gap-4">
+                            </div>
+                        <div id="profiles-modal-chart-container" class="w-2/3 border border-gray-700 rounded-lg">
+                            </div>
                     </div>
                 </div>
             </div>
@@ -948,26 +745,121 @@
         </div>
 
         <div id="profiles-driver-settings-modal" class="settings-modal-backdrop hidden">
-            <div class="settings-modal-container !max-w-xl">
+            <div class="settings-modal-container !max-w-3xl !h-[90vh]">
                 <div class="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
                     <h2 class="text-lg font-bold text-gray-200 flex items-center">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426-1.756-2.924-1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924-1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                         Driver Health Settings
                     </h2>
                     <button id="close-driver-settings-modal-btn" class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
                 </div>
+                
+                <div id="driver-settings-modal-content" class="p-4 overflow-y-auto flex-grow">
+                    </div>
         
-                <div class="p-4 text-sm">
-                    <p class="text-gray-400">Settings for the Driver Health table will be built here.</p>
-                </div>
-        
-                <div class="flex justify-end items-center p-4 mt-auto border-t border-gray-700 bg-gray-800 flex-shrink-0">
+                <div class="flex justify-end items-center p-4 mt-auto border-t border-gray-700 bg-gray-800/50 flex-shrink-0">
                     <button id="save-driver-settings-btn" class="save-btn">Save Settings</button>
                 </div>
             </div>
         </div>
 
-<!-- ADD THIS LINE in index.html -->
+        <div id="profiles-driver-health-settings-modal" class="settings-modal-backdrop hidden">
+            <div class="settings-modal-container !max-w-xl">
+                <div class="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
+                    <h2 class="text-lg font-bold text-gray-200 flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M12 6V3m0 18v-3m6-7h3m-18 0h3M5.64 5.64l-1.42-1.42m12.72 12.72l-1.42-1.42M18.36 5.64l-1.42 1.42m-12.72 12.72l-1.42-1.42"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        Driver Drop Risk Settings
+                    </h2>
+                    <button id="close-driver-health-settings-modal-btn" class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
+                </div>
+        
+                <div class="p-6 text-sm space-y-6">
+                    <p class="text-gray-400">
+                        Adjust the importance of each flag in the drop risk calculation. The total weight must equal 100%.
+                    </p>
+                    <div id="driver-health-weights-container" class="space-y-4">
+                        </div>
+                    <div class="text-right font-bold text-lg mt-4">
+                        Total: <span id="driver-health-total-weight">100%</span>
+                    </div>
+                </div>
+        
+                <div class="flex justify-end items-center p-4 mt-auto border-t border-gray-700 bg-gray-800 flex-shrink-0">
+                    <button id="save-driver-health-settings-btn" class="save-btn">Done</button>
+                </div>
+            </div>
+        </div>
+
+    </div> <div id="profiles-compliance-settings-modal" class="settings-modal-backdrop hidden">
+        <div class="settings-modal-container !max-w-xl">
+            <div class="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
+                <h2 class="text-lg font-bold text-gray-200 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M12 6V3m0 18v-3m6-7h3m-18 0h3M5.64 5.64l-1.42-1.42m12.72 12.72l-1.42-1.42M18.36 5.64l-1.42 1.42m-12.72 12.72l-1.42-1.42"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    Compliance Score Settings
+                </h2>
+                <button id="close-compliance-settings-modal-btn" class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
+            </div>
+    
+            <div class="p-6 text-sm space-y-6">
+                <p class="text-gray-400">
+                    Adjust the importance of each metric in the final compliance calculation. The total weight must equal 100%.
+                </p>
+                <div id="compliance-weights-container" class="space-y-4">
+                    </div>
+                <div class="text-right font-bold text-lg mt-4">
+                    Total: <span id="compliance-total-weight">100%</span>
+                </div>
+            </div>
+    
+            <div class="flex justify-end items-center p-4 mt-auto border-t border-gray-700 bg-gray-800 flex-shrink-0">
+                <button id="save-compliance-settings-btn" class="save-btn">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="profiles-threshold-settings-modal" class="settings-modal-backdrop hidden">
+        <div class="settings-modal-container !max-w-xl">
+            <div class="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
+                <h2 class="text-lg font-bold text-gray-200 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426-1.756-2.924-1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Threshold Settings
+                </h2>
+                <button id="close-threshold-settings-modal-btn" class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
+            </div>
+    
+            <div id="threshold-modal-content" class="p-6 text-sm space-y-6 overflow-y-auto">
+                <div class="setting-item">
+                    <label for="low-rpm-threshold-input" class="setting-label flex items-center">
+                        Low RPM Threshold
+                        <div class="relative group ml-2">
+                            <span class="text-gray-500 cursor-help"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></span>
+                            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-60 bg-gray-900 text-gray-300 text-xs rounded-md shadow-lg p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible pointer-events-none z-50">
+                                Loads with an RPM below this value will be flagged as 'Low RPM'.
+                            </div>
+                        </div>
+                    </label>
+                    <div class="input-dollar-sign-wrapper">
+                        <span>$</span>
+                        <input id="low-rpm-threshold-input" type="number" step="0.01" class="settings-input">
+                    </div>
+                </div>
+                
+                <div class="border-t border-gray-700 my-4"></div>
+
+                <div>
+                    <h4 class="settings-section-title !mb-2">"Good Move" Thresholds</h4>
+                     <p class="text-xs text-gray-400 mb-4">A "Moved Load" is a <span class="font-bold text-green-400">Good Move</span> if the driver's gross pay for that week (excluding the moved load) is below the threshold. Otherwise, it's a <span class="font-bold text-red-400">Bad Move</span>.</p>
+                    <div id="good-move-thresholds-container" class="space-y-3">
+                        </div>
+                </div>
+            </div>
+    
+            <div class="flex justify-end items-center p-4 mt-auto border-t border-gray-700 bg-gray-800 flex-shrink-0">
+                <button id="save-threshold-settings-btn" class="save-btn">Done</button>
+            </div>
+        </div>
+    </div>
+
 <script src="https://d3js.org/topojson.v3.min.js"></script>
 <script type="module" src="loads/loads_maps.js"></script>
 <script type="module" src="main.js"></script>
