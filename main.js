@@ -1,9 +1,11 @@
-import { HISTORICAL_STUBS_URL } from './config.js';
-import { renderStubsUI, initializeStubsEventListeners } from './stubs/stubs_ui.js';
-import { renderLoadsUI, initializeLoadsEventListeners, renderLoadsAnalyticsUI, initializeAnalyticsEventListeners } from './loads/loads_ui.js';
+// 1. DISPEČ TEST/main.js
+
+import { HISTORICAL_STUBS_URL, DRIVER_COUNT_LIVE_URL } from './config.js';
+import { renderLoadsAnalyticsUI, initializeAnalyticsEventListeners } from './loads/loads_ui.js';
 import { appState, allColumns, setDraggedColumnId, setDraggedViewName } from './state.js';
 import { generateAllColumns } from './config.js';
 import { renderTeamProfileUI } from './profiles/profiles_ui.js';
+import { fetchProfileData } from './profiles/profiles_api.js'; // <-- This line fixes the error
 import {
     fetchAllHistoricalData,
     processDataForMode,
@@ -23,7 +25,6 @@ import {
     updateDriverTypeSwitcherUI,
     requestStubsSort
 } from './rankings/rankings_ui.js';
-import { precomputeAllDriverFlags } from './stubs/stubs_api.js';
 
 // --- Main Application Flow ---
 
@@ -32,27 +33,37 @@ const initializeApp = async () => {
     renderUI();
 
     try {
-        const savedLoadsSettings = JSON.parse(localStorage.getItem('loadsSettings'));
-        if (savedLoadsSettings) {
-            Object.assign(appState.loads, savedLoadsSettings);
-        }
-        await fetchAllHistoricalData();
-        await fetchLoadsData();
-        await fetchHistoricalStubs();
-
-        // VVVV PASTE THE NEW LINE RIGHT HERE VVVV
-        precomputeAllDriverFlags(); // This performs the heavy flag calculations once on load.
+        await Promise.all([
+            fetchAllHistoricalData(),
+            fetchProfileData(), 
+            fetchHistoricalStubs(),
+            fetchLiveDriverCounts()
+        ]);
 
         if (appState.allHistoricalData.length === 0) {
-            throw new Error("No historical data available after fetch.");
+            console.warn("No historical data for the RANKINGS view was found. The Rankings dashboard may be empty, but other sections will work.");
         }
         
-        loadDefaultView(); // Load default view settings
-        processDataForMode(); // Process data for the default mode
-        getOrComputeHistoricalMetrics(); // Pre-compute metrics
+        appState.profiles.fleetHealthCache = {}; // <-- ADD THIS LINE
 
-        appState.allDispatcherNames = [...new Set(appState.allHistoricalData.map(d => d.dispatcherName).filter(Boolean))].sort();
-        appState.allTeamNames = [...new Set(appState.allHistoricalData.map(d => d.dispatcherTeam).filter(Boolean))].sort();
+        loadDefaultView();
+        processDataForMode();
+        getOrComputeHistoricalMetrics();
+
+        const excludedNames = [
+            'cletus spuckler',
+            'ralph wiggum',
+            'seymour skinner',
+            'med disp disp'
+        ];
+
+        appState.allDispatcherNames = [...new Set(appState.allHistoricalData.map(d => d.dispatcherName).filter(Boolean))]
+            .filter(name => !excludedNames.includes(name.toLowerCase()))
+            .sort();
+
+        appState.allTeamNames = [...new Set(appState.allHistoricalData.map(d => d.dispatcherTeam).filter(Boolean))]
+            .filter(name => !excludedNames.includes(name.toLowerCase()))
+            .sort();
         
         if (appState.data.length > 0 && appState.selectedBumpEntities.length === 0) {
             appState.selectedBumpEntities = appState.data.slice(0, 5).map(d => d.entityName);
@@ -66,12 +77,7 @@ const initializeApp = async () => {
         populateDateDropdown();
         renderUI();
         window.requestStubsSort = requestStubsSort;
-        addEventListeners(); // For rankings related listeners
-        initializeLoadsEventListeners(); // For loads related listeners
-        initializeStubsEventListeners(); // For stubs related listeners
-        if (appState.currentView === 'loads') {
-            renderLoadsUI(); // Render loads initially if it's the current view
-        }
+        addEventListeners();
     }
 };
 
@@ -187,37 +193,21 @@ const updateNavActiveState = () => {
     const sidebar = document.getElementById('sidebar');
     const isMinimized = sidebar.classList.contains('minimized');
 
-    // Remove all active states first
     document.querySelectorAll('.nav-item.active, .sub-nav-item.active').forEach(item => {
         item.classList.remove('active');
     });
 
     const currentView = appState.currentView;
     let parentMenuItem = null;
-    let subMenuItem = null;
 
-    if (currentView.startsWith('loads-')) {
-        parentMenuItem = document.getElementById('loads-menu-item');
-        subMenuItem = parentMenuItem.querySelector(`[data-view="${currentView}"]`);
-    } else if (currentView.startsWith('profiles-')) {
-        // Future-proofing for profiles
+    if (currentView.startsWith('profiles-')) {
         parentMenuItem = document.getElementById('profiles-menu-item');
-        subMenuItem = parentMenuItem.querySelector(`[data-view="${currentView}"]`);
-    } else { // 'rankings' or other top-level views
+    } else {
         parentMenuItem = document.getElementById(`${currentView}-menu-item`);
     }
-
-    if (isMinimized) {
-        if (parentMenuItem) {
-            parentMenuItem.querySelector('.nav-item').classList.add('active');
-        }
-    } else {
-        if (subMenuItem) {
-            subMenuItem.classList.add('active');
-            parentMenuItem.querySelector('.nav-item').classList.add('active'); // Also keep parent active
-        } else if (parentMenuItem) {
-            parentMenuItem.querySelector('.nav-item').classList.add('active');
-        }
+    
+    if (parentMenuItem) {
+        parentMenuItem.querySelector('.nav-item').classList.add('active');
     }
 };
 
@@ -226,46 +216,29 @@ const addEventListeners = () => {
     const sidebar = document.getElementById('sidebar');
     const rankingsMenuItem = document.getElementById('rankings-menu-item');
     const loadsMenuItem = document.getElementById('loads-menu-item');
-    const profilesMenuItem = document.getElementById('profiles-menu-item');
-    const stubsMenuItem = document.getElementById('stubs-menu-item'); // Get the stubs menu item
-
-    const rankingsContent = document.getElementById('main-content');
-    const keyMetricsOverview = document.getElementById('key-metrics-overview');
-    const loadsContent = document.getElementById('loads-content');
-    const loadsAnalyticsContent = document.getElementById('loads-analytics-content');
-    const stubsContent = document.getElementById('stubs-content'); // Get the stubs content div
+    const fleetHealthMenuItem = document.getElementById('fleet-health-menu-item');
 
     const switchView = async (view) => {
         appState.currentView = view;
     
-        // Hide all content panels first
         document.getElementById('main-content').classList.add('hidden');
         document.getElementById('key-metrics-overview').classList.add('hidden');
-        document.getElementById('loads-content').classList.add('hidden');
         document.getElementById('loads-analytics-content').classList.add('hidden');
-        document.getElementById('stubs-content').classList.add('hidden');
         document.getElementById('profiles-content').classList.add('hidden');
     
-        // Show the correct content panel based on the view
         if (view === 'rankings') {
             document.getElementById('main-content').classList.remove('hidden');
             document.getElementById('key-metrics-overview').classList.remove('hidden');
             renderUI();
-        } else if (view === 'loads-table') {
-            document.getElementById('loads-content').classList.remove('hidden');
-            renderLoadsUI();
-        } else if (view === 'loads-analytics') {
+        } else if (view === 'loads') {
             document.getElementById('loads-analytics-content').classList.remove('hidden');
             setTimeout(() => {
                 renderLoadsAnalyticsUI();
                 initializeAnalyticsEventListeners();
             }, 0);
-        } else if (view === 'stubs') {
-            document.getElementById('stubs-content').classList.remove('hidden');
-            renderStubsUI();
-        } else if (view.startsWith('profiles-')) { // Simplified this to handle all profile views
+        } else if (view === 'fleet-health') {
             document.getElementById('profiles-content').classList.remove('hidden');
-            renderTeamProfileUI(); // Assuming this is the main entry for all profile views for now
+            renderTeamProfileUI();
         }
     
         updateNavActiveState();
@@ -274,47 +247,18 @@ const addEventListeners = () => {
     rankingsMenuItem.addEventListener('click', (e) => {
         e.preventDefault();
         switchView('rankings');
-        // Close other submenus
-        profilesMenuItem.classList.remove('open');
-        loadsMenuItem.classList.remove('open');
     });
 
-    stubsMenuItem.addEventListener('click', (e) => {
+    loadsMenuItem.addEventListener('click', (e) => {
         e.preventDefault();
-        switchView('stubs');
-        // Close other submenus
-        profilesMenuItem.classList.remove('open');
-        loadsMenuItem.classList.remove('open');
+        switchView('loads');
     });
 
-    const createSubmenuToggle = (menuItem) => {
-        menuItem.querySelector('a.nav-item').addEventListener('click', (e) => {
-            e.preventDefault();
-            if (sidebar.classList.contains('minimized')) {
-                // If minimized, clicking the parent should switch to a default child view
-                const firstSubmenuItem = menuItem.querySelector('.sub-nav-item');
-                if (firstSubmenuItem) {
-                    switchView(firstSubmenuItem.dataset.view);
-                }
-            } else {
-                // If expanded, toggle the submenu
-                menuItem.classList.toggle('open');
-            }
-        });
+    fleetHealthMenuItem.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchView('fleet-health');
+    });
 
-        menuItem.querySelectorAll('.sub-nav-item').forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation(); // Stop click from bubbling to the parent 'a'
-                switchView(e.target.dataset.view);
-            });
-        });
-    };
-
-    createSubmenuToggle(profilesMenuItem);
-    createSubmenuToggle(loadsMenuItem);
-
-    // --- Debounce Helper Function ---
     const debounce = (func, delay) => {
         let timeout;
         return function(...args) {
@@ -323,7 +267,6 @@ const addEventListeners = () => {
         };
     };
 
-    // --- Chart Redraw Logic ---
     const redrawAllCharts = async () => {
         const { renderD3BumpChart, renderIndividualEntityChart } = await import('./rankings/rankings_ui.js');
         const { calculateBumpChartData, getFilteredBumpChartEntityNames } = await import('./rankings/rankings_api.js');
@@ -335,14 +278,12 @@ const addEventListeners = () => {
     };
     const debouncedRedraw = debounce(redrawAllCharts, 25);
 
-    // --- Resize Observer ---
     const mainContentArea = document.getElementById('main-content-area');
     if (mainContentArea) {
         const resizeObserver = new ResizeObserver(debouncedRedraw);
         resizeObserver.observe(mainContentArea);
     }
 
-    // --- Other Event Listeners from the original function ---
     document.querySelectorAll('.ranking-mode-option').forEach(option => {
         option.addEventListener('click', (e) => {
             e.preventDefault();
@@ -465,16 +406,13 @@ const initializeUIEventListeners = () => {
         toggleButton.addEventListener('click', () => {
             const isOpen = !sidebar.classList.contains('minimized');
             if (isOpen) {
-                // If we are closing it, close all submenus
                 document.querySelectorAll('#sidebar li.open').forEach(li => li.classList.remove('open'));
             }
             sidebar.classList.toggle('minimized');
-            // Re-evaluate active state display after toggling
             updateNavActiveState();
         });
     }
 
-    // Loading Screen Tips Logic
     const tips = [
         "Did you know? The 'Driver Happiness' metric is a combination of Net Pay and Miles Driven, rewarding dispatchers who balance both.",
         "Tip: Use the '4W' columns in the main table to spot long-term performance trends, not just weekly changes.",
@@ -520,45 +458,17 @@ const initializeUIEventListeners = () => {
         });
     }
     
-    showTip(currentTipIndex); // Show the first tip immediately
+    showTip(currentTipIndex);
     setInterval(() => {
         currentTipIndex = (currentTipIndex + 1) % tips.length;
         showTip(currentTipIndex);
     }, 5000);
-    // Set initial active state on load
     updateNavActiveState();
 };
 
-// This new function will fetch data ONLY for the Loads dashboard
-const fetchLoadsData = async () => {
-    // This is your new URL specifically for the LOADS data
-    const loadsUrl = "https://script.google.com/macros/s/AKfycbws7QzIImo3MaX-5Hf8PoAqrBevHEjzdM8vjyn7mUgQVO5mEinkUkAgyod4JttKxrht/exec";
-    
-    try {
-        const response = await fetch(loadsUrl);
-        if (!response.ok) {
-            throw new Error(`HTTP error for loads! status: ${response.status}`);
-        }
-        const result = await response.json();
-
-        if (result.error) {
-            throw new Error(result.error);
-        }
-        
-        // Save the live data into the application state
-        appState.loads.data = result.loadsData || [];
-        appState.loads.spreadsheetTimezone = result.spreadsheetTimezone || 'UTC';
-
-    } catch (e) {
-        console.error("Error fetching loads data:", e);
-        appState.error = (appState.error || "") + " Failed to load LOADS data. " + e.message;
-    }
-};
-
-// Fetches the historical stubs data
 const fetchHistoricalStubs = async () => {
     try {
-        const response = await fetch(HISTORICAL_STUBS_URL); // Uses the config variable
+        const response = await fetch(HISTORICAL_STUBS_URL);
         if (!response.ok) {
             throw new Error(`HTTP error for historical stubs! status: ${response.status}`);
         }
@@ -568,11 +478,32 @@ const fetchHistoricalStubs = async () => {
             throw new Error(result.error);
         }
 
-        appState.historicalStubsData = result.historicalData || [];
+        appState.loads.historicalStubsData = result.historicalData || [];
 
     } catch (e) {
         console.error("Error fetching historical stubs:", e);
         appState.error = (appState.error || "") + " Failed to load Historical Stubs. " + e.message;
+    }
+};
+
+const fetchLiveDriverCounts = async () => {
+    try {
+        const response = await fetch(DRIVER_COUNT_LIVE_URL);
+        if (!response.ok) {
+            throw new Error(`HTTP error for live driver counts! status: ${response.status}`);
+        }
+        const result = await response.json();
+
+        if (result.error) {
+            throw new Error(result.error);
+        }
+
+        // The endpoint returns an object with a "data" key holding the array
+        appState.profiles.liveDriverCountData = result || [];
+
+    } catch (e) {
+        console.error("Error fetching live driver counts:", e);
+        appState.error = (appState.error || "") + " Failed to load Live Driver Counts. " + e.message;
     }
 };
 
