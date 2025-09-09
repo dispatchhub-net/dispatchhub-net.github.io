@@ -9,6 +9,9 @@ export const LOADS_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw
 // This URL is for the new HISTORICAL STUBS data
 export const HISTORICAL_STUBS_URL = "https://script.google.com/macros/s/AKfycbyzlwW-ZpF5kIPwVS9I1l5SDa2cpwSkCAzqY3N9-sLuOn1FcUAcuNF9GCrjhoHcMQIpRw/exec";
 
+// This URL is for the live driver counts used in Profiles
+export const DRIVER_COUNT_LIVE_URL = "https://script.google.com/macros/s/AKfycbzUWzLy4OWSCqQhZlS3dYBLIWaM0EQ3M9ijpKj4CulzTtqSZbYihx72jEFuLbLPuvevaA/exec";
+
 export const coreMetrics = [
     { id: 'pNet', label: 'Net', unit: '%', lowerIsWorse: true, color: 'text-yellow-100', color4W: 'text-green-100' },
     { id: 'pDriverGross', label: 'Driver Gross', unit: '%', lowerIsWorse: true, color: 'text-yellow-100', color4W: 'text-green-100' },
