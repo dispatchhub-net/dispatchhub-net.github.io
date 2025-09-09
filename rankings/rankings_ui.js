@@ -365,8 +365,10 @@ const renderKeyMetrics = () => {
         
         // --- THIS IS THE CORRECTED LOGIC ---
         const currentField = is4wk ? `${baseId}_4wkAvg` : `${baseId}_current`;
-        const prevField = is4wk ? `${baseId}_4wkAvg` : baseId; // For prev week, use base ID or 4wk avg
-        
+        // FIX: The key for the previous week's data depends on the ranking mode.
+        // Team data has a "_current" suffix, while dispatcher data does not.
+        const prevField = is4wk ? `${baseId}_4wkAvg` : (appState.rankingMode === 'team' ? `${baseId}_current` : baseId);
+
         const iconMap = {
             pDriverGross: `<div class="p-0.5 rounded-full bg-indigo-600 bg-opacity-20 text-indigo-400"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>`,
             pNet: `<div class="p-0.5 rounded-full bg-lime-600 bg-opacity-20 text-lime-400"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>`,
@@ -396,9 +398,9 @@ const renderKeyMetrics = () => {
                 const currentValues = currentData.map(d => d[currentField]).filter(v => typeof v === 'number');
                 currentValue = calculateMedian(currentValues);
                 
-                // For previous value, it's more complex, so for now we simplify and accept it might not be perfect
-                const prevValues = prevWeekAggregated.map(d => d[prevField] ?? d[baseId]).filter(v => typeof v === 'number');
-                prevValue = calculateMedian(prevValues);
+                const prevValues = prevWeekAggregated.map(d => d[prevField]).filter(v => typeof v === 'number' && !isNaN(v));
+                // FIX: Check if there are previous values before calculating median to avoid treating 0 as a value
+                prevValue = prevValues.length > 0 ? calculateMedian(prevValues) : null;
 
                 if (baseId === 'rpmAll') {
                      cardData.displayValue = `$${(isNaN(currentValue) || currentValue === null ? 0 : currentValue).toFixed(2)}`;
@@ -1307,7 +1309,6 @@ const renderStubsTable = () => {
     }
 
     if (appState.rankingMode === 'dispatcher') {
-        // Use the consolidated stubs directly from the selected entity object
         const driverStubs = entity.stubs || [];
 
         let filteredDriverStubs = driverStubs.filter(stub => {
@@ -1330,6 +1331,7 @@ const renderStubsTable = () => {
             { label: 'Company Happiness', key: 'cashFlow', type: 'number' },
             { label: 'Criteria', key: 'criteria', type: 'number' },
             { label: 'All Miles', key: 'all_miles', type: 'number' },
+            { label: 'RPM (All)', key: 'rpm', type: 'number' },
             { label: 'Margin ($)', key: 'margin_dollar', type: 'number' },
             { label: 'Driver Gross ($)', key: 'driver_gross', type: 'number' }
         ];
@@ -1370,26 +1372,28 @@ const renderStubsTable = () => {
                 <tbody class="divide-y divide-gray-700">
                     ${filteredDriverStubs.map(stub => {
                         return `<tr>
-                            ${headers.map(h => {
-                                const key = h.key;
-                                let value = stub[key];
-                                let displayValue = (value === null || value === undefined) ? '-' : value;
-                            
-                                if (key === 'criteria') {
-                                    const criteriaValue = ((stub['netDriverGrossPercentage'] || 0) + (stub['cashFlow'] || 0)) / 2;
-                                    displayValue = formatPercentage(criteriaValue);
-                                } else if (typeof value === 'number') {
-                                    if (['driver_gross', 'margin_dollar'].includes(key)) {
-                                        displayValue = `$${value.toFixed(0)}`;
-                                    } else if (['netPercentage', 'driverGross', 'miles', 'netDriverGrossPercentage', 'cashFlow'].includes(key)) {
-                                        displayValue = formatPercentage(value);
-                                    } else {
-                                        displayValue = value.toFixed(0);
-                                    }
+                        ${headers.map(h => {
+                            const key = h.key;
+                            let value = stub[key];
+                            let displayValue = (value === null || value === undefined) ? '-' : value;
+                        
+                            if (key === 'criteria') {
+                                const criteriaValue = ((stub['netDriverGrossPercentage'] || 0) + (stub['cashFlow'] || 0)) / 2;
+                                displayValue = formatPercentage(criteriaValue);
+                            } else if (typeof value === 'number') {
+                                if (key === 'rpm') {
+                                    displayValue = `$${value.toFixed(2)}`;
+                                } else if (['driver_gross', 'margin_dollar'].includes(key)) {
+                                    displayValue = `$${value.toFixed(0)}`;
+                                } else if (['netPercentage', 'driverGross', 'miles', 'netDriverGrossPercentage', 'cashFlow'].includes(key)) {
+                                    displayValue = formatPercentage(value);
+                                } else {
+                                    displayValue = value.toFixed(0);
                                 }
-                            
-                                return `<td class="px-4 py-2 whitespace-nowrap text-sm text-gray-200">${displayValue}</td>`;
-                            }).join('')}
+                            }
+                        
+                            return `<td class="px-4 py-2 whitespace-nowrap text-sm text-gray-200">${displayValue}</td>`;
+                        }).join('')}
                         </tr>`;
                     }).join('')}
                 </tbody>
@@ -1912,15 +1916,12 @@ export const renderD3BumpChart = (bumpChartData, selectedEntityNames) => {
     chartContainer.innerHTML = '';
     legendContainer.innerHTML = '';
 
-    if (!chartContainer || chartContainer.clientWidth <= 0 || chartContainer.clientHeight <= 0) {
-        return; // Exit if the container has no dimensions yet
-    }
+    if (!chartContainer || chartContainer.clientWidth <= 0 || chartContainer.clientHeight <= 0) return;
 
     const highlight = (entityName) => {
         svg.selectAll('path.entity-line').classed('dimmed', true);
         d3.selectAll('#bump-chart-legend .chart-legend-item').classed('dimmed', true);
         svg.selectAll('circle.entity-dot').classed('dimmed', true);
-
         if (entityName) {
             const safeClassName = entityName.replace(/\s/g, '-');
             svg.select(`path.line-${safeClassName}`).classed('dimmed', false).raise();
@@ -1943,10 +1944,7 @@ export const renderD3BumpChart = (bumpChartData, selectedEntityNames) => {
     `).join('');
 
     d3.selectAll('#bump-chart-legend .chart-legend-item')
-        .on('mouseover', function() {
-            const entityName = d3.select(this).attr('data-entity');
-            highlight(entityName);
-        })
+        .on('mouseover', function() { highlight(d3.select(this).attr('data-entity')); })
         .on('mouseout', unhighlight);
 
     if (bumpChartData.length === 0 || selectedEntityNames.length === 0) {
@@ -1964,20 +1962,13 @@ export const renderD3BumpChart = (bumpChartData, selectedEntityNames) => {
         .append('g')
         .attr('transform', `translate(${margin.left},${margin.top})`);
 
-    let allRanks = [];
-    selectedEntityNames.forEach(name => {
-        bumpChartData.forEach(d => {
-            if (typeof d[name] === 'number' && !isNaN(d[name])) {
-                allRanks.push(d[name]);
-            }
-        });
-    });
+    const allRanks = selectedEntityNames.flatMap(name =>
+        bumpChartData.map(d => d[name]?.rank).filter(rank => typeof rank === 'number')
+    );
 
     const domainX = d3.extent(bumpChartData, d => d.date);
-    const domainY = d3.extent(allRanks);
-
-    if (!domainX[0] || !domainX[1] || !domainY[0] || !domainY[1] || isNaN(domainY[0]) || isNaN(domainY[1])) {
-        chartContainer.innerHTML = '<p class="text-center text-gray-400">Not enough valid data to render chart for selected criteria/entities.</p>';
+    if (!domainX[0] || !domainX[1] || allRanks.length === 0) {
+        chartContainer.innerHTML = '<p class="text-center text-gray-400">Not enough valid data to render chart.</p>';
         return;
     }
 
@@ -1985,195 +1976,72 @@ export const renderD3BumpChart = (bumpChartData, selectedEntityNames) => {
     const xScale = d3.scaleTime().domain(domainX).range([0, width]);
     const yScale = d3.scaleLinear().domain([maxVisibleRank + 0.5, 0.5]).range([height, 0]);
 
-    let yTickValues = [];
-    const minRankVal = 1;
-    const maxRankVal = maxVisibleRank;
-    const desiredTotalTicks = 5;
+    const xAxis = d3.axisBottom(xScale).ticks(d3.timeWeek.every(1)).tickFormat(d3.timeFormat("%b %d")).tickSizeOuter(0);
+    const yAxis = d3.axisLeft(yScale).ticks(Math.min(maxVisibleRank, 10)).tickFormat(d3.format("d"));
 
-    if (minRankVal <= maxRankVal) {
-        yTickValues.push(minRankVal);
-        if (maxRankVal !== minRankVal) {
-            yTickValues.push(maxRankVal);
-        }
-    }
-
-    if (maxRankVal > minRankVal && desiredTotalTicks > yTickValues.length) {
-        const numToAdd = desiredTotalTicks - yTickValues.length;
-        if (numToAdd > 0) {
-            const stepSize = Math.max(1, Math.floor((maxRankVal - minRankVal) / (numToAdd + 1)));
-            for (let i = 1; i <= numToAdd; i++) {
-                const candidate = minRankVal + i * stepSize;
-                if (candidate > minRankVal && candidate < maxRankVal) {
-                    const isClose = yTickValues.some(existingTick => Math.abs(existingTick - candidate) < stepSize / 2);
-                    if (!isClose) {
-                        yTickValues.push(candidate);
-                    }
-                }
-            }
-        }
-    }
-    yTickValues = [...new Set(yTickValues)].sort((a, b) => a - b).map(Math.round);
-
-    let xTickValues = [];
-    if (bumpChartData.length > 0) {
-        const firstDate = bumpChartData[0].date;
-        const lastDate = bumpChartData[bumpChartData.length - 1].date;
-        xTickValues.push(firstDate);
-
-        const numDates = bumpChartData.length;
-        const desiredIntermediateDates = 4;
-
-        if (numDates > 2) {
-            const totalDays = (lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24);
-            const idealIntervalDays = totalDays / (desiredIntermediateDates);
-
-            for (let i = 1; i <= desiredIntermediateDates; i++) {
-                const dateCandidate = new Date(firstDate.getTime() + i * idealIntervalDays * (1000 * 60 * 60 * 24));
-                let closestDate = bumpChartData.reduce((prev, curr) => {
-                    return (Math.abs(curr.date.getTime() - dateCandidate.getTime()) < Math.abs(prev.date.getTime() - dateCandidate.getTime()) ? curr : prev);
-                }).date;
-                if (!xTickValues.some(d => d.getTime() === closestDate.getTime()) && closestDate.getTime() !== lastDate.getTime()) {
-                    xTickValues.push(closestDate);
-                }
-            }
-        }
-        if (lastDate.getTime() !== firstDate.getTime()) {
-            xTickValues.push(lastDate);
-        }
-    }
-    xTickValues = [...new Set(xTickValues)].sort((a,b) => a.getTime() - b.getTime());
-
-    const xAxis = d3.axisBottom(xScale).tickValues(xTickValues).tickFormat(d3.timeFormat("%Y-%m-%d")).tickSizeOuter(0);
-    const yAxis = d3.axisLeft(yScale).tickValues(yTickValues).tickSizeOuter(0).tickFormat(d3.format("d"));
-
-    svg.append('g').attr('transform', `translate(0,${height})`).call(xAxis).selectAll('text').style('fill', '#a0aec0').style('font-size', '12px').style("text-anchor", "middle");
+    svg.append('g').attr('transform', `translate(0,${height})`).call(xAxis).selectAll('text').style('fill', '#a0aec0').style('font-size', '12px');
     svg.append('g').call(yAxis).selectAll('text').style('fill', '#a0aec0').style('font-size', '12px');
-    svg.append('g').attr('class', 'grid').call(d3.axisLeft(yScale).tickValues(yTickValues).tickSize(-width).tickFormat('')).select('.domain').remove();
+    svg.append('g').attr('class', 'grid').call(d3.axisLeft(yScale).tickSize(-width).tickFormat('')).select('.domain').remove();
     svg.selectAll('.grid .tick line').attr('stroke', '#4a5568').attr('stroke-dasharray', '3 3');
 
     selectedEntityNames.forEach(name => {
         const line = d3.line()
             .x(d => xScale(d.date))
-            .y(d => yScale(d[name]))
-            .defined(d => d[name] !== undefined && d[name] !== null)
+            .y(d => yScale(d[name]?.rank))
+            .defined(d => d[name] && d[name].rank != null)
             .curve(d3.curveMonotoneX);
 
-        svg.append('path')
-            .datum(bumpChartData)
-            .attr('fill', 'none')
-            .attr('stroke', appState.entityColors[name] || '#ccc')
-            .attr('stroke-width', 2.5)
-            .attr('d', line)
+        svg.append('path').datum(bumpChartData)
+            .attr('fill', 'none').attr('stroke', appState.entityColors[name] || '#ccc')
+            .attr('stroke-width', 2.5).attr('d', line)
             .attr('class', `entity-line line-${name.replace(/\s/g, '-')}`);
 
         svg.selectAll(`circle.dot-${name.replace(/\s/g, '-')}`)
-            .data(bumpChartData.filter(d => typeof d[name] === 'number' && !isNaN(d[name])))
-            .join("circle")
-            .attr("class", `entity-dot dot-${name.replace(/\s/g, '-')}`)
-            .attr("r", 4)
-            .attr("cx", d => xScale(d.date))
-            .attr("cy", d => yScale(d[name]))
+            .data(bumpChartData.filter(d => d[name] && typeof d[name].rank === 'number'))
+            .join("circle").attr("class", `entity-dot dot-${name.replace(/\s/g, '-')}`)
+            .attr("r", 4).attr("cx", d => xScale(d.date)).attr("cy", d => yScale(d[name].rank))
             .attr("fill", appState.entityColors[name] || '#ccc');
     });
-    const focus = svg.append("g")
-                .attr("class", "focus")
-                .style("display", "none");
 
-            focus.append("line")
-                .attr("class", "x-hover-line hover-line")
-                .attr("y1", 0)
-                .attr("y2", height)
-                .attr("stroke", "#9ca3af")
-                .attr("stroke-width", 2);
+    const focus = svg.append("g").attr("class", "focus").style("display", "none");
+    focus.append("line").attr("class", "x-hover-line").attr("y1", 0).attr("y2", height).attr("stroke", "#9ca3af").attr("stroke-width", 1.5).attr("stroke-dasharray", "3,3");
+    const tooltip = d3.select("body").selectAll(".d3-tooltip").data([null]).join("div").attr("class", "d3-tooltip");
 
-                const tooltip = d3.select("body").selectAll(".d3-tooltip").data([null]).join("div").attr("class", "d3-tooltip");
+    svg.append("rect").attr("width", width).attr("height", height).style("fill", "none").style("pointer-events", "all")
+        .on("mouseover", () => { focus.style("display", null); tooltip.style("opacity", 1); })
+        .on("mouseout", () => { focus.style("display", "none"); tooltip.style("opacity", 0); })
+        .on("mousemove", function(event) {
+            const bisectDate = d3.bisector(d => d.date).left;
+            const x0 = xScale.invert(d3.pointer(event, this)[0]);
+            const i = bisectDate(bumpChartData, x0, 1);
+            const d0 = bumpChartData[i - 1], d1 = bumpChartData[i];
+            const d = (d1 && d0) ? (x0 - d0.date > d1.date - x0 ? d1 : d0) : (d0 || d1);
+            if (!d) return;
 
-            svg.append("rect")
-                .attr("class", "overlay")
-                .attr("width", width)
-                .attr("height", height)
-                .attr("fill", "transparent")
-                .on("mouseover", () => { focus.style("display", null); tooltip.style("opacity", 1); })
-                .on("mouseout", () => {
-                    focus.style("display", "none");
-                    tooltip.style("opacity", 0);
-                    selectedEntityNames.forEach(name => {
-                        svg.selectAll(`circle.dot-${name.replace(/\s/g, '-')}`)
-                            .attr("r", 4)
-                            .attr("stroke", "none");
-                    });
-                })
-                .on("mousemove", function(event) {
-                    const x0 = xScale.invert(d3.pointer(event)[0]);
-                    const bisectDate = d3.bisector(p => p.date.getTime()).left;
-                    const i = bisectDate(bumpChartData, x0, 1);
+            focus.select(".x-hover-line").attr("transform", `translate(${xScale(d.date)},0)`);
+            const metricInfo = coreMetrics.find(m => m.id === appState.bumpMetric.replace('_4wkAvg', ''));
 
-                    const d0 = i > 0 ? bumpChartData[i - 1] : null;
-                    const d1 = i < bumpChartData.length ? bumpChartData[i] : null;
+            let tooltipHtml = `<strong>Date:</strong> ${d3.timeFormat("%Y-%m-%d")(d.date)}<br/>`;
+            selectedEntityNames.forEach(name => {
+                const entityData = d[name];
+                if (entityData) {
+                    let formattedValue = '';
+                    if (metricInfo && metricInfo.unit === '%') formattedValue = `(${(entityData.value * 100).toFixed(1)}%)`;
+                    else if (metricInfo && metricInfo.unit === '$') formattedValue = `($${entityData.value.toFixed(2)})`;
+                    else if (typeof entityData.value === 'number') formattedValue = `(${entityData.value.toFixed(0)})`;
+                    tooltipHtml += `<span style="color:${appState.entityColors[name]}">${name}</span>: Rank ${entityData.rank} ${formattedValue}<br/>`;
+                }
+            });
 
-                    let d;
-                    if (d0 && d1) {
-                        d = x0 - d0.date.getTime() > d1.date.getTime() - x0 ? d1 : d0;
-                    } else if (d0) {
-                        d = d0;
-                    } else if (d1) {
-                        d = d1;
-                    } else {
-                        return;
-                    }
-
-                    if (!d || !d.date) return;
-
-                    focus.select(".x-hover-line")
-                        .attr("transform", `translate(${xScale(d.date)},0)`);
-
-                    selectedEntityNames.forEach(name => {
-                        svg.selectAll(`circle.dot-${name.replace(/\s/g, '-')}`)
-                            .attr("r", 4)
-                            .attr("stroke", "none");
-                    });
-
-                    selectedEntityNames.forEach(name => {
-                        svg.selectAll(`circle.dot-${name.replace(/\s/g, '-')}`).filter(p => p.date.getTime() === d.date.getTime())
-                            .attr("r", 8)
-                            .attr("stroke", "white")
-                            .attr("stroke-width", 2);
-                    });
-
-                    let tooltipHtml = `<strong>Date:</strong> ${d3.timeFormat("%Y-%m-%d")(d.date)}<br/>`;
-                    selectedEntityNames.forEach(name => {
-                        const rank = d[name];
-                        if (rank !== undefined && rank !== null) {
-                            tooltipHtml += `<span style="color:${appState.entityColors[name]}">${name}</span>: Rank ${rank}<br/>`;
-                        }
-                    });
-
-                    tooltip
-                        .html(tooltipHtml);
-
-                    const tooltipWidth = tooltip.node().offsetWidth;
-                    const tooltipHeight = tooltip.node().offsetHeight;
-
-                    let tooltipLeft = event.pageX + 15;
-                    let tooltipTop = event.pageY - 28;
-
-                    if (tooltipLeft + tooltipWidth > window.innerWidth + window.scrollX - 20) {
-                        tooltipLeft = window.innerWidth + window.scrollX - tooltipWidth - 20;
-                    }
-                    if (tooltipTop + tooltipHeight > window.innerHeight + window.scrollY - 20) {
-                        tooltipTop = window.innerHeight + window.scrollY - tooltipHeight - 20;
-                    }
-                    if (tooltipTop < window.scrollY + 10) {
-                        tooltipTop = window.scrollY + 10;
-                    }
-                    if (tooltipLeft < window.scrollX + 10) {
-                        tooltipLeft = window.scrollX + 10;
-                    }
-
-                    tooltip
-                        .style("left", tooltipLeft + "px")
-                        .style("top", tooltipTop + "px");
-                });
+            tooltip.html(tooltipHtml);
+            const tooltipWidth = tooltip.node().offsetWidth;
+            const tooltipHeight = tooltip.node().offsetHeight;
+            let tooltipLeft = event.pageX + 15;
+            let tooltipTop = event.pageY - 28;
+            if (tooltipLeft + tooltipWidth > window.innerWidth) tooltipLeft = event.pageX - tooltipWidth - 15;
+            if (tooltipTop < 0) tooltipTop = event.pageY + 15;
+            tooltip.style("left", `${tooltipLeft}px`).style("top", `${tooltipTop}px`);
+        });
 };
 
 // --- Event Handlers & State Changers ---
@@ -2367,5 +2235,4 @@ export const renderViewDropdown = () => {
         const viewItem = createViewListItem(viewName, true);
         savedViewsList.appendChild(viewItem);
     });
-
 };
