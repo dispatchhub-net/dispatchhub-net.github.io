@@ -1472,8 +1472,6 @@ function saveDriverHealthSettings() {
     appState.profiles.driverHealthSettings = JSON.parse(JSON.stringify(appState.profiles.tempDriverHealthSettings));
     appState.profiles.tempDriverHealthSettings = null; // Clear the temporary state
 
-    appState.profiles.fleetHealthCache = {}; // <-- ADD THIS LINE to clear the cache
-
     appState.profiles.isDriverSettingsModalOpen = false;
     renderTeamProfileUI(); // Re-render the main UI to reflect the saved changes
 }
@@ -1538,8 +1536,26 @@ export const renderTeamProfileUI = async () => {
         return;
     }
     
+    // --- START: FIX ---
+    // If not in cache, proceed with calculations...
+    const liveData = appState.profiles.liveData;
+    const historicalStubs = appState.loads.historicalStubsData || [];
+    const { allHistoricalData } = appState;
+    const historicalDates = [...new Set(allHistoricalData.map(d => d.date.toISOString().split('T')[0]))].sort().reverse();
+
+    const allAvailableTeams = [...new Set(liveData.map(d => d.team).filter(Boolean))]
+        .filter(name => !['cletus spuckler', 'ralph wiggum', 'seymour skinner', 'med disp disp'].includes(name.toLowerCase()))
+        .sort();
+
+    // Check if the currently selected team is valid. If not, default to "ALL_TEAMS".
+    if (!allAvailableTeams.includes(appState.profiles.selectedTeam) && appState.profiles.selectedTeam !== 'ALL_TEAMS') {
+        appState.profiles.selectedTeam = 'ALL_TEAMS';
+    }
+
+    // Re-read the state variables AFTER the potential correction to ensure they are up-to-date.
     const { selectedWeek, selectedTeam, contractTypeFilter, selectedCompany } = appState.profiles;
     const cacheKey = `${selectedWeek}-${selectedTeam}-${contractTypeFilter}-${selectedCompany}`;
+    // --- END: FIX ---
 
     // --- START: CACHE CHECK ---
     if (appState.profiles.fleetHealthCache[cacheKey]) {
@@ -1578,20 +1594,6 @@ export const renderTeamProfileUI = async () => {
         return; // Exit the function since we rendered from cache
     }
     // --- END: CACHE CHECK ---
-
-    // If not in cache, proceed with calculations...
-    const liveData = appState.profiles.liveData;
-    const historicalStubs = appState.loads.historicalStubsData || [];
-    const { allHistoricalData } = appState;
-    const historicalDates = [...new Set(allHistoricalData.map(d => d.date.toISOString().split('T')[0]))].sort().reverse();
-
-    const allAvailableTeams = [...new Set(liveData.map(d => d.team).filter(Boolean))]
-        .filter(name => !['cletus spuckler', 'ralph wiggum', 'seymour skinner', 'med disp disp'].includes(name.toLowerCase()))
-        .sort();
-
-    if (!allAvailableTeams.includes(appState.profiles.selectedTeam) && appState.profiles.selectedTeam !== 'ALL_TEAMS') {
-        appState.profiles.selectedTeam = 'ALL_TEAMS';
-    }
     
     const weeksAgo = selectedWeek === 'live' ? 0 : parseInt(selectedWeek.replace('week_', ''), 10);
     const targetStubDate = getRankingDateForProfileWeek(weeksAgo, historicalDates);
