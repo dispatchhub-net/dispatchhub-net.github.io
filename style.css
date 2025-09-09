@@ -207,6 +207,8 @@
     border-color: #4b5563; /* gray-600 */
     /* NEW: Add the extra outline */
     outline: 1px solid #4a5462;
+    /* FIX: Add this property to optimize the width transition */
+    will-change: width;
 }
 
 #sidebar.minimized {
@@ -2391,7 +2393,7 @@
 
 .risk-bar-fill {
     height: 100%;
-    background: linear-gradient(to right, #22c55e, #eab308, #ef4444);
+    background: linear-gradient(to right, #22c55e 40%, #facc15 75%, #ef4444 100%);
     border-radius: 4px;
     transition: width 0.3s ease-in-out;
 }
@@ -2443,37 +2445,43 @@
 }
 /* --- Profile KPI Card (Compact Redesign) --- */
 .profile-kpi-card-ranking {
-    background-color: #1f2937; /* gray-800 */
-    border: 1px solid #4b5563; /* gray-600 */
-    border-radius: 0.5rem;
-    padding: 0.5rem;
-    text-align: center;
+    background-color: #111827;
+    border: 1px solid #374151; /* gray-700 */
+    border-bottom: 3px solid #0d9488; /* Darker Teal on bottom */
+    border-radius: 0.5rem; /* Smaller radius */
+    padding: 0.5rem 0.75rem; /* Reduced padding */
+    text-align: left;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    min-height: 65px; /* <-- Even shorter height */
+    min-height: 65px; /* Reduced height */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.2s ease-in-out;
 }
 
 .kpi-title-ranking {
-    font-size: 0.6rem; /* 9.6px */
+    font-size: 0.6rem; /* Smaller font */
     font-weight: 600;
-    color: #9ca3af; /* gray-400 */
+    color: #9ca3af;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    margin-bottom: 0.1rem;
 }
 
 .kpi-value-ranking {
-    font-size: 1.1rem; /* 17.6px -- More compact value */
+    font-size: 1rem; /* Smaller font */
     font-weight: 700;
-    color: #e5e7eb; /* gray-200 */
+    color: #e5e7eb;
     line-height: 1.2;
-    margin: 0.1rem 0;
 }
 
 .kpi-trend {
-    font-size: 0.65rem; /* 10.4px */
+    font-size: 0.6rem; /* Smaller font */
     font-weight: 500;
-    min-height: 16px; 
+    margin-top: 0.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
 }
 
 /* --- Redesigned Fleet & Equipment Breakdowns --- */
@@ -2516,7 +2524,7 @@
     padding: 0.75rem;
     font-size: 0.75rem; /* 12px */
     color: #d1d5db; /* gray-300 */
-    max-width: 550px; /* Changed from 350px */
+    max-width: 700px; /* Increased width for full locations */
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -2852,4 +2860,646 @@
 .add-criteria-btn:hover {
     color: #2dd4bf; /* teal-400 */
     border-color: #2dd4bf;
+}
+
+/* --- Tooltip Driver Name Styling (Single Row Redesign) --- */
+.tooltip-route-flex {
+    color: #cbd5e1; /* gray-300 */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1; /* Allow route to shrink if needed */
+}
+
+.tooltip-driver-name {
+    color: #9ca3af; /* gray-400 */
+    font-weight: 500;
+    white-space: nowrap;
+    padding: 0 0.5rem; /* 8px padding on left and right */
+    border-left: 1px solid #4b5563; /* gray-600 */
+    border-right: 1px solid #4b5563; /* gray-600 */
+    margin: 0 0.5rem; /* 8px margin */
+}
+
+/* --- FIX: Tooltip Styles for Profiles Driver Modal --- */
+#profiles-modal-container .d3-tooltip {
+    opacity: 1; 
+    background-color: #2d3748;
+    border: 1px solid #4b5563;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    pointer-events: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    line-height: 1.5;
+    z-index: 9999;
+}
+#profiles-modal-container .d3-tooltip.hidden {
+    display: none;
+}
+#profiles-modal-container .d3-tooltip strong {
+    color: #e5e7eb;
+}
+
+/* Main Modal Container */
+#profiles-modal-container {
+    background: linear-gradient(145deg, #2d3748, #1a202c);
+    border: 1px solid #4b5563;
+}
+
+/* Header Redesign */
+#profiles-modal-header {
+    height: auto;
+    padding: 1rem 1.5rem;
+    position: relative;
+}
+.modal-header-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    width: 100%;
+    gap: 1.5rem;
+}
+.header-col-left .driver-name {
+    font-size: 2rem;
+    font-weight: 800;
+    color: white;
+    letter-spacing: -1px;
+    line-height: 1;
+}
+.header-col-left .stubs-count {
+    font-size: 0.875rem;
+    color: #9ca3af;
+    margin-top: 0.25rem;
+}
+.header-col-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+.header-col-right {
+    font-size: 0.875rem;
+    color: #9ca3af;
+    text-align: right;
+    line-height: 1.6;
+}
+.header-col-right .value {
+    font-weight: 600;
+    color: #e5e7eb;
+}
+
+/* KPI Section Redesign */
+#profiles-modal-kpi-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 1rem;
+}
+.modal-kpi-card {
+    background-color: rgba(17, 24, 39, 0.6);
+    border: 1px solid #374151;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.modal-kpi-card.hero {
+    grid-column: span 2 / span 2; /* Make this card span both columns */
+    flex-direction: row;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.25rem;
+}
+.modal-kpi-icon {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.modal-kpi-icon.net { background-color: rgba(34, 197, 94, 0.15); color: #4ade80; }
+.modal-kpi-icon.gross { background-color: rgba(96, 165, 250, 0.15); color: #60a5fa; }
+.modal-kpi-icon.rpm { background-color: rgba(248, 113, 113, 0.15); color: #f87171; }
+.modal-kpi-icon.miles { background-color: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+.modal-kpi-icon svg { width: 24px; height: 24px; }
+
+.modal-kpi-content .title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.modal-kpi-content .value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #e5e7eb;
+}
+.modal-kpi-card.hero .modal-kpi-content .value {
+    font-size: 2.25rem;
+}
+
+/* Table Redesign */
+.stubs-deep-dive-table thead {
+    border-bottom: 2px solid #4b5563;
+}
+.stubs-deep-dive-table th {
+    color: #9ca3af;
+    font-size: 0.7rem;
+}
+.stubs-deep-dive-table td {
+    color: #d1d5db;
+    font-size: 0.8rem;
+}
+
+/* Chart Redesign */
+.chart-switcher-profiles {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+}
+.chart-switcher-profiles button {
+    background-color: #374151;
+    color: #9ca3af;
+    font-weight: 600;
+    padding: 0.375rem 1rem;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    transition: all 0.2s ease-in-out;
+}
+.chart-switcher-profiles button:hover {
+    color: white;
+    background-color: #4b5563;
+}
+.chart-switcher-profiles button.active {
+    color: #111827;
+    background-color: #2dd4bf;
+    box-shadow: 0 0 15px rgba(45, 212, 191, 0.3);
+}
+
+/* 1. DISPEČ TEST/style.css */
+
+/* --- FIX: Tooltip Styles for Profiles Driver Modal --- */
+#profiles-modal-container .d3-tooltip {
+    opacity: 1; 
+    background-color: #2d3748;
+    border: 1px solid #4b5563;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    pointer-events: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    line-height: 1.5;
+    z-index: 9999;
+}
+#profiles-modal-container .d3-tooltip.hidden {
+    display: none;
+}
+#profiles-modal-container .d3-tooltip strong {
+    color: #e5e7eb;
+}
+
+/* --- NEW: Redesigned Risk Badge for Modal Header --- */
+.modal-risk-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.modal-risk-label {
+    font-size: 0.7rem; /* 11.2px */
+    font-weight: 600;
+    color: #9ca3af; /* gray-400 */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.modal-risk-bar {
+    width: 120px;
+    height: 10px;
+    background-color: #374151; /* gray-700 */
+    border-radius: 5px;
+    overflow: hidden;
+    border: 1px solid #4b5563; /* gray-600 */
+}
+
+.modal-risk-bar-fill {
+    height: 100%;
+    background: linear-gradient(to right, #22c55e, #eab308, #ef4444);
+    border-radius: 4px;
+    transition: width 0.3s ease-in-out;
+}
+
+
+
+/* --- Compact Profile Table Rows --- */
+#profiles-dispatch-table-container td,
+#profiles-driver-table-container td {
+    padding-top: 0.2rem; /* Reduced from 6px */
+    padding-bottom: 0.2rem; /* Reduced from 6px */
+}
+
+#profiles-dispatch-table-container th,
+#profiles-driver-table-container th {
+    padding-top: 0.35rem; /* Reduced from 8px */
+    padding-bottom: 0.35rem; /* Reduced from 8px */
+}
+
+/* --- Redesigned Threshold Modal --- */
+#profiles-threshold-settings-modal .settings-modal-container {
+    max-width: 800px !important; /* Widen the modal for two columns */
+}
+
+#threshold-modal-content .settings-section-title {
+    font-size: 1rem; /* Make titles larger */
+    border-bottom: 1px solid #4b5563;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+#threshold-modal-content .remove-threshold-btn {
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.good-move-overrides-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+
+.stub-flag.flag-green { background-color: #22c55e; }
+
+
+/* 1. DISPEČ TEST/style.css */
+
+/* --- Redesigned Driver Health Settings Modal (v8.1 - Final Clipping Fix) --- */
+.accordion-item {
+    border: 1px solid #4b5563; /* gray-600 */
+    border-radius: 0.75rem; /* rounded-xl */
+    overflow: hidden; /* This is now required and safe */
+    transition: all 0.3s ease-in-out;
+}
+.accordion-item.open {
+    border-color: #14b8a6; /* teal-500 */
+}
+.accordion-item:not(:last-child) {
+    margin-bottom: 0.75rem;
+}
+.accordion-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0.75rem 1.25rem;
+    background-color: #374151; /* gray-700 */
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+    position: relative;
+    z-index: 2;
+}
+.accordion-item.open .accordion-header {
+    background-color: #0d9488; /* Official teal color */
+}
+.accordion-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 600;
+    color: #e5e7eb; /* gray-200 */
+}
+.accordion-arrow {
+    transition: transform 0.3s ease-in-out;
+}
+.accordion-item.open .accordion-arrow {
+    transform: rotate(180deg);
+}
+.accordion-panel {
+    max-height: 0; /* Height is controlled by JS */
+    overflow: hidden;
+    transition: max-height 0.4s ease-in-out;
+    background-color: #1f2937; /* gray-800 */
+    padding: 0 1.5rem;
+}
+.accordion-panel-content {
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+}
+
+#driver-settings-modal-content {
+    background-color: #2d3748; /* gray-800 */
+}
+.description {
+    font-size: 0.875rem;
+    color: #9ca3af; /* gray-400 */
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+}
+.setting-controls .setting-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+.input-group.compact label {
+    font-size: 0.75rem; 
+    font-weight: 500;
+    color: #9ca3af;
+    margin-bottom: 0.25rem;
+    display: block;
+}
+.input-group.compact .settings-select,
+.input-group.compact .settings-input {
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+}
+.lookback-group {
+    display: flex;
+}
+.lookback-group .settings-select {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right-width: 0;
+    flex-basis: 65%;
+}
+.lookback-group .settings-input {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    flex-basis: 35%;
+}
+.settings-select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+    background-color: #374151;
+    border: 1px solid #4b5563;
+    color: #e5e7eb;
+    border-radius: 6px;
+}
+.settings-select:focus {
+    outline: none;
+    border-color: #2dd4bf;
+    box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.3);
+}
+.settings-input:disabled {
+    background-color: #374151;
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+.override-section {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.override-row label.override-label {
+    /* This is the new style for the override label */
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #9ca3af;
+    margin-bottom: 0.25rem;
+    display: block;
+}
+.remove-override-btn {
+    background: none; border: none; color: #6b7280; font-size: 1.5rem; line-height: 1;
+    cursor: pointer; margin-left: 0.5rem; transition: color 0.2s;
+}
+.remove-override-btn:hover { color: #ef4444; }
+.add-override-btn {
+    font-size: 0.8rem; font-weight: 500; color: #60a5fa; /* blue-400 */ cursor: pointer;
+}
+
+/* FIX: Panel is now positioned by JS and attached to the body */
+.add-override-panel {
+    position: absolute; /* Changed from relative */
+    background-color: #374151; 
+    border: 1px solid #4b5563;
+    border-radius: 6px; 
+    z-index: 210; /* Higher than modal */
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+}
+
+.add-override-option { padding: 0.5rem 1rem; cursor: pointer; font-weight: 500; }
+.add-override-option:hover { background-color: #0d9488; }
+.low-pay-grid.compact {
+    display: grid;
+    grid-template-columns: 0.75fr 1fr 1.5fr 1fr 1fr; /* Updated for 5 columns */
+    gap: 1rem 1.5rem;
+}
+.threshold-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.low-pay-grid.compact .metric-label {
+    text-align: right;
+    font-weight: 600;
+    color: #d1d5db;
+    padding-top: 0.5rem;
+}
+.low-pay-grid.compact .grid-header {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    font-weight: 500;
+    text-align: left;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #4b5563;
+}
+.low-pay-grid.compact .grid-header:first-child {
+    border-bottom: none;
+}
+
+.settings-select option {
+    background-color: #374151; /* gray-700 */
+    color: #e5e7eb; /* gray-200 */
+}
+
+/* --- Compact Driver Health Settings Modal --- */
+#profiles-driver-settings-modal .accordion-header {
+    padding: 0.5rem 1rem; /* Reduced vertical padding */
+}
+
+#profiles-driver-settings-modal .accordion-title {
+    font-size: 0.9rem; /* Slightly smaller title font */
+}
+
+#profiles-driver-settings-modal .accordion-panel-content {
+    padding: 1rem; /* Reduced padding inside the panel */
+}
+
+#profiles-driver-settings-modal .description {
+    margin-bottom: 1rem; /* Reduced space below description */
+    font-size: 0.8rem; /* Smaller description font */
+}
+
+#profiles-driver-settings-modal .setting-controls .setting-grid {
+    gap: 1rem; /* Reduced gap between grid items */
+}
+
+#profiles-driver-settings-modal .low-pay-grid.compact {
+    gap: 0.75rem 1rem; /* Reduced gap for the complex grid */
+}
+
+#profiles-driver-settings-modal .input-group.compact label {
+    font-size: 0.7rem; /* Smaller labels */
+    margin-bottom: 0.125rem;
+}
+
+#profiles-driver-settings-modal .input-group.compact .settings-select,
+#profiles-driver-settings-modal .input-group.compact .settings-input {
+    font-size: 0.8rem; /* Smaller input font */
+    padding: 0.375rem 0.6rem; /* Smaller inputs */
+}
+
+#profiles-driver-settings-modal .settings-select {
+    background-position: right 0.25rem center; /* Adjust arrow position */
+}
+
+#profiles-driver-settings-modal .override-section {
+    margin-top: 0.5rem; /* Reduced space above overrides */
+    gap: 0.5rem;
+}
+
+#profiles-driver-settings-modal .low-pay-grid.compact .metric-label {
+    padding-top: 0.375rem; /* Adjust alignment */
+}
+
+/* Add this new rule to the end of your style.css file */
+#profiles-modal-chart-container {
+    position: relative;
+}
+
+
+/* --- Fleet Health Flag Summary --- */
+#fleet-health-flag-summary {
+    background-color: #111827; /* gray-900 */
+    border: 1px solid #374151; /* gray-700 */
+    border-bottom: 3px solid #0d9488; /* Darker Teal on bottom */
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem; /* Vertical and horizontal gap */
+}
+
+.flag-summary-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.flag-summary-count {
+    font-size: 1.125rem; /* 18px */
+    font-weight: 700;
+    line-height: 1;
+}
+
+.flag-summary-label {
+    font-size: 0.7rem; /* 11.2px */
+    font-weight: 500;
+    color: #9ca3af; /* gray-400 */
+    text-transform: uppercase;
+}
+
+:root {
+    --flag-color-red: #ef4444;
+    --flag-color-purple: #a855f7;
+    --flag-color-gray: #6b7280;
+    --flag-color-blue: #3b82f6;
+    --flag-color-orange: #f97316;
+    --flag-color-green: #22c55e;
+}
+
+/* --- Fleet Health Compact UI Tweaks --- */
+.profile-table-container {
+    padding: 0.5rem 0.75rem; /* Reduced vertical padding */
+}
+
+/* This targets both the Dispatch and Driver health toolbars */
+#profiles-dispatch-breakdown .flex.justify-between.items-center,
+#profiles-driver-toolbar {
+    margin-bottom: 0.5rem; /* Removed !important */
+}
+
+.profile-table-container h3 {
+    font-size: 1rem; /* Was text-lg (1.125rem) */
+}
+
+#profiles-dispatch-breakdown .toolbar-btn,
+#profiles-driver-toolbar .toolbar-btn {
+    padding: 0.375rem !important; /* p-1.5, smaller than p-2 */
+}
+
+#profiles-dispatch-breakdown .toolbar-btn svg,
+#profiles-driver-toolbar .toolbar-btn svg {
+    width: 1.125rem; /* 18px, smaller than w-5 (20px) */
+    height: 1.125rem; /* 18px, smaller than h-5 (20px) */
+}
+
+
+/* --- Square Icon Flags --- */
+.driver-flag-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    color: white;
+    position: relative; /* For tooltip positioning */
+}
+
+.driver-flag-icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+.driver-flag-icon .flag-tooltip-text {
+    visibility: hidden;
+    width: max-content;
+    background-color: #111827;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px 10px;
+    position: absolute;
+    z-index: 10;
+    bottom: 125%; /* Position above the icon */
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.driver-flag-icon:hover .flag-tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+.driver-flag-icon.flag-red { background-color: #ef4444; }
+.driver-flag-icon.flag-purple { background-color: #a855f7; }
+.driver-flag-icon.flag-gray { background-color: #6b7280; }
+.driver-flag-icon.flag-blue { background-color: #3b82f6; }
+.driver-flag-icon.flag-orange { background-color: #f97316; }
+.driver-flag-icon.flag-green { background-color: #22c55e; }
+
+
+#profiles-driver-table-container thead {
+    z-index: 30; /* Ensures the entire header row is above scrolling body content */
 }
