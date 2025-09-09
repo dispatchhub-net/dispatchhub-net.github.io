@@ -72,11 +72,8 @@ export const fetchAllHistoricalData = async () => {
         const historicalData = result.historicalData.map(item => {
             const newItem = { ...item, dispatcherName: item.dispatcherName || item.name, date: new Date(item.date) };
 
-            // FIX: Use the team from the specific row, and only trim it if it exists.
-            // Do not assign a default or fallback team.
             newItem.dispatcherTeam = item.dispatcherTeam ? String(item.dispatcherTeam).trim() : null;
             
-            // FIX: Handle singular 'driverName' from sheet and ensure 'driverNames' is an array.
             if (item.driverName && !item.driverNames) {
                  newItem.driverNames = [item.driverName];
             } else if (item.driverNames) { 
@@ -89,13 +86,21 @@ export const fetchAllHistoricalData = async () => {
                 newItem.driverNames = []; 
             }
 
+            // --- FIX: Recalculate 1W RPM from raw totals to ensure consistency ---
+            const totalGross = parseFloat(item.pTotal_gross) || 0;
+            const allMiles = parseFloat(item.pAll_miles) || 0;
+            newItem.rpmAll = allMiles > 0 ? totalGross / allMiles : 0;
+            // --- END FIX ---
+
             coreMetrics.forEach(metric => {
                 const value = item[metric.id];
-                if (value !== undefined && value !== null) {
-                    const parsed = parseFloat(value);
-                    newItem[metric.id] = isNaN(parsed) ? null : parsed;
-                } else {
-                    newItem[metric.id] = null; 
+                if (metric.id !== 'rpmAll') { // Don't re-process the rpmAll we just calculated
+                    if (value !== undefined && value !== null) {
+                        const parsed = parseFloat(value);
+                        newItem[metric.id] = isNaN(parsed) ? null : parsed;
+                    } else {
+                        newItem[metric.id] = null; 
+                    }
                 }
             });
 
@@ -119,7 +124,6 @@ export const fetchAllHistoricalData = async () => {
             appState.selectedDate = uniqueDates[0];
         }
 
-        // Precompute for both dispatcher and team modes
         appState.precomputedDispatcher4WkAverages = {};
         appState.precomputedTeam4WkAverages = {};
         for (const dateString of uniqueDates) {
@@ -222,19 +226,21 @@ export const calculateFourWeekAverageDataForDate = (currentDateString, mode) => 
 
     const groupedByEntity = relevantHistoricalData.reduce((acc, curr) => {
         const key = curr[groupKey];
-        if (!key) return acc; // Skip if no team/dispatcher name
+        if (!key) return acc;
 
         if (!acc[key]) {
             acc[key] = {
                 entityName: key,
                 weeks: new Set(),
                 totalWeight: 0,
+                total_gross_4wk: 0, // Accumulator for raw gross
+                total_miles_4wk: 0, // Accumulator for raw miles
             };
             coreMetrics.forEach(metric => {
-                acc[key][metric.id] = 0; // This will be a weighted sum
+                acc[key][metric.id] = 0;
             });
             ['numDrivers', 'numOOs', 'numLOOs'].forEach(colId => { 
-                acc[key][colId] = 0; // This will be a direct sum
+                acc[key][colId] = 0;
             });
         }
 
@@ -245,10 +251,18 @@ export const calculateFourWeekAverageDataForDate = (currentDateString, mode) => 
         const weight = curr.numDrivers > 0 ? curr.numDrivers : 1;
         entity.totalWeight += weight;
 
+        // --- FIX: Accumulate raw totals for RPM calculation ---
+        entity.total_gross_4wk += parseFloat(curr.pTotal_gross) || 0;
+        entity.total_miles_4wk += parseFloat(curr.pAll_miles) || 0;
+        // --- END FIX ---
+
         coreMetrics.forEach(metric => {
-            const value = curr[metric.id];
-            if (typeof value === 'number' && !isNaN(value)) {
-                entity[metric.id] += value * weight;
+            // Exclude rpmAll from weighted average, as we will calculate it from totals
+            if (metric.id !== 'rpmAll') {
+                const value = curr[metric.id];
+                if (typeof value === 'number' && !isNaN(value)) {
+                    entity[metric.id] += value * weight;
+                }
             }
         });
         ['numDrivers', 'numOOs', 'numLOOs'].forEach(colId => { 
@@ -270,11 +284,18 @@ export const calculateFourWeekAverageDataForDate = (currentDateString, mode) => 
                 weeksIncluded: activeWeeks
             };
             coreMetrics.forEach(metric => {
-                // Calculate weighted average for performance metrics
-                avgData[metric.id] = entityAggregate.totalWeight > 0 ? entityAggregate[metric.id] / entityAggregate.totalWeight : 0;
+                if (metric.id !== 'rpmAll') {
+                    avgData[metric.id] = entityAggregate.totalWeight > 0 ? entityAggregate[metric.id] / entityAggregate.totalWeight : 0;
+                }
             });
+
+            // --- FIX: Calculate final 4W RPM from accumulated totals ---
+            avgData['rpmAll'] = entityAggregate.total_miles_4wk > 0 
+                ? entityAggregate.total_gross_4wk / entityAggregate.total_miles_4wk 
+                : 0;
+            // --- END FIX ---
+
             ['numDrivers', 'numOOs', 'numLOOs'].forEach(colId => { 
-                // Calculate simple average over active weeks for counts
                 avgData[colId] = entityAggregate[colId] / activeWeeks;
             });
             finalAverages[entityName] = avgData;
@@ -602,6 +623,7 @@ export const aggregateTeamData = (rawData) => {
                 weighted_pDriverGross_percent: { sum: 0, totalWeight: 0 },
                 weighted_pNet_percent: { sum: 0, totalWeight: 0 },
                 weighted_pDriver_rpm: { sum: 0, totalWeight: 0 },
+                weighted_pMargin_percent: { sum: 0, totalWeight: 0 }, // <-- LINE TO ADD
             };
         }
         
@@ -640,6 +662,12 @@ export const aggregateTeamData = (rawData) => {
             team.weighted_pDriverGross_percent.sum += curr.pDriverGross * weight;
             team.weighted_pDriverGross_percent.totalWeight += weight;
         }
+        // --- ADD THIS BLOCK to calculate weighted margin ---
+        if (typeof curr.pMargin === 'number') {
+            team.weighted_pMargin_percent.sum += curr.pMargin * weight;
+            team.weighted_pMargin_percent.totalWeight += weight;
+        }
+        // --- END ADDITION ---
         if (typeof curr.pNet === 'number') {
             team.weighted_pNet_percent.sum += curr.pNet * weight;
             team.weighted_pNet_percent.totalWeight += weight;
@@ -672,8 +700,7 @@ export const aggregateTeamData = (rawData) => {
         finalTeamData['pMaintenance_current'] = totalDrivers > 0 ? team.sum_pMaintenance / totalDrivers : 0;
         finalTeamData['pDepreciation_current'] = totalDrivers > 0 ? team.sum_pDepreciation / totalDrivers : 0;
         
-        // --- Recalculate Team-Wide Percentages and Ratios ---
-        finalTeamData['pMargin_current'] = team.sum_pTotal_gross > 0 ? team.sum_pMargin_dollar / team.sum_pTotal_gross : 0;
+        // --- Recalculate ONLY Team-Wide RPM from totals ---
         finalTeamData['rpmAll_current'] = team.sum_pAll_miles > 0 ? team.sum_pTotal_gross / team.sum_pAll_miles : 0;
         
         // --- Use Weighted Averages for Subjective/Percentage Metrics ---
@@ -683,6 +710,10 @@ export const aggregateTeamData = (rawData) => {
         finalTeamData['pMainCriteria2CashFlow_current'] = companyHappiness;
         finalTeamData['mainCriteria_current'] = (driverHappiness + companyHappiness) / 2;
         
+        // --- FIX: Change this one line to use the new weighted average for Margin ---
+        finalTeamData['pMargin_current'] = team.weighted_pMargin_percent.totalWeight > 0 ? team.weighted_pMargin_percent.sum / team.weighted_pMargin_percent.totalWeight : 0;
+        
+        // Keep the rest of the weighted average calculations
         finalTeamData['pDriverGross_current'] = team.weighted_pDriverGross_percent.totalWeight > 0 ? team.weighted_pDriverGross_percent.sum / team.weighted_pDriverGross_percent.totalWeight : 0;
         finalTeamData['pNet_current'] = team.weighted_pNet_percent.totalWeight > 0 ? team.weighted_pNet_percent.sum / team.weighted_pNet_percent.totalWeight : 0;
         finalTeamData['pDriver_rpm_current'] = team.weighted_pDriver_rpm.totalWeight > 0 ? team.weighted_pDriver_rpm.sum / team.weighted_pDriver_rpm.totalWeight : 0;
