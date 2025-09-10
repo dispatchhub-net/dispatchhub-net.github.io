@@ -125,6 +125,7 @@ function calculateKpiData(baseData, isLiveData, allDrivers, historicalStubs, con
         return {
             name,
             wellness,
+            loads: loads, // This line fixes the error
             goodMoves: loads.filter(l => l.moved_monday === 'Moved Monday Load' && (l.driver_gross_without_moved < (appState.profiles.thresholdSettings.goodMove.by_contract[l.contract_type] ?? appState.profiles.thresholdSettings.goodMove.default))).length,
             badMoves: loads.filter(l => l.moved_monday === 'Moved Monday Load' && (l.driver_gross_without_moved >= (appState.profiles.thresholdSettings.goodMove.by_contract[l.contract_type] ?? appState.profiles.thresholdSettings.goodMove.default))).length,
             hiddenMiles: loads.filter(l => l.hidden_miles === 'Hidden Miles Found!').length,
@@ -597,6 +598,31 @@ function renderDriverDeepDiveModal_Profiles() {
     }
 }
 
+function renderSaveFilterModal() {
+    const modal = document.getElementById('save-driver-filter-modal');
+    if (!modal) return;
+
+    if (appState.profiles.driverFilters.isSaveModalOpen) {
+        document.body.appendChild(modal);
+        modal.classList.remove('hidden');
+
+        const nameInput = document.getElementById('save-filter-name-input');
+        const colorInput = document.getElementById('save-filter-color-input');
+        const filterToEdit = appState.profiles.driverFilters.filterToEdit;
+
+        if (filterToEdit) {
+            nameInput.value = filterToEdit.name;
+            colorInput.value = filterToEdit.color || '#374151';
+        } else {
+            nameInput.value = '';
+            colorInput.value = '#374151';
+        }
+        nameInput.focus();
+    } else {
+        modal.classList.add('hidden');
+    }
+}
+
 function calculateDropRisk(driver) {
     const { weights } = appState.profiles.driverHealthSettings;
     const totalWeight = Object.values(weights).reduce((sum, w) => sum + w, 0);
@@ -839,13 +865,14 @@ function renderModalHistoricalTable_Profiles(historicalStubs) {
                     const puDate = new Date(load.pu_date).toLocaleDateString('en-US', {month: '2-digit', day: '2-digit'});
                     const doDate = new Date(load.do_date).toLocaleDateString('en-US', {month: '2-digit', day: '2-digit'});
                     const totalMiles = (load.trip_miles || 0) + (load.deadhead_miles || 0);
+                    const driverRate = (load.price || 0) - (load.cut || 0); // Calculate the correct driver rate
 
                     return `
                         <tr class="hover:bg-cyan-700/50 ${isCanceled ? 'opacity-50' : ''}">
                             <td class="px-2 py-1.5">${puDate} - ${doDate}</td>
                             <td class="px-2 py-1.5">${load.pu_location}</td>
                             <td class="px-2 py-1.5">${load.do_location}</td>
-                            <td class="px-2 py-1.5 text-right font-mono text-green-400">$${(load.price || 0).toLocaleString()}</td>
+                            <td class="px-2 py-1.5 text-right font-mono text-green-400">$${driverRate.toLocaleString()}</td>
                             <td class="px-2 py-1.5 text-right font-mono text-yellow-400">$${(load.cut || 0).toLocaleString()}</td>
                             <td class="px-2 py-1.5 text-right font-mono">$${((load.price || 0) / (load.trip_miles || 1)).toFixed(2)}</td>
                             <td class="px-2 py-1.5 text-right font-mono">${totalMiles.toLocaleString()} mi</td>
@@ -992,6 +1019,13 @@ function calculateComplianceScores(dispatchers, allDispatchers) {
     const { weights } = appState.profiles.complianceSettings;
     const comparisonPool = allDispatchers && allDispatchers.length > 0 ? allDispatchers : dispatchers;
 
+    // Recalculate wellness based on the new logic before scoring
+    dispatchers.forEach(d => {
+        const wellnessLoads = d.loads.filter(l => ['GOOD', 'FAIL', '-'].includes(l.wellness_fail));
+        const successfulLoads = wellnessLoads.filter(l => l.wellness_fail === 'GOOD' || l.wellness_fail === '-').length;
+        d.wellness = wellnessLoads.length > 0 ? (successfulLoads / wellnessLoads.length) * 100 : 0;
+    });
+
     const allMetrics = [
         { id: 'goodMoves', higherIsBetter: true },
         { id: 'badMoves', higherIsBetter: false },
@@ -1016,7 +1050,7 @@ function calculateComplianceScores(dispatchers, allDispatchers) {
                 const proportion = value / maxValue;
                 score = metric.higherIsBetter ? proportion * 100 : (1 - proportion) * 100;
             }
-            scores[dispatcher.name] = score; // Use dispatcher name as the key
+            scores[dispatcher.name] = score;
         });
         proportionalScores[metric.id] = scores;
     });
@@ -1030,8 +1064,8 @@ function calculateComplianceScores(dispatchers, allDispatchers) {
         let weightedScore = 0;
         for (const metricId in weights) {
             const weight = weights[metricId];
-            if (proportionalScores[metricId] && proportionalScores[metricId][dispatcher.name] !== undefined) { // Use dispatcher name for lookup
-                const score = proportionalScores[metricId][dispatcher.name]; // Use dispatcher name for lookup
+            if (proportionalScores[metricId] && proportionalScores[metricId][dispatcher.name] !== undefined) {
+                const score = proportionalScores[metricId][dispatcher.name];
                 weightedScore += (score * weight);
             }
         }
@@ -1776,6 +1810,7 @@ export const renderTeamProfileUI = async () => {
     renderThresholdSettingsModal();
     renderDriverHealthSettingsModal();
     renderDriverDeepDiveModal_Profiles();
+    renderSaveFilterModal();
     initializeProfileEventListeners();
 };
 
@@ -1934,7 +1969,7 @@ function renderDispatchTable(dispatchersToDisplay, allDispatchers) {
                                         if (col.id === 'complianceScore') {
                                             content = `<span class="font-bold text-teal-300">${(d[col.id] ?? 0).toFixed(1)}%</span>`;
                                         } else {
-                                            content = `${d[col.id]}%`; 
+                                            content = `${(d[col.id] ?? 0).toFixed(0)}%`; 
                                         }
                                         break;
                                 }
@@ -2079,28 +2114,73 @@ function renderDispatchTableSettings(allDispatchers) {
 function renderDriverToolbar(teamData) {
     const toolbarContainer = document.getElementById('profiles-driver-toolbar');
     if (!toolbarContainer) return;
+
     const selectedDispatcherName = appState.profiles.selectedDispatcherId
         ? teamData.dispatchers.find(d => d.id === appState.profiles.selectedDispatcherId)?.name
         : null;
 
-    const activeFilters = appState.profiles.driverFilters.activeFilters;
+    const activeFiltersCount = appState.profiles.driverFilters.activeFilters.length;
+    const isFilterModified = appState.profiles.activeSavedFilterId === null;
 
-    let activeFiltersHTML = activeFilters.map((filter, index) => {
-        return '';
+    const savedFilters = appState.profiles.savedDriverFilters || [];
+    const hasCustomFilters = savedFilters.some(f => !f.isDefault);
+
+    const savedFiltersHTML = savedFilters.map(filter => {
+        if (!hasCustomFilters && filter.isDefault) {
+            return '';
+        }
+
+        const isActive = appState.profiles.activeSavedFilterId === filter.id;
+        const isDefault = filter.isDefault;
+
+        let styleOverrides = '';
+        if (!isDefault && filter.color && filter.color.startsWith('#')) {
+            if (isActive) {
+                // Style for when the custom filter is SELECTED
+                styleOverrides = `style="background-color: ${filter.color}; border-color: ${filter.color}; color: white;"`;
+            } else {
+                // Style for when the custom filter is NOT SELECTED (outline)
+                styleOverrides = `style="border-color: ${filter.color}; color: ${filter.color};"`;
+            }
+        }
+
+        if (isDefault) {
+            return `<button class="saved-filter-btn ${isActive ? 'active' : ''}" data-filter-id="${filter.id}" data-color="blue"><span class="text-sm">${filter.name}</span></button>`;
+        } else {
+            return `
+            <div class="custom-filter-wrapper ${isActive ? 'is-active' : ''}" data-color="${filter.color || 'gray'}" data-filter-id="${filter.id}">
+                <button class="saved-filter-btn saved-filter-main" data-filter-id="${filter.id}" ${styleOverrides}>
+                    <span class="text-sm">${filter.name}</span>
+                </button>
+                <div class="filter-actions-menu-container ${!isActive ? 'hidden' : ''}">
+                    <button class="filter-actions-trigger" ${styleOverrides}>☰</button>
+                    <div class="filter-actions-panel hidden">
+                        <button class="filter-action-item edit-driver-filter-btn" data-filter-id="${filter.id}">Edit</button>
+                        <button class="filter-action-item delete-driver-filter-btn" data-filter-id="${filter.id}">Delete</button>
+                    </div>
+                </div>
+            </div>`;
+        }
     }).join('');
 
     toolbarContainer.innerHTML = `
-        <div class="flex justify-between items-center w-full">
-            <h3 id="driver-table-title" class="text-lg font-bold text-gray-200">
-                ${selectedDispatcherName ? `Driver Health for ${selectedDispatcherName}` : `Driver Health Breakdown for ${teamData.teamName}`}
+        <div class="relative flex justify-center items-center w-full min-h-[38px]">
+            <h3 id="driver-table-title" class="absolute left-0 text-lg font-bold text-gray-200 flex-shrink-0">
+                ${selectedDispatcherName ? `Driver Health for ${selectedDispatcherName}` : `Driver Health for ${teamData.teamName}`}
+                ${isFilterModified ? '<span class="text-sm font-normal text-yellow-400 ml-2">(modified)</span>' : ''}
             </h3>
-            <div class="flex items-center gap-x-2">
+            
+            <div id="saved-driver-filters-bar" class="flex items-center justify-center gap-x-2 flex-wrap">
+                ${savedFiltersHTML}
+            </div>
+
+            <div class="absolute right-0 flex items-center gap-x-2 flex-shrink-0">
                 <button id="driver-health-settings-btn" class="toolbar-btn !p-2" title="Drop Risk Settings">
                     <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" /></svg>
                 </button>
                 <button id="driver-filter-btn" class="toolbar-btn !p-2 relative" title="Filters">
                     <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.572a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" /></svg>
-                    ${activeFilters.length > 0 ? `<span class="absolute -top-1.5 -right-1.5 bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center border-2 border-gray-800">${activeFilters.length}</span>` : ''}
+                    ${activeFiltersCount > 0 ? `<span class="absolute -top-1.5 -right-1.5 bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center border-2 border-gray-800">${activeFiltersCount}</span>` : ''}
                 </button>
                 <button id="driver-settings-btn" class="toolbar-btn !p-2" title="Flag Settings">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924-1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
@@ -2573,8 +2653,12 @@ function initializeDispatchTableDragDrop() {
     });
 }
 
+
+
 export function initializeProfileEventListeners() {
+    // This new guard ensures that the global listeners on the body are only attached ONCE.
     if (!document.body.profileListenersAttached) {
+        // General click listener to close popups
         document.body.addEventListener('click', (e) => {
             const settingsBtn = document.getElementById('dispatch-table-settings-btn');
             const settingsDropdown = document.getElementById('dispatch-column-settings-dropdown');
@@ -2597,6 +2681,7 @@ export function initializeProfileEventListeners() {
                 renderCompanyFilterDropdown();
             }
         });
+
         document.body.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 if (appState.profiles.driverDeepDive.isModalOpen) {
@@ -2608,6 +2693,8 @@ export function initializeProfileEventListeners() {
 
         document.body.profileListenersAttached = true;
     }
+
+    // The rest of this function will now run every time, re-attaching listeners to the dynamic content below.
 
     const teamSelector = document.getElementById('team-selector');
     if (teamSelector && !teamSelector.listenerAttached) {
@@ -2672,8 +2759,31 @@ export function initializeProfileEventListeners() {
         dispatchTable._clickHandler = (e) => {
             const teamData = appState.profiles.currentTeamData;
             if (!teamData) return;
+
+            const tooltipTrigger = e.target.closest('.dispatch-tooltip-trigger');
             const row = e.target.closest('.dispatch-table-row');
-            if (row && !e.target.closest('.dispatch-tooltip-trigger')) {
+
+            if (tooltipTrigger) {
+                // Handle copy on click for tooltip cells
+                const dispatcherId = parseInt(tooltipTrigger.parentElement.dataset.dispatcherId, 10);
+                const dispatcher = teamData.dispatchers.find(d => d.id === dispatcherId);
+                const metricId = tooltipTrigger.dataset.tooltipMetric;
+
+                if (dispatcher && metricId) {
+                    const htmlContent = generateDispatchTooltipHTML(dispatcher, metricId, appState.profiles.liveData);
+                    // Convert HTML to plain text for clipboard
+                    const plainText = htmlContent.replace(/<br\s*[\/]?>/gi, "\n").replace(/<[^>]*>/g, '').trim();
+                    copyToClipboard(plainText);
+                    
+                    // Show green border confirmation
+                    const tooltipElement = document.getElementById('dispatch-tooltip');
+                    tooltipElement.classList.add('copied');
+                    setTimeout(() => {
+                        tooltipElement.classList.remove('copied');
+                    }, 500); // The green border will last for 0.5 seconds
+                }
+            } else if (row) {
+                // Handle row selection
                 const dispatcherId = parseInt(row.dataset.dispatcherId, 10);
                 appState.profiles.selectedDispatcherId = appState.profiles.selectedDispatcherId === dispatcherId ? null : dispatcherId;
                 renderDispatchTable(teamData.dispatchers, teamData.dispatchers);
@@ -2823,12 +2933,72 @@ export function initializeProfileEventListeners() {
     if (driverToolbar) {
         if (driverToolbar._clickHandler) driverToolbar.removeEventListener('click', driverToolbar._clickHandler);
         driverToolbar._clickHandler = (e) => {
+            const savedFilterBtn = e.target.closest('.saved-filter-btn');
+            const actionsTrigger = e.target.closest('.filter-actions-trigger');
+            const editBtn = e.target.closest('.edit-driver-filter-btn');
+            const deleteBtn = e.target.closest('.delete-driver-filter-btn');
+
+            // Handle clicking the main part of a filter button
+            if (savedFilterBtn) {
+                const filterId = savedFilterBtn.dataset.filterId;
+                const savedFilter = appState.profiles.savedDriverFilters.find(f => f.id === filterId);
+                if (savedFilter) {
+                    appState.profiles.driverFilters.activeFilters = savedFilter.criteria;
+                    appState.profiles.driverFilters.filterLogic = savedFilter.logic || 'AND';
+                    appState.profiles.activeSavedFilterId = filterId;
+                    renderTeamProfileUI();
+                }
+                return;
+            }
+
+            // Handle clicking the sandwich menu icon (☰)
+            if (actionsTrigger) {
+                e.stopPropagation();
+                const panel = actionsTrigger.nextElementSibling;
+                const isHidden = panel.classList.contains('hidden');
+                document.querySelectorAll('.filter-actions-panel').forEach(p => p.classList.add('hidden'));
+                if (isHidden) {
+                    panel.classList.remove('hidden');
+                }
+                return;
+            }
+
+            // Handle clicking the "Edit" button in the dropdown
+            if (editBtn) {
+                e.stopPropagation();
+                const filterId = editBtn.dataset.filterId;
+                const filterToEdit = appState.profiles.savedDriverFilters.find(f => f.id === filterId);
+                if (filterToEdit) {
+                    appState.profiles.driverFilters.filterToEdit = filterToEdit;
+                    appState.profiles.driverFilters.activeFilters = filterToEdit.criteria;
+                    appState.profiles.driverFilters.isSaveModalOpen = true;
+                    renderSaveFilterModal();
+                }
+                return;
+            }
+
+            // Handle clicking the "Delete" button in the dropdown
+            if (deleteBtn) {
+                e.stopPropagation();
+                const filterIdToDelete = deleteBtn.dataset.filterId;
+                if (confirm('Are you sure you want to delete this filter?')) {
+                    appState.profiles.savedDriverFilters = appState.profiles.savedDriverFilters.filter(f => f.id !== filterIdToDelete);
+                    if (appState.profiles.activeSavedFilterId === filterIdToDelete) {
+                        appState.profiles.activeSavedFilterId = 'all_drivers';
+                        const allDriversFilter = appState.profiles.savedDriverFilters.find(f=>f.id === 'all_drivers');
+                        appState.profiles.driverFilters.activeFilters = allDriversFilter ? allDriversFilter.criteria : [];
+                    }
+                    renderTeamProfileUI();
+                }
+                return;
+            }
+            
+            // Handle other toolbar buttons
             if (e.target.closest('#driver-filter-btn')) {
                 appState.profiles.driverFilters.isFilterModalOpen = true;
                 renderDriverFilterModal();
             }
             if (e.target.closest('#driver-settings-btn')) {
-                // Create a deep copy of the settings for temporary editing
                 appState.profiles.tempDriverHealthSettings = JSON.parse(JSON.stringify(appState.profiles.driverHealthSettings));
                 appState.profiles.isDriverSettingsModalOpen = true;
                 renderDriverSettingsModal();
@@ -2841,47 +3011,95 @@ export function initializeProfileEventListeners() {
         driverToolbar.addEventListener('click', driverToolbar._clickHandler);
     }
     
-    const driverFilterModal = document.getElementById('profiles-driver-filter-modal');
-    if (driverFilterModal) {
-        if (driverFilterModal._clickHandler) driverFilterModal.removeEventListener('click', driverFilterModal._clickHandler);
-        driverFilterModal._clickHandler = (e) => {
-            const teamData = appState.profiles.currentTeamData;
-            if (!teamData) return;
-            const closeModal = () => {
-                appState.profiles.driverFilters.isFilterModalOpen = false;
-                renderDriverFilterModal();
-            };
-            if (e.target.closest('#close-driver-filter-modal-btn') || e.target.closest('#cancel-driver-filter-btn')) {
-                closeModal();
+    // --- START: CORRECTED DRIVER FILTER MODAL HANDLER ---
+// --- START: FINAL, ROBUST DRIVER FILTER MODAL HANDLER ---
+// --- START: FINAL, ROBUST DRIVER FILTER MODAL HANDLER V2 ---
+const driverFilterModal = document.getElementById('profiles-driver-filter-modal');
+if (driverFilterModal && !driverFilterModal._listenersAttached) {
+    const teamData = appState.profiles.currentTeamData;
+    if (!teamData) return;
+
+    const readCriteriaFromModal = () => {
+        const criteriaRows = driverFilterModal.querySelectorAll('.driver-filter-criteria-row');
+        console.log(`Found ${criteriaRows.length} criteria rows to read.`);
+        return Array.from(criteriaRows).map((row, index) => {
+            const columnId = row.querySelector('.column-select').value;
+            const operator = row.querySelector('.operator-select').value;
+            let value;
+
+            const multiSelectContainer = row.querySelector('.filter-multiselect-container');
+            const standardInput = row.querySelector('.value-input');
+            const previousDaysContainer = row.querySelector('.load-filter-previous-days-container');
+
+            if (multiSelectContainer && multiSelectContainer.offsetParent !== null) {
+                value = Array.from(row.querySelectorAll('.multiselect-checkbox:checked')).map(cb => cb.value);
+                console.log(`Row ${index} (Multi-select): value is`, value);
+            } else if (previousDaysContainer && previousDaysContainer.offsetParent !== null) {
+                 value = {
+                    days: parseInt(row.querySelector('.load-filter-previous-days-input').value, 10) || 7,
+                    from: row.querySelector('.load-filter-previous-days-from-select').value
+                };
+                console.log(`Row ${index} (Date Range): value is`, value);
+            } else if (standardInput && standardInput.offsetParent !== null) {
+                value = standardInput.value;
+                console.log(`Row ${index} (Standard Input): value is`, value);
+            } else {
+                value = null;
+                console.log(`Row ${index}: No visible value input found.`);
             }
-            if (e.target.closest('#apply-driver-filter-btn')) {
-                const criteriaRows = driverFilterModal.querySelectorAll('.driver-filter-criteria-row');
-                const newFilters = Array.from(criteriaRows).map(row => {
-                    const columnId = row.querySelector('.column-select').value;
-                    const operator = row.querySelector('.operator-select').value;
-                    let value;
-                    if (row.querySelector('.filter-multiselect-container')) {
-                         value = Array.from(row.querySelectorAll('.multiselect-checkbox:checked')).map(cb => cb.value);
-                    } else {
-                        const valueInput = row.querySelector('.value-input');
-                        value = valueInput ? valueInput.value : null;
-                    }
-                    return { columnId, operator, value };
-                }).filter(f => (Array.isArray(f.value) ? f.value.length > 0 : f.value !== '' && f.value !== null));
-                appState.profiles.driverFilters.activeFilters = newFilters;
-                closeModal();
-                renderDriverToolbar(teamData);
-                renderDriverTable(teamData.drivers);
-            }
-            if (e.target.closest('#clear-driver-filters-btn')) {
-                appState.profiles.driverFilters.activeFilters = [];
-                closeModal();
-                renderDriverToolbar(teamData);
-                renderDriverTable(teamData.drivers);
-            }
-        };
-        driverFilterModal.addEventListener('click', driverFilterModal._clickHandler);
-    }
+            
+            return { columnId, operator, value };
+        }).filter(f => {
+            if (['isEmpty', 'isNotEmpty'].includes(f.operator)) return true;
+            if (f.operator === 'inPrevious') return f.value && !isNaN(f.value.days);
+            return (Array.isArray(f.value) ? f.value.length > 0 : f.value !== '' && f.value !== null);
+        });
+    };
+
+    const closeModal = () => {
+        appState.profiles.driverFilters.isFilterModalOpen = false;
+        renderDriverFilterModal();
+    };
+
+    driverFilterModal.querySelector('#close-driver-filter-modal-btn')?.addEventListener('click', closeModal);
+    driverFilterModal.querySelector('#cancel-driver-filter-btn')?.addEventListener('click', closeModal);
+
+    driverFilterModal.querySelector('#apply-driver-filter-btn')?.addEventListener('click', () => {
+        const newFilters = readCriteriaFromModal();
+        appState.profiles.driverFilters.activeFilters = newFilters;
+        appState.profiles.activeSavedFilterId = null; 
+        closeModal();
+        renderDriverToolbar(teamData);
+        renderDriverTable(teamData.drivers);
+    });
+
+    driverFilterModal.querySelector('#clear-driver-filters-btn')?.addEventListener('click', () => {
+        appState.profiles.driverFilters.activeFilters = [];
+        appState.profiles.activeSavedFilterId = 'all_drivers'; 
+        closeModal();
+        renderDriverToolbar(teamData);
+        renderDriverTable(teamData.drivers);
+    });
+
+    driverFilterModal.querySelector('#save-driver-filter-btn')?.addEventListener('click', () => {
+        console.log("--- Save Filter Button Clicked ---");
+        const newFilters = readCriteriaFromModal();
+        console.log("Final criteria read for saving:", newFilters);
+    
+        if (newFilters.length === 0) {
+            alert("Please add at least one valid criterion before saving.");
+            console.log("Save cancelled: No valid criteria found.");
+            return;
+        }
+        
+        appState.profiles.driverFilters.activeFilters = newFilters;
+        appState.profiles.driverFilters.isSaveModalOpen = true;
+        console.log("Opening the 'Save Name' modal now.");
+        renderSaveFilterModal();
+    });
+
+    driverFilterModal._listenersAttached = true;
+}
 
     const driverHealthSettingsModal = document.getElementById('profiles-driver-health-settings-modal');
     if (driverHealthSettingsModal && !driverHealthSettingsModal.listenerAttached) {
@@ -2910,6 +3128,63 @@ export function initializeProfileEventListeners() {
         driverSettingsModal.addEventListener('click', driverSettingsModal._clickHandler);
         initializeDriverSettingsModalEventListeners(); 
     }
+
+    // --- START: ADDED SAVE FILTER MODAL HANDLER ---
+    // --- START: ADDED SAVE FILTER MODAL HANDLER ---
+    const saveFilterModal = document.getElementById('save-driver-filter-modal');
+    if (saveFilterModal && !saveFilterModal._clickHandlerAttached) {
+        saveFilterModal.addEventListener('click', e => {
+            if (e.target.closest('#close-save-driver-filter-modal-btn')) {
+                appState.profiles.driverFilters.isSaveModalOpen = false;
+                renderSaveFilterModal();
+                appState.profiles.driverFilters.isFilterModalOpen = true;
+                renderDriverFilterModal();
+            }
+            if (e.target.closest('#confirm-save-driver-filter-btn')) {
+                const nameInput = document.getElementById('save-filter-name-input');
+                const colorInput = document.getElementById('save-filter-color-input');
+                const filterName = nameInput.value.trim();
+                if (!filterName) {
+                    alert('Please provide a name for the filter.');
+                    return;
+                }
+
+                const filterToEdit = appState.profiles.driverFilters.filterToEdit;
+                if (filterToEdit) {
+                    // Editing existing filter
+                    const existingFilter = appState.profiles.savedDriverFilters.find(f => f.id === filterToEdit.id);
+                    if (existingFilter) {
+                        existingFilter.name = filterName;
+                        existingFilter.color = colorInput.value;
+                        existingFilter.criteria = [...appState.profiles.driverFilters.activeFilters];
+                        existingFilter.logic = appState.profiles.driverFilters.filterLogic;
+                    }
+                } else {
+                    // Creating a new filter
+                    const newFilter = {
+                        id: `custom_${Date.now()}`,
+                        name: filterName,
+                        color: colorInput.value,
+                        isDefault: false,
+                        criteria: [...appState.profiles.driverFilters.activeFilters],
+                        logic: appState.profiles.driverFilters.filterLogic,
+                    };
+                    appState.profiles.savedDriverFilters.push(newFilter);
+                    appState.profiles.activeSavedFilterId = newFilter.id;
+                }
+
+                appState.profiles.driverFilters.filterToEdit = null;
+                appState.profiles.driverFilters.isSaveModalOpen = false;
+                appState.profiles.driverFilters.isFilterModalOpen = false;
+
+                renderSaveFilterModal();
+                renderDriverFilterModal();
+                renderTeamProfileUI();
+            }
+        });
+        saveFilterModal._clickHandlerAttached = true;
+    }
+    // --- END: ADDED SAVE FILTER MODAL HANDLER ---
 }
 
 
@@ -2982,19 +3257,19 @@ function generateDispatchTooltipHTML(dispatcher, metricId, allLoadsForSearch) {
         case 'newStarts':
             filteredLoads = allLoadsForDispatcher.filter(l => l.new_start === 'NEW START');
             break;
-        case 'wellness':
-            const wellnessLoads = allLoadsForDispatcher.filter(d => d.wellness_fail === 'GOOD' || d.wellness_fail === 'FAIL');
-            const goodLoads = wellnessLoads.filter(d => d.wellness_fail === 'GOOD');
-            const failedLoads = wellnessLoads.filter(d => d.wellness_fail === 'FAIL');
-            
-            let stats = `<div class="tooltip-grid">
-                <span class="tooltip-label">Good Loads:</span><span class="tooltip-value-green">${goodLoads.length}</span>
-                <span class="tooltip-label">Failed Loads:</span><span class="tooltip-value-orange">${failedLoads.length}</span>
-                <span class="tooltip-label">Total Evaluated:</span><span>${wellnessLoads.length}</span>
-            </div>`;
-
-            if (failedLoads.length > 0) {
-                stats += `<hr class="tooltip-hr"><strong class="tooltip-title !mb-1">Failed Loads Details</strong>`;
+            case 'wellness':
+                const goodLoads = allLoadsForDispatcher.filter(d => d.wellness_fail === 'GOOD');
+                const passedLoads = allLoadsForDispatcher.filter(d => d.wellness_fail === '-');
+                const failedLoads = allLoadsForDispatcher.filter(d => d.wellness_fail === 'FAIL');
+                
+                let stats = `<div class="tooltip-grid">
+                    <span class="tooltip-label">Passed Wellness Plan:</span><span class="tooltip-value-green">${goodLoads.length}</span>
+                    <span class="tooltip-label">Good Wellness:</span><span class="tooltip-value-green">${passedLoads.length}</span>
+                    <span class="tooltip-label">Failed Wellness Plan:</span><span class="tooltip-value-orange">${failedLoads.length}</span>
+                </div>`;
+    
+                if (failedLoads.length > 0) {
+                stats += `<hr class="tooltip-hr"><strong class="tooltip-title !mb-1">Failed Wellness Plan Details</strong>`;
                 const failedLoadsList = failedLoads.map(load => 
                     `<div class="tooltip-load-row-flex">
                         <span class="font-bold text-gray-400">#${load.id}</span>
@@ -3124,20 +3399,22 @@ function renderDriverFilterModal() {
     const tempFilters = appState.profiles.driverFilters.activeFilters;
     container.innerHTML = '';
 
+    // --- START: UPDATED FILTERABLE COLUMNS ---
     const filterColumns = [
         { id: 'name', label: 'Driver Name', type: 'string' },
         { id: 'company', label: 'Company', type: 'select', options: [...new Set(teamData.drivers.map(d => d.company))] },
         { id: 'dispatcher', label: 'Dispatcher', type: 'select', options: [...new Set(teamData.drivers.map(d => d.dispatcher))] },
+        { id: 'team', label: 'Team', type: 'select', options: [...new Set(teamData.drivers.map(d => d.team))] },
+        { id: 'contract', label: 'Contract', type: 'select', options: ['OO', 'LOO'] },
         { id: 'equipment', label: 'Equipment', type: 'select', options: ['V', 'R', 'F'] },
-        { id: 'flags', label: 'Live Flags', type: 'multiselect', options: [...new Set(teamData.drivers.flatMap(d => d.flags.map(f => f.text)))] },
+        { id: 'flags', label: 'Flags', type: 'multiselect', options: [...new Set(teamData.drivers.flatMap(d => d.flags.map(f => f.text)))] },
         { id: 'risk', label: 'Drop Risk %', type: 'number' },
         { id: 'gross', label: 'Weekly Gross', type: 'number' },
+        { id: 'margin', label: 'Margin', type: 'number' },
         { id: 'rpm', label: 'RPM', type: 'number' },
-        { id: 'miles', label: 'Total Miles', type: 'number' },
-        { id: 'deadhead', label: 'DH', type: 'number' },
-        { id: 'balance', label: 'Balance', type: 'number' },
-        { id: 'po', label: 'PO', type: 'number' }
+        { id: 'miles', label: 'Total Miles', type: 'number' }
     ];
+    // --- END: UPDATED FILTERABLE COLUMNS ---
 
     const operators = {
         string: [
@@ -3211,6 +3488,14 @@ function renderDriverFilterModal() {
             <button class="remove-threshold-btn remove-criteria-btn" title="Remove Criteria"><svg class="pointer-events-none" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
         `;
         container.appendChild(row);
+        
+        const multiSelectTrigger = row.querySelector('.multiselect-trigger');
+        if (multiSelectTrigger) {
+            multiSelectTrigger.addEventListener('click', (e) => {
+                const panel = e.target.nextElementSibling;
+                panel.classList.toggle('hidden');
+            });
+        }
     };
 
     if (tempFilters.length === 0) {
@@ -3230,10 +3515,6 @@ function renderDriverFilterModal() {
         if (e.target.closest('.remove-criteria-btn')) {
             e.target.closest('.driver-filter-criteria-row').remove();
             appState.profiles.driverFilters.activeFilters = readModalState();
-        }
-        if (e.target.closest('.multiselect-trigger')) {
-            const panel = e.target.closest('.multiselect-trigger').nextElementSibling;
-            panel.classList.toggle('hidden');
         }
     });
 
