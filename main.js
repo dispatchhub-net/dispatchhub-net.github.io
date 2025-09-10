@@ -1,5 +1,6 @@
 // 1. DISPEČ TEST/main.js
 
+import { startTimer } from './utils.js';
 import { HISTORICAL_STUBS_URL, DRIVER_COUNT_LIVE_URL } from './config.js';
 import { renderLoadsAnalyticsUI, initializeAnalyticsEventListeners } from './loads/loads_ui.js';
 import { appState, allColumns, setDraggedColumnId, setDraggedViewName } from './state.js';
@@ -29,22 +30,42 @@ import {
 // --- Main Application Flow ---
 
 const initializeApp = async () => {
+    const appLoadTimer = startTimer('Total App Initialization');
     appState.loading = true;
     renderUI();
 
     try {
+        const dataFetchTimer = startTimer('All Data Fetching (Parallel)');
         await Promise.all([
-            fetchAllHistoricalData(),
-            fetchProfileData(), 
-            fetchHistoricalStubs(),
-            fetchLiveDriverCounts()
+            (async () => {
+                const timer = startTimer('fetchAllHistoricalData');
+                await fetchAllHistoricalData();
+                timer.stop();
+            })(),
+            (async () => {
+                const timer = startTimer('fetchProfileData');
+                await fetchProfileData();
+                timer.stop();
+            })(),
+            (async () => {
+                const timer = startTimer('fetchHistoricalStubs');
+                await fetchHistoricalStubs();
+                timer.stop();
+            })(),
+            (async () => {
+                const timer = startTimer('fetchLiveDriverCounts');
+                await fetchLiveDriverCounts();
+                timer.stop();
+            })()
         ]);
+        dataFetchTimer.stop();
 
         if (appState.allHistoricalData.length === 0) {
             console.warn("No historical data for the RANKINGS view was found. The Rankings dashboard may be empty, but other sections will work.");
         }
         
-        appState.profiles.fleetHealthCache = {}; // <-- ADD THIS LINE
+        const processingTimer = startTimer('Data Processing and UI Setup');
+        appState.profiles.fleetHealthCache = {};
 
         loadDefaultView();
         processDataForMode();
@@ -68,6 +89,7 @@ const initializeApp = async () => {
         if (appState.data.length > 0 && appState.selectedBumpEntities.length === 0) {
             appState.selectedBumpEntities = appState.data.slice(0, 5).map(d => d.entityName);
         }
+        processingTimer.stop();
 
     } catch (e) {
         console.error("Error initializing app:", e);
@@ -78,15 +100,18 @@ const initializeApp = async () => {
         renderUI();
         window.requestStubsSort = requestStubsSort;
         addEventListeners();
+        appLoadTimer.stop();
     }
 };
 
 const fetchDataAndRender = () => {
+    const renderTimer = startTimer('fetchDataAndRender');
     processDataForMode();
     getOrComputeHistoricalMetrics();
     updateDynamicTitles();
     updateDriverTypeSwitcherUI();
     renderUI();
+    renderTimer.stop();
 };
 
 const handleSnapshotClick = () => {
