@@ -58,3 +58,58 @@ export const formatUtcToSheetTime = (dateInput, timeZone) => {
         return '-';
     }
 };
+
+/**
+ * Creates a simple performance timer.
+ * @param {string} name - The name of the timer.
+ * @returns {object} An object with a "stop" method.
+ */
+export const startTimer = (name) => {
+    const startTime = performance.now();
+    return {
+        stop: () => {
+            const endTime = performance.now();
+            const duration = (endTime - startTime).toFixed(2);
+            console.log(`%c[PERFORMANCE] ${name} took ${duration} ms`, 'color: #2dd4bf');
+        }
+    };
+};
+
+// LZW-decompress a string
+export const LZW = {
+    decompress: function (compressed) {
+      "use strict";
+      var i,
+          dictionary = [],
+          w,
+          result,
+          k,
+          entry = "",
+          dictSize = 256;
+      for (i = 0; i < 256; i += 1) {
+          dictionary[i] = String.fromCharCode(i);
+      }
+  
+      w = String.fromCharCode(compressed[0]);
+      result = w;
+      for (i = 1; i < compressed.length; i += 1) {
+          k = compressed[i];
+          if (dictionary[k]) {
+              entry = dictionary[k];
+          } else {
+              if (k === dictSize) {
+                  entry = w + w.charAt(0);
+              } else {
+                  return null;
+              }
+          }
+  
+          result += entry;
+  
+          dictionary[dictSize++] = w + entry.charAt(0);
+  
+          w = entry;
+      }
+      return result;
+    }
+  };
