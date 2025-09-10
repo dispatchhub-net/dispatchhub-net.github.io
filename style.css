@@ -2540,6 +2540,7 @@
 
 .dispatch-tooltip.copied {
     border-color: #22c55e; /* green-500 */
+    transition: border-color 0.1s ease-in-out;
 }
 
 .tooltip-title {
@@ -3502,4 +3503,9 @@
 
 #profiles-driver-table-container thead {
     z-index: 30; /* Ensures the entire header row is above scrolling body content */
+}
+
+/* --- FIX: Ensure Save Filter Modal Appears On Top --- */
+#save-driver-filter-modal {
+    z-index: 210 !important;
 }
