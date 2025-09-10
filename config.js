@@ -4,7 +4,7 @@
 export const GOOGLE_APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwTm-mVu3-GMqhBbY1Z-mb03ZjJAl0nmD8oMm8DQg8uXLDTToBvDTYspwkoW96jACE-/exec";
 
 // This URL is for the LOADS data
-export const LOADS_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbws7QzIImo3MaX-5Hf8PoAqrBevHEjzdM8vjyn7mUgQVO5mEinkUkAgyod4JttKxrht/exec";
+export const LOADS_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrztvne6nGODrnpGiIcems0xqPYa92gqdGTj0irMoz_Junr-v95SCYo7BC0VKcX2mt/exec";
 
 // This URL is for the new HISTORICAL STUBS data
 export const HISTORICAL_STUBS_URL = "https://script.google.com/macros/s/AKfycbyzlwW-ZpF5kIPwVS9I1l5SDa2cpwSkCAzqY3N9-sLuOn1FcUAcuNF9GCrjhoHcMQIpRw/exec";
