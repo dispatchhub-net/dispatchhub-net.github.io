@@ -650,7 +650,7 @@
                         <div class="bg-gray-800 border-2 border-gray-700 rounded-2xl shadow-2xl w-full max-w-md transform transition-all">
                             <div class="flex items-center justify-between p-4 border-b border-gray-700">
                                 <h2 class="text-lg font-bold text-gray-200 flex items-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 mr-2"><path d="M12.22 2h-4.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 0 2l-.15.08a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h4.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l-.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1 0-2l.15-.08a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 mr-2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0-.33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.82.33h.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33-1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-.33 1.82Z"></path></svg>
                                     Display Settings
                                 </h2>
                                 <button id="close-display-settings-modal-btn" class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
@@ -736,6 +736,7 @@
                 <div class="flex justify-between items-center p-4 mt-auto border-t border-gray-700 bg-gray-800 flex-shrink-0">
                     <button id="clear-driver-filters-btn" class="text-sm text-gray-400 hover:text-red-400 transition-colors">Clear All Filters</button>
                     <div class="flex gap-x-2">
+                        <button id="save-driver-filter-btn" class="toolbar-btn !bg-gray-600 hover:!bg-gray-500">Save Filter</button>
                         <button id="cancel-driver-filter-btn" class="cancel-btn">Cancel</button>
                         <button id="apply-driver-filter-btn" class="save-btn">Apply Filters</button>
                     </div>
@@ -748,7 +749,7 @@
             <div class="settings-modal-container !max-w-3xl !h-[90vh]">
                 <div class="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
                     <h2 class="text-lg font-bold text-gray-200 flex items-center">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924-1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924-1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0 3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                         Driver Health Settings
                     </h2>
                     <button id="close-driver-settings-modal-btn" class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
@@ -821,7 +822,7 @@
         <div class="settings-modal-container !max-w-xl">
             <div class="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
                 <h2 class="text-lg font-bold text-gray-200 flex items-center">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426-1.756-2.924-1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426-1.756-2.924-1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0 3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                     Threshold Settings
                 </h2>
                 <button id="close-threshold-settings-modal-btn" class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
@@ -851,6 +852,28 @@
                      <p class="text-xs text-gray-400 mb-4">A "Moved Load" is a <span class="font-bold text-green-400">Good Move</span> if the driver's gross pay for that week (excluding the moved load) is below the threshold. Otherwise, it's a <span class="font-bold text-red-400">Bad Move</span>.</p>
                     <div id="good-move-thresholds-container" class="space-y-3">
                         </div>
+                </div>
+            </div>
+
+            <div id="save-driver-filter-modal" class="settings-modal-backdrop hidden">
+                <div class="settings-modal-container !max-w-sm">
+                    <div class="flex items-center justify-between p-4 border-b border-gray-700">
+                        <h2 id="save-filter-modal-title" class="text-lg font-bold text-gray-200">Save Driver Filter</h2>
+                        <button id="close-save-driver-filter-modal-btn" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                    </div>
+                    <div class="p-4 space-y-4">
+                        <div>
+                            <label for="save-filter-name-input" class="block text-sm font-medium text-gray-300 mb-1">Filter Name</label>
+                            <input type="text" id="save-filter-name-input" class="settings-input w-full !text-left" placeholder="e.g., High Risk Drivers">
+                        </div>
+                        <div>
+                            <label for="save-filter-color-input" class="block text-sm font-medium text-gray-300 mb-1">Filter Color</label>
+                            <input type="color" id="save-filter-color-input" class="settings-input w-full !p-1">
+                        </div>
+                    </div>
+                    <div class="flex justify-end p-4 border-t border-gray-700 bg-gray-800">
+                        <button id="confirm-save-driver-filter-btn" class="save-btn">Save Filter</button>
+                    </div>
                 </div>
             </div>
     
