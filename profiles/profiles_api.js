@@ -7,10 +7,8 @@ import { LZW } from '../utils.js'; // <-- Import the new LZW utility
  * It handles compressed data from the Apps Script and maps columns.
  */
 export async function fetchProfileData() {
-    if (appState.profiles.liveData && appState.profiles.liveData.length > 0) {
-        return;
-    }
-
+    // FIX: Removed a caching check here that prevented live data from ever being refreshed.
+    // Now, it will always fetch the latest data when called.
     try {
         const response = await fetch(LOADS_APPS_SCRIPT_URL);
         if (!response.ok) {
