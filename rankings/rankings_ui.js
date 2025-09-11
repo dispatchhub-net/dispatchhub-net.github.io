@@ -15,6 +15,46 @@ import {
     calculateTrendingData
 } from './rankings_api.js';
 
+
+// --- NEW: Refresh Status Display ---
+export const renderRefreshStatus = () => {
+    const statusContainer = document.getElementById('sidebar-refresh-status');
+    if (!statusContainer) return;
+
+    let iconHTML = '';
+    let textHTML = '';
+    let tooltipText = '';
+
+    if (appState.isRefreshing) {
+        iconHTML = `
+            <svg class="animate-spin h-5 w-5 text-sky-400 nav-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>`;
+        textHTML = `<span class="sidebar-text">Syncing...</span>`;
+        tooltipText = 'Syncing new data...';
+        statusContainer.classList.add('pointer-events-none'); // Disable clicking while syncing
+
+    } else if (appState.lastRefreshed) {
+        const timeString = new Date(appState.lastRefreshed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        iconHTML = `
+            <svg class="h-5 w-5 text-green-400 nav-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>`;
+        textHTML = `<span class="sidebar-text">Last updated: ${timeString}</span>`;
+        tooltipText = `Last updated: ${timeString}`;
+         statusContainer.classList.remove('pointer-events-none');
+    }
+
+    statusContainer.innerHTML = iconHTML + textHTML;
+
+    const sidebarText = statusContainer.querySelector('.sidebar-text');
+    if (sidebarText) {
+        sidebarText.textContent = tooltipText;
+    }
+};
+
+
 // --- Display Helper Functions ---
 
 const getChangeDisplay = (currentValue, prevValue, metricInfo, isCurrency = false, isPercentageDifference = false, omitVsPrevWeek = false) => {
@@ -303,6 +343,7 @@ export const renderUI = () => {
     renderLoadingAndError();
     if (!appState.loading && !appState.error) {
         document.getElementById('main-content').classList.remove('hidden');
+        renderRefreshStatus();
         updateDynamicTitles();
         updateDriverTypeSwitcherUI();
         renderKeyMetrics();
