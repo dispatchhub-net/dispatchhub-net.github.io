@@ -1,7 +1,11 @@
 import { LOADS_APPS_SCRIPT_URL } from '../config.js';
 import { appState } from '../state.js';
-import { LZW } from '../utils.js';
+import { LZW } from '../utils.js'; // <-- Import the new LZW utility
 
+/**
+ * Fetches and processes live load data specifically for the Profiles view.
+ * It handles compressed data from the Apps Script and maps columns.
+ */
 export async function fetchProfileData() {
     if (appState.profiles.liveData && appState.profiles.liveData.length > 0) {
         return;
@@ -20,20 +24,20 @@ export async function fetchProfileData() {
 
         let finalData;
 
+        // Check if the data is compressed and decompress it
         if (result.compressed) {
-            // 1. Decode the Base64 string
-            const compressedString = atob(result.data);
-            // 2. Convert the string back into an array of numbers
-            const compressedArray = compressedString.split(',').map(Number);
-            // 3. Decompress the array
-            const decompressedString = LZW.decompress(compressedArray);
+            const decompressedString = LZW.decompress(result.data);
             
+            // --- START OF FIX ---
+            // Add a check to ensure decompression was successful.
             if (decompressedString === null) {
                 throw new Error("Failed to decompress data from the server. The data might be corrupted or in an unexpected format.");
             }
+            // --- END OF FIX ---
 
             finalData = JSON.parse(decompressedString);
         } else {
+            // Handle uncompressed data as a fallback
             finalData = result;
         }
 
