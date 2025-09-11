@@ -3509,3 +3509,16 @@
 #save-driver-filter-modal {
     z-index: 210 !important;
 }
+
+/* --- Sidebar Refresh Status --- */
+#sidebar-refresh-status {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    /* The .nav-item class handles alignment */
+}
+
+#sidebar.minimized #sidebar-refresh-status:hover .sidebar-text {
+    /* This reuses the main tooltip logic from the nav items */
+    visibility: visible !important;
+    opacity: 1 !important;
+}
