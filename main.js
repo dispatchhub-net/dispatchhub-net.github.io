@@ -6,7 +6,7 @@ import { renderLoadsAnalyticsUI, initializeAnalyticsEventListeners } from './loa
 import { appState, allColumns, setDraggedColumnId, setDraggedViewName } from './state.js';
 import { generateAllColumns } from './config.js';
 import { renderTeamProfileUI } from './profiles/profiles_ui.js';
-import { fetchProfileData } from './profiles/profiles_api.js'; // <-- This line fixes the error
+import { fetchProfileData } from './profiles/profiles_api.js';
 import {
     fetchAllHistoricalData,
     processDataForMode,
@@ -14,6 +14,7 @@ import {
 } from './rankings/rankings_api.js';
 import {
     renderUI,
+    renderRefreshStatus,
     renderViewDropdown,
     populateDateDropdown,
     handleCloseEntityModal,
@@ -27,47 +28,48 @@ import {
     requestStubsSort
 } from './rankings/rankings_ui.js';
 
-// --- Main Application Flow ---
+// --- NEW: Data Refresh Function ---
 
-const initializeApp = async () => {
-    const appLoadTimer = startTimer('Total App Initialization');
-    appState.loading = true;
-    renderUI();
+const refreshData = async (isInitialLoad = false) => {
+    console.log(`%c[REFRESH] Starting data refresh (Initial Load: ${isInitialLoad})...`, 'color: cyan');
+    if (!isInitialLoad) {
+        appState.isRefreshing = true;
+        renderRefreshStatus(); // Show the "Syncing..." indicator in the sidebar
+    }
 
     try {
+        console.log('[REFRESH] Kicking off parallel data fetches...');
         const dataFetchTimer = startTimer('All Data Fetching (Parallel)');
+        
+        // Add individual timers to pinpoint slow fetches
+        const historicalTimer = startTimer('fetchAllHistoricalData');
+        const profileTimer = startTimer('fetchProfileData');
+        const stubsTimer = startTimer('fetchHistoricalStubs');
+        const countsTimer = startTimer('fetchLiveDriverCounts');
+
         await Promise.all([
-            (async () => {
-                const timer = startTimer('fetchAllHistoricalData');
-                await fetchAllHistoricalData();
-                timer.stop();
-            })(),
-            (async () => {
-                const timer = startTimer('fetchProfileData');
-                await fetchProfileData();
-                timer.stop();
-            })(),
-            (async () => {
-                const timer = startTimer('fetchHistoricalStubs');
-                await fetchHistoricalStubs();
-                timer.stop();
-            })(),
-            (async () => {
-                const timer = startTimer('fetchLiveDriverCounts');
-                await fetchLiveDriverCounts();
-                timer.stop();
-            })()
+            fetchAllHistoricalData().then(res => { historicalTimer.stop(); console.log('[REFRESH] ✅ fetchAllHistoricalData finished.'); return res; }),
+            fetchProfileData().then(res => { profileTimer.stop(); console.log('[REFRESH] ✅ fetchProfileData finished.'); return res; }),
+            fetchHistoricalStubs().then(res => { stubsTimer.stop(); console.log('[REFRESH] ✅ fetchHistoricalStubs finished.'); return res; }),
+            fetchLiveDriverCounts().then(res => { countsTimer.stop(); console.log('[REFRESH] ✅ fetchLiveDriverCounts finished.'); return res; })
         ]);
+
+        console.log('[REFRESH] All parallel data fetches have completed.');
         dataFetchTimer.stop();
 
         if (appState.allHistoricalData.length === 0) {
             console.warn("No historical data for the RANKINGS view was found. The Rankings dashboard may be empty, but other sections will work.");
         }
-        
+
+        console.log('[REFRESH] Starting data processing...');
         const processingTimer = startTimer('Data Processing and UI Setup');
         appState.profiles.fleetHealthCache = {};
+        appState.precomputationCache = { dispatcher: {}, team: {} }; // FIX: Clear the stale data cache
 
-        loadDefaultView();
+        if (isInitialLoad) {
+            loadDefaultView();
+        }
+        
         processDataForMode();
         getOrComputeHistoricalMetrics();
 
@@ -89,17 +91,82 @@ const initializeApp = async () => {
         if (appState.data.length > 0 && appState.selectedBumpEntities.length === 0) {
             appState.selectedBumpEntities = appState.data.slice(0, 5).map(d => d.entityName);
         }
+        console.log('[REFRESH] Data processing finished.');
         processingTimer.stop();
+        
+        appState.lastRefreshed = new Date(); // Set the timestamp on successful refresh
+
+    } catch (e) {
+        console.error("%c[REFRESH] 🛑 ERROR during data refresh:", 'color: red; font-weight: bold;', e);
+        appState.error = "Failed to refresh application data. " + e.message;
+    } finally {
+        if (!isInitialLoad) {
+            appState.isRefreshing = false;
+            // FIX: This ensures the sidebar icon is updated back to the checkmark
+            // after the refresh cycle completes, regardless of the current view.
+            renderRefreshStatus();
+        }
+        
+        console.log(`%c[REFRESH] Refresh cycle finished. Re-rendering UI for view: ${appState.currentView}.`, 'color: cyan');
+        // Always re-render the appropriate UI based on the current view
+        switch (appState.currentView) {
+            case 'rankings':
+                renderUI();
+                break;
+            case 'loads':
+                renderLoadsAnalyticsUI();
+                initializeAnalyticsEventListeners();
+                break;
+            case 'fleet-health':
+                renderTeamProfileUI();
+                break;
+        }
+    }
+};
+
+// --- Main Application Flow ---
+
+const showForceRefreshPopup = () => {
+    const modal = document.getElementById('force-refresh-modal');
+    const nextRefreshTimeEl = document.getElementById('next-refresh-time');
+    if (!modal || !nextRefreshTimeEl) return;
+
+    const nextRefreshDate = new Date(appState.lastRefreshed.getTime() + 60 * 60 * 1000);
+    nextRefreshTimeEl.textContent = nextRefreshDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    modal.classList.remove('hidden');
+
+    document.getElementById('confirm-force-refresh-btn').onclick = () => {
+        modal.classList.add('hidden');
+        refreshData();
+    };
+    document.getElementById('cancel-force-refresh-btn').onclick = () => {
+        modal.classList.add('hidden');
+    };
+};
+
+
+const initializeApp = async () => {
+    const appLoadTimer = startTimer('Total App Initialization');
+    appState.loading = true;
+    renderUI(); // This will show the full-page loader
+
+    try {
+        await refreshData(true); // Perform the initial data load
+        
+        // Set up the hourly refresh interval AFTER the first successful load
+        const ONE_HOUR = 60 * 60 * 1000;
+        setInterval(refreshData, ONE_HOUR);
 
     } catch (e) {
         console.error("Error initializing app:", e);
         appState.error = "Failed to initialize application. " + e.message;
     } finally {
         appState.loading = false;
-        populateDateDropdown();
-        renderUI();
+        populateDateDropdown(); // Populate dropdown once with all dates
+        renderUI(); // Hide loader, show app content
         window.requestStubsSort = requestStubsSort;
-        addEventListeners();
+        addEventListeners(); // Add event listeners only once
         appLoadTimer.stop();
     }
 };
@@ -267,6 +334,7 @@ const addEventListeners = () => {
         }
     
         updateNavActiveState();
+        renderRefreshStatus();
     };
 
     rankingsMenuItem.addEventListener('click', (e) => {
@@ -419,6 +487,12 @@ const addEventListeners = () => {
     });
 
     document.getElementById('title-snapshot-btn')?.addEventListener('click', handleSnapshotClick);
+
+    document.getElementById('sidebar-refresh-status')?.addEventListener('click', () => {
+        if (!appState.isRefreshing) {
+            showForceRefreshPopup();
+        }
+    });
 };
 
 // --- UI Interaction Logic ---
