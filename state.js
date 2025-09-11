@@ -16,6 +16,8 @@ export let stubsSortConfig = { key: 'criteria', direction: 'descending' };
 export let appState = {
     // MODIFIED: Default view is now more specific
     currentView: 'rankings', // 'rankings', 'loads-table', 'loads-analytics', etc.
+    isRefreshing: false, // To track background refresh status
+    lastRefreshed: null, // To store the timestamp of the last successful refresh
     rankingMode: 'dispatcher', // 'dispatcher' or 'team'
     data: [],
     sortConfig: { key: 'rank', direction: 'ascending' },
