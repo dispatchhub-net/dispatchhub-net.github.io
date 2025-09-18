@@ -52,6 +52,7 @@ export async function fetchProfileData() {
             driver: load.driver,
             dispatcher: load.dispatcher,
             team: load.team,
+            franchise_name: load.franchise_name, // NEW
             contract_type: load.contract,
             company_name: load.company_name,
             trip_miles: load.trip_miles,
