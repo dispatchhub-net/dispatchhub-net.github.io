@@ -28,7 +28,6 @@ export let appState = {
     isMainCriteriaModalOpen: false,
     isPerformanceTrackerModalOpen: false,
     isDisplaySettingsModalOpen: false,
-    expandedDispatcher: null, // NEW: Tracks the dispatcher whose drivers are shown in the team modal
     tableMaxHeight: 500,
     tableGroupColors: {},
     allHistoricalData: [],
@@ -74,11 +73,6 @@ export let appState = {
     pinnedLeftColumns: ['rank', 'entityName', 'dispatcherTeam'],
     pinnedRightColumns: ['mainCriteria_current', 'mainCriteria_4wkAvg'],
 
-    // --- NEW: Comparison State ---
-    comparisonEntity: null, // Stores the entity object for comparison
-    isCompareDropdownOpen: false, // Toggles the comparison dropdown
-    chartLineVisibility: new Map(), // Tracks visibility of chart lines in the modal
-
     // --- START ADDITION FOR PROFILES ---
     // --- START ADDITION FOR PROFILES ---
     profiles: {
@@ -93,8 +87,6 @@ export let appState = {
         isContractTypeFilterOpen: false,
         selectedCompany: 'All Companies',
         isCompanyFilterOpen: false,
-        selectedFranchise: 'All Franchises', // NEW
-        isFranchiseFilterOpen: false, // NEW
         selectedWeek: 'live',
         isWeekSelectorOpen: false,
         activeDetails: {
