@@ -664,7 +664,7 @@ function renderModalHeader_Profiles(driverName, historicalStubs) {
     const riskPercent = driverData ? Math.round(driverData.risk) : 50;
 
     const mostRecentStub = historicalStubs.length > 0 ? historicalStubs[0] : null;
-    const currentCompany = mostRecentStub?.company_name || 'N/A';
+    const currentCompany = mostRecentStub?.company_name || '-';
 
     // Populate the left side
     leftEl.innerHTML = `
@@ -1754,8 +1754,8 @@ export const renderTeamProfileUI = async () => {
         const ranks = dispatcherRanks.get(name) || { rank1w: null, rank4w: null };
         return {
             id: index + 1, name, loads: loadsForStats,
-            company: firstLiveDriverRecord?.company_name || 'N/A',
-            team: firstLiveDriverRecord?.dispatcher_team || 'N/A',
+            company: firstLiveDriverRecord?.company_name || '-',
+            team: firstLiveDriverRecord?.dispatcher_team || '-',
             allTrucks, ooTrucks, looTrucks,
             goodMoves, badMoves: movedLoads.length - goodMoves,
             hiddenMiles: loadsForStats.filter(d => d.hidden_miles === 'Hidden Miles Found!').length,
@@ -1796,10 +1796,10 @@ export const renderTeamProfileUI = async () => {
         const contractType = firstEntry.contract_type ? firstEntry.contract_type.toUpperCase() : 'LOO';
         const contract = contractType === 'OO' ? 'OO' : 'LOO';
         const driver = {
-            id: 1000 + index, name, company: firstEntry.company_name || 'N/A',
-            dispatcher: useLiveData ? firstEntry.dispatcher : firstEntry.stub_dispatcher || 'N/A',
-            team: useLiveData ? firstEntry.team : firstEntry.stub_team || 'N/A',
-            franchise: firstEntry.franchise_name || 'N/A', // NEW
+            id: 1000 + index, name, company: firstEntry.company_name || '-',
+            dispatcher: useLiveData ? firstEntry.dispatcher : firstEntry.stub_dispatcher || '-',
+            team: useLiveData ? firstEntry.team : firstEntry.stub_team || '-',
+            franchise: firstEntry.franchise_name || '-', // UPDATED
             contract, equipment, flags: liveFlags,
             gross: useLiveData ? driverData.reduce((s, l) => s + (l.price || 0), 0) : driverData.reduce((s, l) => s + (l.driver_gross || 0), 0),
             margin: useLiveData ? driverData.reduce((s, l) => s + (l.cut || 0), 0) : driverData.reduce((s, l) => s + (l.margin || 0), 0),
@@ -3406,10 +3406,10 @@ function generateDispatchTooltipHTML(dispatcher, metricId, allLoadsForSearch) {
                         details = `Status: <span class="tooltip-canceled">Canceled</span>`;
                         break;
                     case 'hiddenMiles':
-                     const startCity = load.start_location_city || 'N/A';
+                     const startCity = load.start_location_city || '-';
                      const startState = load.start_location_state || '';
                      const previousLoad = findPreviousLoad(load);
-                     const prevDOLocation = previousLoad ? previousLoad.do_location : 'N/A';
+                     const prevDOLocation = previousLoad ? previousLoad.do_location : '-';
                      details = `Prev DO: <span class="tooltip-value-purple">${prevDOLocation}</span> | Start: <span class="tooltip-value-purple">${startCity}, ${startState}</span>`;
                      break;
             }
