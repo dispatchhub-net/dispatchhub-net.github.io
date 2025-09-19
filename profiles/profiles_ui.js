@@ -530,6 +530,11 @@ function renderProfileHeader(teamData, allTeams, kpis, prevWeekKpis) {
                     <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h6M9 11.25h6m-6 4.5h6M6.75 21v-2.25a2.25 2.25 0 012.25-2.25h6a2.25 2.25 0 012.25 2.25V21M6.75 3v2.25a2.25 2.25 0 002.25 2.25h6a2.25 2.25 0 002.25-2.25V3" /></svg>
                 </button>
             </div>
+            <div id="franchise-filter-container" class="relative">
+                <button id="franchise-filter-btn" class="toolbar-btn !p-2 !w-10 !h-10 flex items-center justify-center" title="Filter by Franchise">
+                    <span class="text-lg font-bold">F</span>
+                </button>
+            </div>
             ${weekSelectorHTML}
             <div class="w-56">
                 <select id="team-selector" class="w-full bg-gray-900 text-gray-100 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent transition duration-200">
@@ -569,6 +574,7 @@ const driverTableColumns = [
     { id: 'company', label: 'Company', type: 'string' },
     { id: 'dispatcher', label: 'Dispatcher', type: 'string' },
     // 'team' is added dynamically for "All Teams" view
+    { id: 'franchise', label: 'Franchise', type: 'string' }, // NEW
     { id: 'contract', label: 'Contract', type: 'string' },
     { id: 'equipment', label: 'Equipment', type: 'string' },
     { id: 'gross', label: 'Gross', type: 'number' },
@@ -576,7 +582,7 @@ const driverTableColumns = [
     { id: 'margin', label: 'Margin', type: 'number' },
     { id: 'rpm', label: 'RPM', type: 'number' },
     { id: 'risk', label: 'Drop Risk %', type: 'number' },
-    { id: 'flags', label: 'Flags', type: 'string' }, 
+    { id: 'flags', label: 'Flags', type: 'string' },
 ];
 
 
@@ -658,7 +664,7 @@ function renderModalHeader_Profiles(driverName, historicalStubs) {
     const riskPercent = driverData ? Math.round(driverData.risk) : 50;
 
     const mostRecentStub = historicalStubs.length > 0 ? historicalStubs[0] : null;
-    const currentCompany = mostRecentStub?.company_name || 'N/A';
+    const currentCompany = mostRecentStub?.company_name || '-';
 
     // Populate the left side
     leftEl.innerHTML = `
@@ -1558,6 +1564,66 @@ function renderFlagSummary(drivers) {
     `).join('');
 }
 
+function renderFranchiseFilterDropdown() {
+    const container = document.getElementById('franchise-filter-container');
+    if (!container) return;
+
+    const existingDropdown = document.getElementById('franchise-filter-dropdown');
+    if (existingDropdown) existingDropdown.remove();
+
+    if (!appState.profiles.isFranchiseFilterOpen) return;
+
+    const dropdown = document.createElement('div');
+    dropdown.id = 'franchise-filter-dropdown';
+    dropdown.className = 'absolute right-0 mt-2 w-48 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 p-2';
+
+    const { selectedWeek } = appState.profiles;
+    const weeksAgo = selectedWeek === 'live' ? 0 : parseInt(selectedWeek.replace('week_', ''), 10);
+    const { start, end } = getPayrollWeekDateRange(weeksAgo);
+
+    const useLiveData = selectedWeek === 'live';
+    const sourceData = useLiveData ? appState.profiles.liveData : appState.loads.historicalStubsData;
+    const dateKey = useLiveData ? 'do_date' : 'pay_date';
+    const franchiseKey = 'franchise_name';
+
+    const activeFranchises = [...new Set(
+        sourceData
+            .filter(d => {
+                if (!d[dateKey]) return false;
+                const itemDate = new Date(d[dateKey]);
+                return itemDate >= start && itemDate <= end && d[franchiseKey];
+            })
+            .map(d => d[franchiseKey])
+    )].sort();
+
+    const options = ['All Franchises', ...activeFranchises];
+
+    let dropdownHTML = `<div class="text-xs uppercase text-gray-400 font-bold mb-2">Filter Franchise</div>`;
+
+    options.forEach(opt => {
+        const isActive = appState.profiles.selectedFranchise === opt;
+        dropdownHTML += `
+            <a href="#" data-filter="${opt}" class="franchise-filter-option flex items-center justify-between p-1.5 hover:bg-gray-600 rounded-md text-sm ${isActive ? 'text-teal-400 font-semibold' : 'text-gray-200'}">
+                <span>${opt}</span>
+                ${isActive ? '<svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.052-.143z" clip-rule="evenodd" /></svg>' : ''}
+            </a>
+        `;
+    });
+
+    dropdown.innerHTML = dropdownHTML;
+    container.appendChild(dropdown);
+
+    dropdown.querySelectorAll('.franchise-filter-option').forEach(optionEl => {
+        optionEl.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            appState.profiles.selectedFranchise = e.currentTarget.dataset.filter;
+            appState.profiles.isFranchiseFilterOpen = false;
+            renderTeamProfileUI();
+        });
+    });
+}
+
 
 
 
@@ -1584,8 +1650,8 @@ export const renderTeamProfileUI = async () => {
         appState.profiles.selectedTeam = 'ALL_TEAMS';
     }
 
-    const { selectedWeek, selectedTeam, contractTypeFilter, selectedCompany } = appState.profiles;
-    const cacheKey = `${selectedWeek}-${selectedTeam}-${contractTypeFilter}-${selectedCompany}`;
+    const { selectedWeek, selectedTeam, contractTypeFilter, selectedCompany, selectedFranchise } = appState.profiles;
+    const cacheKey = `${selectedWeek}-${selectedTeam}-${contractTypeFilter}-${selectedCompany}-${selectedFranchise}`;
 
     if (appState.profiles.fleetHealthCache[cacheKey]) {
         const { teamData, currentKpis, prevWeekKpis, allAvailableTeams, allProcessedDispatchersForCompliance } = appState.profiles.fleetHealthCache[cacheKey];
@@ -1609,8 +1675,9 @@ export const renderTeamProfileUI = async () => {
         renderDriverTable(teamData.drivers);
         renderDriverSettingsModal();
         renderComplianceSettingsModal(allProcessedDispatchersForCompliance);
-        renderContractTypeFilterDropdown(); 
+        renderContractTypeFilterDropdown();
         renderCompanyFilterDropdown();
+        renderFranchiseFilterDropdown();
         renderThresholdSettingsModal();
         renderDriverHealthSettingsModal();
         renderDriverDeepDiveModal_Profiles();
@@ -1656,6 +1723,10 @@ export const renderTeamProfileUI = async () => {
         if (selectedCompany && selectedCompany !== 'All Companies') {
             dateFilteredSource = dateFilteredSource.filter(d => d.company_name === selectedCompany);
         }
+        if (selectedFranchise && selectedFranchise !== 'All Franchises') {
+            const franchiseKey = isForLiveData ? 'franchise_name' : 'franchise_name'; // Assuming same key
+            dateFilteredSource = dateFilteredSource.filter(d => d[franchiseKey] === selectedFranchise);
+        }
         return dateFilteredSource;
     };
 
@@ -1684,8 +1755,8 @@ export const renderTeamProfileUI = async () => {
         const ranks = dispatcherRanks.get(name) || { rank1w: null, rank4w: null };
         return {
             id: index + 1, name, loads: loadsForStats,
-            company: firstLiveDriverRecord?.company_name || 'N/A',
-            team: firstLiveDriverRecord?.dispatcher_team || 'N/A',
+            company: firstLiveDriverRecord?.company_name || '-',
+            team: firstLiveDriverRecord?.dispatcher_team || '-',
             allTrucks, ooTrucks, looTrucks,
             goodMoves, badMoves: movedLoads.length - goodMoves,
             hiddenMiles: loadsForStats.filter(d => d.hidden_miles === 'Hidden Miles Found!').length,
@@ -1726,9 +1797,10 @@ export const renderTeamProfileUI = async () => {
         const contractType = firstEntry.contract_type ? firstEntry.contract_type.toUpperCase() : 'LOO';
         const contract = contractType === 'OO' ? 'OO' : 'LOO';
         const driver = {
-            id: 1000 + index, name, company: firstEntry.company_name || 'N/A',
-            dispatcher: useLiveData ? firstEntry.dispatcher : firstEntry.stub_dispatcher || 'N/A',
-            team: useLiveData ? firstEntry.team : firstEntry.stub_team || 'N/A',
+            id: 1000 + index, name, company: firstEntry.company_name || '-',
+            dispatcher: useLiveData ? firstEntry.dispatcher : firstEntry.stub_dispatcher || '-',
+            team: useLiveData ? firstEntry.team : firstEntry.stub_team || '-',
+            franchise: firstEntry.franchise_name || '-', // UPDATED
             contract, equipment, flags: liveFlags,
             gross: useLiveData ? driverData.reduce((s, l) => s + (l.price || 0), 0) : driverData.reduce((s, l) => s + (l.driver_gross || 0), 0),
             margin: useLiveData ? driverData.reduce((s, l) => s + (l.cut || 0), 0) : driverData.reduce((s, l) => s + (l.margin || 0), 0),
@@ -1745,6 +1817,12 @@ export const renderTeamProfileUI = async () => {
     }
     if (selectedCompany && selectedCompany !== 'All Companies') {
         dispatchersToDisplay = dispatchersToDisplay.filter(d => d.company === selectedCompany);
+    }
+    if (selectedFranchise && selectedFranchise !== 'All Franchises') {
+        const driversInFranchise = new Set(processedDrivers.filter(d => d.franchise === selectedFranchise).map(d => d.name));
+        dispatchersToDisplay = dispatchersToDisplay.filter(disp => {
+            return disp.loads.some(load => driversInFranchise.has(load.driver));
+        });
     }
     if (selectedTeam && selectedTeam !== 'ALL_TEAMS') {
         dispatchersToDisplay = dispatchersToDisplay.filter(d => d.team === selectedTeam);
@@ -1865,7 +1943,9 @@ function renderDispatchTable(dispatchersToDisplay, allDispatchers) {
     if (!componentContainer) return;
 
     const teamData = appState.profiles.currentTeamData;
-    const title = teamData ? `Dispatch Breakdown for ${teamData.teamName}` : 'Dispatch Breakdown';
+    const franchiseText = appState.profiles.selectedFranchise === 'All Franchises' ? '' : ` for ${appState.profiles.selectedFranchise}`;
+    const title = teamData ? `Dispatch Breakdown for ${teamData.teamName}${franchiseText}` : 'Dispatch Breakdown';
+
 
     const dispatchersWithScores = calculateComplianceScores(dispatchersToDisplay, allDispatchers);
     
@@ -2116,6 +2196,8 @@ function renderDriverToolbar(teamData) {
     const savedFilters = appState.profiles.savedDriverFilters || [];
     const hasCustomFilters = savedFilters.some(f => !f.isDefault);
 
+    const franchiseText = appState.profiles.selectedFranchise === 'All Franchises' ? '' : ` for ${appState.profiles.selectedFranchise}`;
+
     const savedFiltersHTML = savedFilters.map(filter => {
         if (!hasCustomFilters && filter.isDefault) {
             return '';
@@ -2157,7 +2239,7 @@ function renderDriverToolbar(teamData) {
     toolbarContainer.innerHTML = `
         <div class="relative flex justify-center items-center w-full min-h-[38px]">
             <h3 id="driver-table-title" class="absolute left-0 text-lg font-bold text-gray-200 flex-shrink-0">
-                ${selectedDispatcherName ? `Driver Health for ${selectedDispatcherName}` : `Driver Health for ${teamData.teamName}`}
+                ${selectedDispatcherName ? `Driver Health for ${selectedDispatcherName}` : `Driver Health for ${teamData.teamName}${franchiseText}`}
                 ${isFilterModified ? '<span class="text-sm font-normal text-yellow-400 ml-2">(modified)</span>' : ''}
             </h3>
             
@@ -2260,7 +2342,7 @@ function renderDriverTable(drivers) {
     let currentColumns = [...driverTableColumns];
     if (appState.profiles.selectedTeam === 'ALL_TEAMS') {
         const dispatcherIndex = currentColumns.findIndex(c => c.id === 'dispatcher');
-        // Insert "Team" column only if it doesn't already exist
+        // Insert "Team" and "Franchise" columns if they don't already exist
         if (!currentColumns.some(c => c.id === 'team')) {
             currentColumns.splice(dispatcherIndex + 1, 0, { id: 'team', label: 'Team', type: 'string' });
         }
@@ -2822,6 +2904,7 @@ export function initializeProfileEventListeners() {
             const kpiSettingsBtn = e.target.closest('#kpi-settings-btn');
             const contractFilterBtn = e.target.closest('#contract-type-filter-btn');
             const companyFilterBtn = e.target.closest('#company-filter-btn');
+            const franchiseFilterBtn = e.target.closest('#franchise-filter-btn'); // NEW
 
             if (button) {
                 appState.profiles.isWeekSelectorOpen = !appState.profiles.isWeekSelectorOpen;
@@ -2847,6 +2930,11 @@ export function initializeProfileEventListeners() {
                 e.stopPropagation();
                 appState.profiles.isCompanyFilterOpen = !appState.profiles.isCompanyFilterOpen;
                 renderCompanyFilterDropdown();
+            }
+            if (franchiseFilterBtn) { // NEW
+                e.stopPropagation();
+                appState.profiles.isFranchiseFilterOpen = !appState.profiles.isFranchiseFilterOpen;
+                renderFranchiseFilterDropdown();
             }
         };
         header.addEventListener('click', header._clickHandler);
@@ -3320,10 +3408,10 @@ function generateDispatchTooltipHTML(dispatcher, metricId, allLoadsForSearch) {
                         details = `Status: <span class="tooltip-canceled">Canceled</span>`;
                         break;
                     case 'hiddenMiles':
-                     const startCity = load.start_location_city || 'N/A';
+                     const startCity = load.start_location_city || '-';
                      const startState = load.start_location_state || '';
                      const previousLoad = findPreviousLoad(load);
-                     const prevDOLocation = previousLoad ? previousLoad.do_location : 'N/A';
+                     const prevDOLocation = previousLoad ? previousLoad.do_location : '-';
                      details = `Prev DO: <span class="tooltip-value-purple">${prevDOLocation}</span> | Start: <span class="tooltip-value-purple">${startCity}, ${startState}</span>`;
                      break;
             }
