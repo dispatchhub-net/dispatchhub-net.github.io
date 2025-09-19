@@ -1306,10 +1306,25 @@ const renderModals = () => {
     }
 };
 
-const renderModalContent = () => {
+export const renderModalContent = () => {
     const chartContainer = document.getElementById('modal-chart-container');
     const stubsContainer = document.getElementById('modal-stubs-container');
     const legendContainer = document.getElementById('modal-chart-legend');
+    const modalTitle = document.getElementById('dispatcher-modal-title');
+
+    // Update Modal Title
+    if (modalTitle && appState.selectedEntity) {
+        let titleHTML = `<span id="modal-entity-name-text">${appState.selectedEntity.entityName}</span>`;
+        if (appState.rankingMode === 'dispatcher') {
+            titleHTML += `<div id="comparison-container" class="inline-flex items-center ml-2"></div>`;
+        }
+        titleHTML += ` - Performance Trend (${appState.driverTypeFilter.toUpperCase()})`;
+        modalTitle.innerHTML = titleHTML;
+
+        if (appState.rankingMode === 'dispatcher') {
+            renderComparisonSelector();
+        }
+    }
 
     chartContainer.style.display = 'none';
     stubsContainer.style.display = 'none';
@@ -1341,24 +1356,28 @@ const renderModalContent = () => {
 
 const renderStubsTable = () => {
     const container = document.getElementById('modal-stubs-container');
-    const entity = appState.selectedEntity;
+    const primaryEntity = appState.selectedEntity;
+    const comparisonEntity = appState.comparisonEntity;
     const date = appState.selectedDate;
 
-    if (!entity || !date) {
+    if (!primaryEntity || !date) {
         container.innerHTML = `<p class="text-center text-gray-400 p-8">Missing data to display stubs.</p>`;
         return;
     }
 
     if (appState.rankingMode === 'dispatcher') {
-        const driverStubs = entity.stubs || [];
+        let primaryStubs = (primaryEntity.stubs || []).map(s => ({ ...s, __source: 'primary' }));
+        let comparisonStubs = comparisonEntity ? (comparisonEntity.stubs || []).map(s => ({ ...s, __source: 'comparison' })) : [];
 
-        let filteredDriverStubs = driverStubs.filter(stub => {
-            if (appState.driverTypeFilter === 'all') return true;
-            return typeof stub.contractType === 'string' && stub.contractType.toLowerCase() === appState.driverTypeFilter;
-        });
+        const filterStubs = (stubs) => {
+            if (appState.driverTypeFilter === 'all') return stubs;
+            return stubs.filter(stub => typeof stub.contractType === 'string' && stub.contractType.toLowerCase() === appState.driverTypeFilter);
+        };
 
-        if (filteredDriverStubs.length === 0) {
-            container.innerHTML = `<p class="text-center text-gray-400 p-8">No individual driver stubs were found for the selected type.</p>`;
+        let allStubs = [...filterStubs(primaryStubs), ...filterStubs(comparisonStubs)];
+
+        if (allStubs.length === 0) {
+            container.innerHTML = `<p class="text-center text-gray-400 p-8">No individual driver stubs were found for the selected criteria.</p>`;
             return;
         }
 
@@ -1378,7 +1397,7 @@ const renderStubsTable = () => {
         ];
 
         const { key: sortKey, direction: sortDirection } = stubsSortConfig;
-        filteredDriverStubs.sort((a, b) => {
+        allStubs.sort((a, b) => {
             let aValue = a[sortKey];
             let bValue = b[sortKey];
             if (sortKey === 'criteria') {
@@ -1411,8 +1430,9 @@ const renderStubsTable = () => {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-700">
-                    ${filteredDriverStubs.map(stub => {
-                        return `<tr>
+                    ${allStubs.map(stub => {
+                        const rowClass = stub.__source === 'comparison' ? 'bg-rose-900 bg-opacity-30 hover:bg-rose-800' : 'hover:bg-gray-700';
+                        return `<tr class="${rowClass}">
                         ${headers.map(h => {
                             const key = h.key;
                             let value = stub[key];
@@ -1444,7 +1464,7 @@ const renderStubsTable = () => {
     } else if (appState.rankingMode === 'team') {
         const filteredData = getFilteredDataByDriverType(appState.allHistoricalData);
         const teamDispatchers = [...new Set(filteredData
-            .filter(row => row.date.toISOString().split('T')[0] === date && row.dispatcherTeam === entity.entityName)
+            .filter(row => row.date.toISOString().split('T')[0] === date && row.dispatcherTeam === primaryEntity.entityName)
             .map(row => row.dispatcherName)
         )];
 
@@ -1464,7 +1484,7 @@ const renderStubsTable = () => {
             { label: 'Net %', key: 'pNet_current', type: 'number' },
             { label: 'Gross %', key: 'pDriverGross_current', type: 'number' },
             { label: 'Margin %', key: 'pMargin_current', type: 'number' },
-            { label: 'Gross', key: 'pTotal_gross_current', type: 'number' },
+            { label: 'Gross', key: 'pDriver_gross_current', type: 'number' },
             { label: 'Margin', key: 'pMargin_dollar_current', type: 'number' },
             { label: 'Miles', key: 'pAll_miles_current', type: 'number' },
             { label: 'RPM', key: 'rpmAll_current', type: 'number' },
@@ -1486,7 +1506,7 @@ const renderStubsTable = () => {
                 return sortDirection === 'ascending' ? aValue - bValue : bValue - aValue;
             } else {
                 return sortDirection === 'ascending' ? 
-                    String(aValue).localeCompare(String(aValue)) : 
+                    String(aValue).localeCompare(String(bValue)) : 
                     String(bValue).localeCompare(String(aValue));
             }
         });
@@ -1503,27 +1523,140 @@ const renderStubsTable = () => {
                         `).join('')}
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-700">
-                    ${dispatcherDetails.map(d => `
-                        <tr>
-                            ${headers.map(h => {
-                                let value = d[h.key];
+                <tbody class="divide-y divide-gray-700" id="team-dispatchers-tbody">
+                    ${dispatcherDetails.map(d => {
+                        const isExpanded = appState.expandedDispatcher === d.entityName;
+                        let rowHTML = `<tr class="dispatcher-row ${isExpanded ? 'is-expanded' : ''}" data-dispatcher-name="${d.entityName}">`;
+                        rowHTML += headers.map(h => {
+                            let value = d[h.key];
+                            let displayValue = (value === null || value === undefined) ? '-' : value;
+
+                            if (typeof value === 'number') {
                                 if (['pNet_current', 'pDriverGross_current', 'pMargin_current', 'pMainCriteriaNetDriverMargin_current', 'pMainCriteria2CashFlow_current', 'mainCriteria_current'].includes(h.key)) {
-                                    value = formatPercentage(value);
+                                    displayValue = formatPercentage(value);
                                 } else if (h.key === 'rpmAll_current') {
-                                    value = `$${(value || 0).toFixed(2)}`;
-                                } else if (['pTotal_gross_current', 'pMargin_dollar_current'].includes(h.key)) {
-                                    value = `$${(value || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}`;
-                                } else if (h.key === 'pAll_miles_current') {
-                                    value = `${(value || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}`;
+                                    displayValue = `$${value.toFixed(2)}`;
+                                } else if (['pDriver_gross_current', 'pMargin_dollar_current'].includes(h.key)) {
+                                    displayValue = `$${value.toLocaleString(undefined, {maximumFractionDigits: 0})}`;
+                                } else {
+                                    displayValue = value.toLocaleString(undefined, {maximumFractionDigits: 0});
                                 }
-                                return `<td class="px-4 py-2 whitespace-nowrap text-sm text-gray-200">${value || '-'}</td>`;
-                            }).join('')}
-                        </tr>`).join('')}
+                            }
+                            return `<td class="px-4 py-2 whitespace-nowrap text-sm text-gray-200">${displayValue}</td>`;
+                        }).join('');
+                        rowHTML += `</tr>`;
+
+                        if (isExpanded) {
+                            rowHTML += `<tr class="dispatcher-details-row"><td colspan="${headers.length}" class="p-0">${renderDispatcherDriverDetails(d)}</td></tr>`;
+                        }
+                        return rowHTML;
+                    }).join('')}
                 </tbody>
             </table>`;
         container.innerHTML = tableHTML;
+
+        // Add event listener for expanding/collapsing
+        const tbody = document.getElementById('team-dispatchers-tbody');
+        if (tbody && !tbody._listenerAttached) {
+            tbody.addEventListener('click', (e) => {
+                const row = e.target.closest('.dispatcher-row');
+                if (row) {
+                    const dispatcherName = row.dataset.dispatcherName;
+                    appState.expandedDispatcher = appState.expandedDispatcher === dispatcherName ? null : dispatcherName;
+                    renderStubsTable();
+                }
+            });
+            tbody._listenerAttached = true;
+        }
     }
+};
+
+const renderDispatcherDriverDetails = (dispatcher) => {
+    const driverStubs = dispatcher.stubs || [];
+    let filteredDriverStubs = driverStubs.filter(stub => {
+        if (appState.driverTypeFilter === 'all') return true;
+        return typeof stub.contractType === 'string' && stub.contractType.toLowerCase() === appState.driverTypeFilter;
+    });
+
+    if (filteredDriverStubs.length === 0) {
+        return `<div class="p-4 text-center text-gray-500">No individual driver stubs found for this dispatcher.</div>`;
+    }
+
+    const headers = [
+        { label: 'Driver Name', key: 'driverName', type: 'string' },
+        { label: 'Contract Type', key: 'type', type: 'string' },
+        { label: 'Net %', key: 'netPercentage', type: 'number' },
+        { label: 'Gross %', key: 'driverGross', type: 'number' },
+        { label: 'Margin %', key: 'margin', type: 'number' },
+        { label: 'Gross', key: 'driver_gross', type: 'number' },
+        { label: 'Margin', key: 'margin_dollar', type: 'number' },
+        { label: 'Miles', key: 'all_miles', type: 'number' },
+        { label: 'RPM', key: 'rpm', type: 'number' },
+        { label: 'Driver Happiness', key: 'netDriverGrossPercentage', type: 'number' },
+        { label: 'Company Happiness', key: 'cashFlow', type: 'number' },
+        { label: 'Criteria', key: 'criteria', type: 'number' }
+    ];
+
+    const { key: sortKey, direction: sortDirection } = stubsSortConfig;
+    filteredDriverStubs.sort((a, b) => {
+        let aValue = a[sortKey];
+        let bValue = b[sortKey];
+        if (sortKey === 'criteria') {
+             aValue = ((a['netDriverGrossPercentage'] || 0) + (a['cashFlow'] || 0)) / 2;
+             bValue = ((b['netDriverGrossPercentage'] || 0) + (b['cashFlow'] || 0)) / 2;
+        }
+        if (aValue === null || aValue === undefined) return 1;
+        if (bValue === null || bValue === undefined) return -1;
+        
+        const headerInfo = headers.find(h => h.key === sortKey);
+        if (headerInfo && headerInfo.type === 'number') {
+            return sortDirection === 'ascending' ? aValue - bValue : bValue - aValue;
+        } else {
+            return sortDirection === 'ascending' ? 
+                String(aValue).localeCompare(String(bValue)) : 
+                String(bValue).localeCompare(String(aValue));
+        }
+    });
+
+    return `
+        <div class="bg-gray-900 p-2">
+            <table class="min-w-full divide-y divide-gray-800 nested-driver-table">
+                <thead class="bg-gray-800">
+                    <tr>
+                        ${headers.map(h => `<th class="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">${h.label}</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800">
+                    ${filteredDriverStubs.map(stub => `
+                        <tr>
+                            ${headers.map(h => {
+                                const key = h.key;
+                                let value = stub[key];
+                                let displayValue = (value === null || value === undefined) ? '-' : value;
+                            
+                                if (key === 'criteria') {
+                                    const criteriaValue = ((stub['netDriverGrossPercentage'] || 0) + (stub['cashFlow'] || 0)) / 2;
+                                    displayValue = formatPercentage(criteriaValue);
+                                } else if (typeof value === 'number') {
+                                    if (key === 'rpm') {
+                                        displayValue = `$${value.toFixed(2)}`;
+                                    } else if (['driver_gross', 'margin_dollar'].includes(key)) {
+                                        displayValue = `$${value.toLocaleString(undefined, {maximumFractionDigits: 0})}`;
+                                    } else if (['netPercentage', 'driverGross', 'margin', 'netDriverGrossPercentage', 'cashFlow'].includes(key)) {
+                                        displayValue = formatPercentage(value);
+                                    } else {
+                                        displayValue = value.toLocaleString(undefined, {maximumFractionDigits: 0});
+                                    }
+                                }
+                            
+                                return `<td class="px-3 py-1.5 whitespace-nowrap text-xs text-gray-300">${displayValue}</td>`;
+                            }).join('')}
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
 };
 
 const populateDisplaySettingsModal = () => {
@@ -1782,23 +1915,25 @@ export const renderIndividualEntityChart = () => {
     legendContainer.html('');
 
     const containerNode = chartContainer.node();
-    if (!containerNode || containerNode.clientWidth <= 0 || containerNode.clientHeight <= 0) {
-        return; // Exit if the container has no dimensions
-    }
-
+    if (!containerNode || containerNode.clientWidth <= 0 || containerNode.clientHeight <= 0) return;
     if (!appState.selectedEntity) return;
 
-    const chartData = getIndividualEntityChartData(appState.selectedEntity.entityName);
+    // Clear previous visibility state on re-render
+    appState.chartLineVisibility.clear();
 
-    if (chartData.length === 0) {
+    const primaryChartData = getIndividualEntityChartData(appState.selectedEntity.entityName);
+    const comparisonChartData = appState.comparisonEntity ? getIndividualEntityChartData(appState.comparisonEntity.entityName) : [];
+
+    const combinedChartData = [...primaryChartData, ...comparisonChartData];
+    if (combinedChartData.length === 0) {
         chartContainer.html(`<p class="text-center text-gray-400">No performance data available for this ${appState.rankingMode}.</p>`);
         return;
     }
 
     const isRankView = appState.entityModalChartView === 'rank';
     const margin = { top: 20, right: 40, bottom: 50, left: 50 };
-    const width = chartContainer.node().clientWidth - margin.left - margin.right;
-    const height = chartContainer.node().clientHeight - margin.top - margin.bottom;
+    const width = containerNode.clientWidth - margin.left - margin.right;
+    const height = containerNode.clientHeight - margin.top - margin.bottom;
 
     const svg = chartContainer.append('svg')
         .attr('width', width + margin.left + margin.right)
@@ -1821,29 +1956,32 @@ export const renderIndividualEntityChart = () => {
         legendContainer.selectAll('.chart-legend-item-compact').classed('dimmed', false);
     };
 
-    const activeChartData = chartData.filter(d => d.oneWeekRank !== null || d.fourWeekRank !== null || d.oneWeekCriteria !== null || d.fourWeekCriteria !== null);
+    const updateChartLineVisibility = () => {
+        appState.chartLineVisibility.forEach((isVisible, lineClass) => {
+            svg.select(`path.${lineClass}`).style('display', isVisible ? null : 'none');
+            legendContainer.select(`.legend-${lineClass}`).classed('legend-hidden', !isVisible);
+        });
+    };
+
+    const activeChartData = combinedChartData.filter(d => d.oneWeekRank !== null || d.fourWeekRank !== null || d.oneWeekCriteria !== null || d.fourWeekCriteria !== null);
     const xScale = d3.scaleTime()
         .domain(d3.extent(activeChartData, d => d.date))
         .range([0, width]);
 
     let yScaleLeft, yAxisLeft;
     if (isRankView) {
-        const allRanks = chartData.flatMap(d => [d.oneWeekRank, d.fourWeekRank]).filter(v => v !== null && !isNaN(v));
+        const allRanks = combinedChartData.flatMap(d => [d.oneWeekRank, d.fourWeekRank]).filter(v => v !== null && !isNaN(v));
         const maxRank = allRanks.length > 0 ? d3.max(allRanks) : 1;
         yScaleLeft = d3.scaleLinear().domain([maxRank + 1, 0.5]).range([height, 0]);
-        const tickValues = new Set([1]);
-        yScaleLeft.ticks(Math.min(8, maxRank)).forEach(tick => { if (tick > 0) tickValues.add(Math.round(tick)); });
-        if (maxRank > 1) tickValues.add(maxRank);
-        const finalTickValues = Array.from(tickValues).sort((a,b) => a - b);
-        yAxisLeft = d3.axisLeft(yScaleLeft).tickValues(finalTickValues).tickFormat(d3.format('d'));
+        yAxisLeft = d3.axisLeft(yScaleLeft).ticks(Math.min(10, maxRank)).tickFormat(d3.format('d'));
     } else {
-        const allValues = chartData.flatMap(d => [d.oneWeekCriteria, d.fourWeekCriteria]).filter(v => v !== null && !isNaN(v));
+        const allValues = combinedChartData.flatMap(d => [d.oneWeekCriteria, d.fourWeekCriteria]).filter(v => v !== null && !isNaN(v));
         const yMax = allValues.length > 0 ? d3.max(allValues) : 1;
         yScaleLeft = d3.scaleLinear().domain([0, yMax > 0 ? yMax * 1.1 : 0.1]).range([height, 0]);
         yAxisLeft = d3.axisLeft(yScaleLeft).tickFormat(d3.format(".0%"));
     }
 
-    const truckValues = chartData.map(d => d.truckCount).filter(v => v !== null && !isNaN(v));
+    const truckValues = combinedChartData.map(d => d.truckCount).filter(v => v !== null && !isNaN(v));
     const yMaxTrucks = truckValues.length > 0 ? d3.max(truckValues) : 1;
     const yScaleRight = d3.scaleLinear()
         .domain([0, yMaxTrucks > 0 ? yMaxTrucks * 1.2 : 5])
@@ -1857,103 +1995,109 @@ export const renderIndividualEntityChart = () => {
     svg.append('g').attr('transform', `translate(${width}, 0)`).call(yAxisRight).selectAll('text').style('fill', '#a0aec0').style('font-size', '10px');
     svg.append('g').attr('class', 'grid').call(d3.axisLeft(yScaleLeft).tickSize(-width).tickFormat('')).selectAll('line').attr('stroke', '#4a5568').attr('stroke-dasharray', '2,2');
     svg.selectAll('.domain').remove();
+    
+    // --- Line Definitions ---
+    const lineDefs = {
+        'line-1wk-primary': { data: primaryChartData, stroke: '#5EEAD4', strokeWidth: 2.5, dash: '', yValue: d => yScaleLeft(isRankView ? d.oneWeekRank : d.oneWeekCriteria), defined: d => (isRankView ? d.oneWeekRank : d.oneWeekCriteria) !== null },
+        'line-4wk-primary': { data: primaryChartData, stroke: '#FDBA74', strokeWidth: 2.5, dash: '', yValue: d => yScaleLeft(isRankView ? d.fourWeekRank : d.fourWeekCriteria), defined: d => (isRankView ? d.fourWeekRank : d.fourWeekCriteria) !== null },
+        'line-truck-primary': { data: primaryChartData, stroke: '#A78BFA', strokeWidth: 1.5, dash: '4 4', yValue: d => yScaleRight(d.truckCount), defined: d => d.truckCount !== null },
+    };
+    if (appState.comparisonEntity) {
+        lineDefs['line-1wk-compare'] = { data: comparisonChartData, stroke: '#f472b6', strokeWidth: 2.5, dash: '5,5', yValue: d => yScaleLeft(isRankView ? d.oneWeekRank : d.oneWeekCriteria), defined: d => (isRankView ? d.oneWeekRank : d.oneWeekCriteria) !== null };
+        lineDefs['line-4wk-compare'] = { data: comparisonChartData, stroke: '#818cf8', strokeWidth: 2.5, dash: '5,5', yValue: d => yScaleLeft(isRankView ? d.fourWeekRank : d.fourWeekCriteria), defined: d => (isRankView ? d.fourWeekRank : d.fourWeekCriteria) !== null };
+        lineDefs['line-truck-compare'] = { data: comparisonChartData, stroke: '#fca5a5', strokeWidth: 1.5, dash: '2 6', yValue: d => yScaleRight(d.truckCount), defined: d => d.truckCount !== null };
+    }
+    
+    Object.keys(lineDefs).forEach(key => {
+        const def = lineDefs[key];
+        const lineGenerator = d3.line().x(d => xScale(d.date)).y(def.yValue).defined(def.defined);
+        svg.append('path').datum(def.data).attr('fill', 'none').attr('stroke', def.stroke).attr('stroke-width', def.strokeWidth).attr('stroke-dasharray', def.dash).attr('d', lineGenerator).attr('class', `line ${key}`);
+    });
 
-    const line1wk = d3.line().x(d => xScale(d.date)).y(d => yScaleLeft(isRankView ? d.oneWeekRank : d.oneWeekCriteria)).defined(d => (isRankView ? d.oneWeekRank : d.oneWeekCriteria) !== null);
-    const line4wk = d3.line().x(d => xScale(d.date)).y(d => yScaleLeft(isRankView ? d.fourWeekRank : d.fourWeekCriteria)).defined(d => (isRankView ? d.fourWeekRank : d.fourWeekCriteria) !== null);
-    const truckLine = d3.line().x(d => xScale(d.date)).y(d => yScaleRight(d.truckCount)).defined(d => d.truckCount !== null);
-
-    svg.append('path').datum(chartData).attr('fill', 'none').attr('stroke', '#5EEAD4').attr('stroke-width', 2.5).attr('d', line1wk).attr('class', 'line line-1wk');
-    svg.append('path').datum(chartData).attr('fill', 'none').attr('stroke', '#FDBA74').attr('stroke-width', 2.5).attr('d', line4wk).attr('class', 'line line-4wk');
-    svg.append('path').datum(chartData).attr('fill', 'none').attr('stroke', '#A78BFA').attr('stroke-width', 1.5).attr('stroke-dasharray', '4 4').attr('d', truckLine).attr('class', 'line line-truck');
-
-    legendContainer.html(`
-        <div class="chart-legend-compact">
-            <span class="chart-legend-item-compact legend-line-1wk" data-line="line-1wk">
-                <span class="chart-legend-color" style="background-color: #5EEAD4;"></span>
-                1-Wk ${isRankView ? 'Rank' : '%-ile'}
-            </span>
-            <span class="chart-legend-item-compact legend-line-4wk" data-line="line-4wk">
-                <span class="chart-legend-color" style="background-color: #FDBA74;"></span>
-                4-Wk Avg. ${isRankView ? 'Rank' : '%-ile'}
-            </span>
-            <span class="chart-legend-item-compact legend-line-truck" data-line="line-truck">
-                <span class="chart-legend-color-line" style="border-top-color: #A78BFA;"></span>
-                Drivers
-            </span>
-        </div>
-    `);
+    // --- Legend ---
+    let legendHTML = `<div class="chart-legend-compact">`;
+    const metricLabel = isRankView ? 'Rank' : '%-ile';
+    const legendItems = [
+        { class: 'line-1wk-primary', color: '#5EEAD4', type: 'solid', label: `${appState.selectedEntity.entityName} (1-Wk ${metricLabel})` },
+        { class: 'line-4wk-primary', color: '#FDBA74', type: 'solid', label: `${appState.selectedEntity.entityName} (4-Wk ${metricLabel})` },
+        { class: 'line-truck-primary', color: '#A78BFA', type: 'dashed', label: `${appState.selectedEntity.entityName} (Drivers)` }
+    ];
+    if (appState.comparisonEntity) {
+        legendItems.push(
+            { class: 'line-1wk-compare', color: '#f472b6', type: 'solid', label: `${appState.comparisonEntity.entityName} (1-Wk ${metricLabel})` },
+            { class: 'line-4wk-compare', color: '#818cf8', type: 'solid', label: `${appState.comparisonEntity.entityName} (4-Wk ${metricLabel})` },
+            { class: 'line-truck-compare', color: '#fca5a5', type: 'dashed', label: `${appState.comparisonEntity.entityName} (Drivers)` }
+        );
+    }
+    legendItems.forEach(item => {
+        appState.chartLineVisibility.set(item.class, true); // Initialize all lines as visible
+        legendHTML += `
+            <span class="chart-legend-item-compact legend-${item.class}" data-line-class="${item.class}">
+                ${item.type === 'solid' ? `<span class="chart-legend-color" style="background-color: ${item.color};"></span>` : `<span class="chart-legend-color-line" style="border-top-color: ${item.color};"></span>`}
+                ${item.label}
+            </span>`;
+    });
+    legendHTML += `</div>`;
+    legendContainer.html(legendHTML);
 
     legendContainer.selectAll('.chart-legend-item-compact')
-        .on('mouseover', function() {
-            const lineClass = d3.select(this).attr('data-line');
-            highlight(lineClass);
-        })
-        .on('mouseout', unhighlight);
+        .on('mouseover', function() { highlight(d3.select(this).attr('data-line-class')); })
+        .on('mouseout', unhighlight)
+        .on('click', function() {
+            const lineClass = d3.select(this).attr('data-line-class');
+            const currentVisibility = appState.chartLineVisibility.get(lineClass);
+            appState.chartLineVisibility.set(lineClass, !currentVisibility);
+            updateChartLineVisibility();
+        });
 
+    // --- Tooltip and Focus ---
     const tooltip = d3.select("body").selectAll(".d3-tooltip").data([null]).join("div").attr("class", "d3-tooltip");
     const focus = svg.append("g").attr("class", "focus").style("display", "none");
     focus.append("line").attr("class", "x-hover-line").attr("y1", 0).attr("y2", height).attr("stroke", "#9ca3af").attr("stroke-width", 1.5).attr("stroke-dasharray", "3,3");
-    svg.append("rect")
-        .attr("class", "overlay")
-        .attr("width", width)
-        .attr("height", height)
-        .style("fill", "none")
-        .style("pointer-events", "all")
+    
+    svg.append("rect").attr("width", width).attr("height", height).style("fill", "none").style("pointer-events", "all")
         .on("mouseover", () => { focus.style("display", null); tooltip.style("opacity", 1); })
-        .on("mouseout", () => {
-            focus.style("display", "none");
-            tooltip.style("opacity", 0);
-        })
+        .on("mouseout", () => { focus.style("display", "none"); tooltip.style("opacity", 0); })
         .on("mousemove", function(event) {
             const bisectDate = d3.bisector(d => d.date).left;
             const x0 = xScale.invert(d3.pointer(event, this)[0]);
-            const i = bisectDate(chartData, x0, 1);
-            const d0 = chartData[i - 1];
-            const d1 = chartData[i];
-            const d = (d1 && d0) ? (x0 - d0.date > d1.date - x0 ? d1 : d0) : (d0 || d1);
-            if (!d) return;
-            focus.select(".x-hover-line").attr("transform", `translate(${xScale(d.date)},0)`);
-            svg.selectAll(".dot-1wk, .dot-4wk").attr("r", 4).attr("stroke", "none");
-            svg.selectAll(".dot-truck").attr("r", 3).attr("stroke", "none");
+            
+            const findDataPoint = (data, date) => {
+                if (!data || data.length === 0) return null;
+                const i = bisectDate(data, date, 1);
+                const d0 = data[i-1], d1 = data[i];
+                return (d1 && d0) ? (date - d0.date > d1.date - date ? d1 : d0) : (d0 || d1);
+            };
+
+            const primaryDataPoint = findDataPoint(primaryChartData, x0);
+            if (!primaryDataPoint) return;
+            
+            focus.select(".x-hover-line").attr("transform", `translate(${xScale(primaryDataPoint.date)},0)`);
             focus.selectAll("circle").remove();
-            if ((isRankView ? d.oneWeekRank : d.oneWeekCriteria) !== null) {
-                focus.append("circle").attr("cx", xScale(d.date)).attr("cy", yScaleLeft(isRankView ? d.oneWeekRank : d.oneWeekCriteria)).attr("r", 6).attr("fill", "#14b8a6").attr("stroke", "white").attr("stroke-width", 2);
+            
+            let tooltipHtml = `<strong class="font-bold">${d3.timeFormat("%Y-%m-%d")(primaryDataPoint.date)}</strong><br/>`;
+            
+            // Primary Entity
+            tooltipHtml += `<strong style="color:#e5e7eb">${appState.selectedEntity.entityName}</strong><br/>`;
+            tooltipHtml += `<span style="color:#5EEAD4">&nbsp;&nbsp;1-Wk ${metricLabel}:</span> ${isRankView ? primaryDataPoint.oneWeekRank ?? 'N/A' : formatPercentage(primaryDataPoint.oneWeekCriteria)}<br/>`;
+            tooltipHtml += `<span style="color:#FDBA74">&nbsp;&nbsp;4-Wk ${metricLabel}:</span> ${isRankView ? primaryDataPoint.fourWeekRank ?? 'N/A' : formatPercentage(primaryDataPoint.fourWeekCriteria)}<br/>`;
+            tooltipHtml += `<span style="color:#A78BFA">&nbsp;&nbsp;Drivers:</span> ${primaryDataPoint.truckCount ?? 'N/A'}`;
+
+            // Comparison Entity
+            if (appState.comparisonEntity) {
+                const compareDataPoint = findDataPoint(comparisonChartData, primaryDataPoint.date);
+                if (compareDataPoint) {
+                    tooltipHtml += `<hr class="my-1 border-gray-600">`;
+                    tooltipHtml += `<strong style="color:#e5e7eb">${appState.comparisonEntity.entityName}</strong><br/>`;
+                    tooltipHtml += `<span style="color:#f472b6">&nbsp;&nbsp;1-Wk ${metricLabel}:</span> ${isRankView ? compareDataPoint.oneWeekRank ?? 'N/A' : formatPercentage(compareDataPoint.oneWeekCriteria)}<br/>`;
+                    tooltipHtml += `<span style="color:#818cf8">&nbsp;&nbsp;4-Wk ${metricLabel}:</span> ${isRankView ? compareDataPoint.fourWeekRank ?? 'N/A' : formatPercentage(compareDataPoint.fourWeekCriteria)}<br/>`;
+                    tooltipHtml += `<span style="color:#fca5a5">&nbsp;&nbsp;Drivers:</span> ${compareDataPoint.truckCount ?? 'N/A'}`;
+                }
             }
-            if ((isRankView ? d.fourWeekRank : d.fourWeekCriteria) !== null) {
-                focus.append("circle").attr("cx", xScale(d.date)).attr("cy", yScaleLeft(isRankView ? d.fourWeekRank : d.fourWeekCriteria)).attr("r", 6).attr("fill", "#f97316").attr("stroke", "white").attr("stroke-width", 2);
-            }
-            if (d.truckCount !== null) {
-                focus.append("circle").attr("cx", xScale(d.date)).attr("cy", yScaleRight(d.truckCount)).attr("r", 5).attr("fill", "#8b5cf6").attr("stroke", "white").attr("stroke-width", 1.5);
-            }
-            let tooltipHtml = `<strong class="font-bold">${d3.timeFormat("%Y-%m-%d")(d.date)}</strong><br/>`;
-            if (isRankView) {
-                tooltipHtml += `<span class="font-bold" style="color:#5EEAD4">1-Wk Rank:</span> ${d.oneWeekRank !== null ? d.oneWeekRank : 'N/A'}<br/>`;
-                tooltipHtml += `<span class="font-bold" style="color:#FDBA74">4-Wk Rank:</span> ${d.fourWeekRank !== null ? d.fourWeekRank : 'N/A'}<br/>`;
-            } else {
-                tooltipHtml += `<span class="font-bold" style="color:#5EEAD4">1-Wk Crit:</span> ${d.oneWeekCriteria !== null ? formatPercentage(d.oneWeekCriteria) : 'N/A'}<br/>`;
-                tooltipHtml += `<span class="font-bold" style="color:#FDBA74">4-Wk Crit:</span> ${d.fourWeekCriteria !== null ? formatPercentage(d.fourWeekCriteria) : 'N/A'}<br/>`;
-            }
-            tooltipHtml += `<span class="font-bold" style="color:#A78BFA">Drivers:</span> ${d.truckCount !== null ? d.truckCount : 'N/A'}`;
-            tooltip.html(tooltipHtml);
-            const tooltipWidth = tooltip.node().offsetWidth;
-            const tooltipHeight = tooltip.node().offsetHeight;
-            let tooltipLeft = event.pageX + 15;
-            let tooltipTop = event.pageY - 28;
-            if (tooltipLeft + tooltipWidth > window.innerWidth + window.scrollX - 20) {
-                tooltipLeft = window.innerWidth + window.scrollX - tooltipWidth - 20;
-            }
-            if (tooltipTop + tooltipHeight > window.innerHeight + window.scrollY - 20) {
-                tooltipTop = window.innerHeight + window.scrollY - tooltipHeight - 20;
-            }
-            if (tooltipTop < window.scrollY + 10) {
-                tooltipTop = window.scrollY + 10;
-            }
-            if (tooltipLeft < window.scrollX + 10) {
-                tooltipLeft = window.scrollX + 10;
-            }
-            tooltip
-                .style("left", tooltipLeft + "px")
-                .style("top", tooltipTop + "px");
+
+            tooltip.html(tooltipHtml)
+                .style("left", (event.pageX + 15) + "px")
+                .style("top", (event.pageY - 28) + "px");
         });
 };
 
@@ -2103,6 +2247,8 @@ export function handleRowClick(entity) {
 export function handleCloseEntityModal() {
     appState.isEntityModalOpen = false;
     appState.selectedEntity = null;
+    appState.comparisonEntity = null; // Clear comparison on close
+    appState.isCompareDropdownOpen = false;
 
     // FIX: Forcefully remove any D3 tooltips attached to the main body.
     d3.select("body").selectAll(".d3-tooltip").remove();
@@ -2283,3 +2429,61 @@ export const renderViewDropdown = () => {
         savedViewsList.appendChild(viewItem);
     });
 };
+
+
+function renderComparisonSelector() {
+    const container = document.getElementById('comparison-container');
+    if (!container) return;
+
+    if (appState.comparisonEntity) {
+        container.innerHTML = `
+            <span class="text-gray-400 mx-1">vs</span>
+            <span class="font-bold text-rose-400">${appState.comparisonEntity.entityName}</span>
+            <button id="remove-comparison-btn" class="ml-2 text-gray-500 hover:text-white">&times;</button>
+        `;
+    } else {
+        container.innerHTML = `
+            <button id="add-comparison-btn" class="ml-2 p-1 rounded-full hover:bg-gray-700" title="Compare with another dispatcher">
+                <svg class="w-4 h-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+            </button>
+        `;
+    }
+
+    if (appState.isCompareDropdownOpen) {
+        const dropdown = document.createElement('div');
+        dropdown.id = 'comparison-dropdown';
+        dropdown.className = 'absolute top-full left-0 mt-2 w-64 bg-gray-700 border border-gray-600 rounded-lg shadow-xl z-50 p-2';
+        
+        const searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.placeholder = 'Search dispatchers...';
+        searchInput.className = 'w-full bg-gray-800 text-gray-100 border-gray-600 rounded-md px-2 py-1 text-sm mb-2';
+        
+        const optionsContainer = document.createElement('div');
+        optionsContainer.className = 'max-h-48 overflow-y-auto';
+
+        const renderOptions = (filter = '') => {
+            optionsContainer.innerHTML = '';
+            appState.allDispatcherNames
+                .filter(name => name !== appState.selectedEntity.entityName && name.toLowerCase().includes(filter.toLowerCase()))
+                .forEach(name => {
+                    const option = document.createElement('div');
+                    option.className = 'p-2 hover:bg-gray-600 cursor-pointer text-sm rounded-md';
+                    option.textContent = name;
+                    option.onclick = () => {
+                        appState.comparisonEntity = appState.data.find(d => d.entityName === name);
+                        appState.isCompareDropdownOpen = false;
+                        renderModalContent();
+                    };
+                    optionsContainer.appendChild(option);
+                });
+        };
+        
+        searchInput.oninput = () => renderOptions(searchInput.value);
+        
+        dropdown.appendChild(searchInput);
+        dropdown.appendChild(optionsContainer);
+        container.appendChild(dropdown);
+        renderOptions();
+    }
+}
