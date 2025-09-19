@@ -1250,7 +1250,7 @@ function renderDriverSettingsModal() {
                     <div class="input-group compact override-row" data-contract="${contract}">
                         <label class="override-label">${contract} Override</label>
                         <div class="flex items-center">
-                            <input class="contract-value-input settings-input" type="number" step="${step}" value="${value}">
+                            <input data-flag="${flagKey}" class="contract-value-input settings-input" type="number" step="${step}" value="${value}">
                             <button class="remove-override-btn" title="Remove override">&times;</button>
                         </div>
                     </div>
