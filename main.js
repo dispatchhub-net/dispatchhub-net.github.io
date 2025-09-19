@@ -25,8 +25,7 @@ import {
     loadDefaultView,
     updateDynamicTitles,
     updateDriverTypeSwitcherUI,
-    requestStubsSort,
-    renderModalContent
+    requestStubsSort
 } from './rankings/rankings_ui.js';
 
 // --- NEW: Data Refresh Function ---
@@ -611,26 +610,4 @@ const fetchLiveDriverCounts = async () => {
 document.addEventListener('DOMContentLoaded', () => {
     initializeUIEventListeners(); 
     initializeApp();
-});
-
-
-document.addEventListener('click', (e) => {
-    const comparisonContainer = document.getElementById('comparison-container');
-    if (comparisonContainer && !comparisonContainer.contains(e.target)) {
-        if (appState.isCompareDropdownOpen) {
-            appState.isCompareDropdownOpen = false;
-            renderModalContent();
-        }
-    }
-    
-    if (e.target.closest('#add-comparison-btn')) {
-        e.stopPropagation();
-        appState.isCompareDropdownOpen = !appState.isCompareDropdownOpen;
-        renderModalContent();
-    }
-
-    if (e.target.closest('#remove-comparison-btn')) {
-        appState.comparisonEntity = null;
-        renderModalContent();
-    }
 });
