@@ -2844,24 +2844,33 @@ export function initializeProfileEventListeners() {
 
                 if (dispatcher && metricId) {
                     const htmlContent = generateDispatchTooltipHTML(dispatcher, metricId, appState.profiles.liveData);
-                    // Convert HTML to plain text for clipboard
                     const plainText = htmlContent.replace(/<br\s*[\/]?>/gi, "\n").replace(/<[^>]*>/g, '').trim();
                     copyToClipboard(plainText);
                     
-                    // Show green border confirmation
                     const tooltipElement = document.getElementById('dispatch-tooltip');
                     tooltipElement.classList.add('copied');
-                    setTimeout(() => {
-                        tooltipElement.classList.remove('copied');
-                    }, 500); // The green border will last for 0.5 seconds
+                    setTimeout(() => tooltipElement.classList.remove('copied'), 500);
                 }
             } else if (row) {
-                // Handle row selection
+                // --- FIX START ---
                 const dispatcherId = parseInt(row.dataset.dispatcherId, 10);
+
+                // Handle row selection
                 appState.profiles.selectedDispatcherId = appState.profiles.selectedDispatcherId === dispatcherId ? null : dispatcherId;
-                renderDispatchTable(teamData.dispatchers, teamData.dispatchers);
+                
+                // Re-render the necessary components
+                renderDispatchTable(teamData.dispatchers, appState.profiles.allProcessedDispatchers);
                 renderDriverToolbar(teamData);
                 renderDriverTable(teamData.drivers);
+
+                // After re-rendering, find the new row and scroll it into view
+                requestAnimationFrame(() => {
+                    const newRow = document.querySelector(`.dispatch-table-row[data-dispatcher-id='${dispatcherId}']`);
+                    if (newRow) {
+                        newRow.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+                    }
+                });
+                // --- FIX END ---
             }
         };
         dispatchTable.addEventListener('click', dispatchTable._clickHandler);
