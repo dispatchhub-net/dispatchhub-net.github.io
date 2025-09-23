@@ -82,6 +82,7 @@ export let appState = {
     // --- START ADDITION FOR PROFILES ---
     // --- START ADDITION FOR PROFILES ---
     profiles: {
+        isSnapshotOpen: false,
         fleetHealthCache: {},
         liveData: [],
         liveDriverCountData: [],
