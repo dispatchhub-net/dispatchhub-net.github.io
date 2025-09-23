@@ -3592,3 +3592,277 @@
     max-height: 250px;
     overflow-y: auto;
 }
+
+
+/* --- TEAM SNAPSHOT PANEL (FINAL REDESIGN) --- */
+.snapshot-trigger {
+    position: fixed;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%) rotate(-90deg);
+    transform-origin: bottom right;
+    background-color: #0d9488; /* teal-600 */
+    color: white;
+    padding: 6px 12px;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    z-index: 199;
+    font-weight: 600;
+    font-size: 0.8rem;
+    display: none; /* Hidden by default */
+    align-items: center;
+    gap: 6px;
+    transition: background-color 0.2s;
+    box-shadow: -2px -2px 10px rgba(0,0,0,0.3);
+}
+.snapshot-trigger:hover {
+    background-color: #0f766e; /* teal-700 */
+}
+.snapshot-trigger svg {
+    width: 14px;
+    height: 14px;
+    transform: rotate(90deg);
+}
+
+#full-page-loader:not(.hidden) + #app-wrapper .snapshot-trigger {
+    display: none !important;
+}
+
+.snapshot-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 620px; /* New, wider value */
+    max-width: 90%;
+    height: 100%;
+    background: #1f2937; /* gray-800 */
+    border-left: 2px solid #0d9488;
+    box-shadow: -10px 0 25px rgba(0,0,0,0.5);
+    z-index: 200;
+    transform: translateX(100%);
+    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    display: flex;
+    flex-direction: column;
+}
+.snapshot-panel.open {
+    transform: translateX(0);
+}
+
+.snapshot-header {
+    padding: 0.5rem 1rem; /* Reduced padding */
+    border-bottom: 1px solid #4b5563;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.snapshot-title {
+    font-size: 0.9rem; /* Reduced font size */
+    font-weight: 600;
+    color: white;
+}
+.snapshot-close-btn {
+    background: none; border: none; color: #9ca3af;
+    font-size: 1.75rem; line-height: 1; cursor: pointer;
+    transition: color 0.2s;
+}
+.snapshot-close-btn:hover {
+    color: white;
+}
+
+.snapshot-content {
+    padding: 0.75rem; /* Reduced padding */
+    overflow-y: hidden; /* No scroll! */
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem; /* Reduced gap */
+    height: 100%;
+}
+
+.snapshot-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+}
+.snapshot-kpi-item {
+    background-color: #111827;
+    padding: 0.3rem 0.5rem; /* Reduced padding */
+    height: 45px; /* Reduced height */
+    border-radius: 0.375rem; /* smaller radius */
+    border: 1px solid #374151;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.snapshot-kpi-item .label {
+    font-size: 0.55rem; /* 8.8px */
+    font-weight: 500;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.snapshot-kpi-item .value {
+    font-size: 1rem; /* Reduced font size */
+    font-weight: 700;
+    color: #e5e7eb;
+    line-height: 1.2;
+}
+.snapshot-kpi-item .trend {
+    font-size: 0.65rem;
+    position: absolute;
+    bottom: 3px;
+    right: 5px;
+}
+.snapshot-kpi-item .trend.good { color: #4ade80; }
+.snapshot-kpi-item .trend.bad { color: #f87171; }
+.snapshot-kpi-item .trend.neutral { color: #9ca3af; }
+
+.snapshot-section {
+    background-color: #111827;
+    border: 1px solid #374151;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem; /* Reduced padding */
+}
+.snapshot-section-title {
+    font-size: 0.65rem; /* Reduced font size */
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 0.4rem;
+}
+.snapshot-rankings-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+.snapshot-rankings-grid h5 {
+    font-size: 0.7rem; /* Reduced font size */
+    font-weight: 600;
+    color: #d1d5db;
+    margin-bottom: 0.25rem;
+}
+.snapshot-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.7rem; /* Reduced font size */
+    padding: 1px 0;
+}
+.snapshot-list-item .name {
+    color: #d1d5db;
+}
+.snapshot-list-item .value {
+    font-weight: 600;
+    font-family: monospace;
+}
+.snapshot-list-item .value.good { color: #4ade80; }
+.snapshot-list-item .value.bad { color: #f87171; }
+
+.snapshot-list-item:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+#snapshot-driver-table {
+    width: 100%;
+    table-layout: fixed; /* This helps space columns evenly */
+}
+
+#snapshot-driver-table tbody tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+#snapshot-driver-table th {
+    font-size: 0.6rem; /* Reduced font size */
+    text-transform: uppercase;
+    color: #9ca3af;
+    text-align: left;
+    padding: 2px 4px;
+    font-weight: 500;
+}
+#snapshot-driver-table td {
+    font-size: 0.7rem; /* Reduced font size */
+    padding: 2px 4px;
+    color: #d1d5db;
+}
+/* This specifically colors the risk % red */
+#snapshot-driver-table .risk-value {
+    font-weight: 600;
+    font-family: monospace;
+    color: #f87171;
+}
+
+.snapshot-chart-container {
+    height: 100%;
+    width: 100%;
+    flex-grow: 1;
+    min-height: 0;
+    position: relative; /* For legend positioning */
+    overflow: hidden; /* Add this line to clip anything outside the container */
+}
+.snapshot-chart-container .axis .domain { stroke: none; }
+.snapshot-chart-container .axis .tick line { stroke: #374151; }
+.snapshot-chart-container .axis .tick text { fill: #9ca3af; font-size: 10px; }
+.snapshot-chart-container .grid .tick line {
+    stroke: #4b5563; /* gray-600 */
+    stroke-opacity: 0.5;
+    stroke-dasharray: 2,2; /* Dashed lines */
+}
+.snapshot-chart-container .chart-line { stroke-width: 2; fill: none; }
+.snapshot-chart-container .chart-area { opacity: 0.2; }
+
+.snapshot-chart-container .chart-data-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-anchor: middle;
+}
+
+#snapshot-driver-table td:first-child {
+    white-space: nowrap; /* Forces driver name onto one line */
+}
+
+.snapshot-chart-legend {
+    position: absolute;
+    bottom: 45px; /* Increased value to move it up */
+    right: 15px;
+    font-size: 0.65rem;
+    color: #9ca3af;
+    display: flex;
+    gap: 10px; /* Space out legend items horizontally */
+}
+.snapshot-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.snapshot-legend-color {
+    width: 10px;
+    height: 2px;
+}
+
+#snapshot-driver-table td:first-child {
+    white-space: nowrap; /* Forces driver name onto one line */
+}
+
+.snapshot-list-item:nth-child(even),
+#snapshot-driver-table tbody tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02); /* Subtle zebra striping */
+}
+
+#snapshot-driver-table td:first-child,
+.snapshot-list-item .name {
+    white-space: nowrap; /* Forces name onto one line */
+}
+
+.snapshot-chart-container .chart-data-label {
+    font-size: 9px;
+    font-weight: 600;
+    text-anchor: middle;
+}
+
+#snapshot-driver-table td:first-child,
+#snapshot-driver-table td:nth-child(4),
+.snapshot-list-item .name {
+    white-space: nowrap; /* Forces name onto one line */
+}
