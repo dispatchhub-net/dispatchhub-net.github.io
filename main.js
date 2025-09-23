@@ -319,6 +319,13 @@ const addEventListeners = () => {
         document.getElementById('loads-analytics-content').classList.add('hidden');
         document.getElementById('profiles-content').classList.add('hidden');
     
+        // --- FIX START: Control Snapshot Visibility ---
+        const snapshotTrigger = document.getElementById('snapshot-trigger');
+        if (snapshotTrigger) {
+            snapshotTrigger.style.display = view === 'fleet-health' ? 'flex' : 'none';
+        }
+        // --- FIX END ---
+
         if (view === 'rankings') {
             document.getElementById('main-content').classList.remove('hidden');
             document.getElementById('key-metrics-overview').classList.remove('hidden');
