@@ -1134,3 +1134,53 @@ export const getIndividualEntityChartData = (entityName) => {
     // Fallback in case cache isn't ready.
     return [];
 };
+
+
+export const getCompanyOrAllTeamsCriteriaHistory = (entityName, entityType, allHistoricalData, numWeeks = 8) => {
+    const uniqueDates = [...new Set(allHistoricalData.map(d => d.date.toISOString().split('T')[0]))].sort().reverse();
+    const relevantDates = uniqueDates.slice(0, numWeeks).sort();
+    
+    return relevantDates.map(dateString => {
+        let relevantData = allHistoricalData.filter(d => d.date.toISOString().split('T')[0] === dateString);
+        
+        if (entityType === 'company') {
+            relevantData = relevantData.filter(d => d.company_name === entityName);
+        } else if (entityType === 'team') {
+            relevantData = relevantData.filter(d => d.dispatcherTeam === entityName);
+        }
+
+        const criteriaValues = relevantData.map(d => d.mainCriteria).filter(v => typeof v === 'number' && !isNaN(v));
+        
+        if (criteriaValues.length === 0) {
+            return { date: new Date(dateString), value: null };
+        }
+        
+        const avgCriteria = criteriaValues.reduce((sum, v) => sum + v, 0) / criteriaValues.length;
+        return { date: new Date(dateString), value: avgCriteria };
+    });
+};
+
+export const getTeamRankHistory = (teamName, allHistoricalData, numWeeks = 8) => {
+    const uniqueDates = [...new Set(allHistoricalData.map(d => d.date.toISOString().split('T')[0]))].sort().reverse();
+    const relevantDates = uniqueDates.slice(0, numWeeks).sort();
+
+    const rankHistory = relevantDates.map(dateString => {
+        const dataForDate = allHistoricalData.filter(d => d.date.toISOString().split('T')[0] === dateString);
+        
+        // --- FIX: Use the same team aggregation logic as the main table ---
+        const aggregatedTeamsForDate = aggregateTeamData(dataForDate);
+
+        const rankedData = aggregatedTeamsForDate
+            .sort((a, b) => (b.mainCriteria_current || 0) - (a.mainCriteria_current || 0));
+
+        const rank = rankedData.findIndex(d => d.entityName === teamName) + 1;
+        const teamDataForDate = rankedData.find(d => d.entityName === teamName);
+
+        return {
+            date: new Date(dateString),
+            value: rank > 0 ? rank : null,
+            criteria: teamDataForDate ? teamDataForDate.mainCriteria_current : null
+        };
+    });
+    return rankHistory;
+};
