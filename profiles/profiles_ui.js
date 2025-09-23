@@ -1,7 +1,15 @@
 import { appState } from '../state.js';
 import { calculateMedian } from '../utils.js';
-import { getFilteredDataByDriverType, calculateFourWeekAverageDataForDate } from '../rankings/rankings_api.js';
+import { getFilteredDataByDriverType, calculateFourWeekAverageDataForDate, getTeamRankHistory, getCompanyOrAllTeamsCriteriaHistory } from '../rankings/rankings_api.js';
 
+
+const debounce = (func, delay) => {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), delay);
+    };
+};
 
 /**
  * Finds the corresponding Thursday rankings date for a given profiles payroll week.
@@ -1681,6 +1689,7 @@ export const renderTeamProfileUI = async () => {
         renderThresholdSettingsModal();
         renderDriverHealthSettingsModal();
         renderDriverDeepDiveModal_Profiles();
+        renderTeamSnapshot();
         initializeProfileEventListeners();
         return;
     }
@@ -2904,6 +2913,26 @@ export function initializeProfileEventListeners() {
         driverDeepDiveModal._clickHandlerAttached = true;
     }
 
+    // --- START: ADD SNAPSHOT EVENT LISTENERS ---
+    const snapshotTrigger = document.getElementById('snapshot-trigger');
+    if (snapshotTrigger && !snapshotTrigger._clickHandlerAttached) {
+        snapshotTrigger.addEventListener('click', () => {
+            appState.profiles.isSnapshotOpen = true;
+            renderTeamSnapshot();
+        });
+        snapshotTrigger._clickHandlerAttached = true;
+    }
+
+    const snapshotCloseBtn = document.getElementById('snapshot-close-btn');
+    if (snapshotCloseBtn && !snapshotCloseBtn._clickHandlerAttached) {
+        snapshotCloseBtn.addEventListener('click', () => {
+            appState.profiles.isSnapshotOpen = false;
+            renderTeamSnapshot();
+        });
+        snapshotCloseBtn._clickHandlerAttached = true;
+    }
+    // --- END: ADD SNAPSHOT EVENT LISTENERS ---
+
     const header = document.getElementById('profiles-header');
     if (header) {
         if (header._clickHandler) header.removeEventListener('click', header._clickHandler);
@@ -3767,4 +3796,393 @@ function getPayPeriodFromPayDate(payDateString) {
     start.setUTCHours(0, 0, 0, 0);
 
     return { start, end };
+}
+
+/**
+ * Generates a trend display for snapshot KPIs.
+ */
+function getSnapshotTrend(current, previous, lowerIsBetter = false) {
+    if (current === null || previous === null || isNaN(current) || isNaN(previous) || previous === 0) {
+        return '<span class="trend neutral">--</span>';
+    }
+    const change = current - previous;
+    if (Math.abs(change) < 0.01) {
+        return '<span class="trend neutral">--</span>';
+    }
+
+    const isPositive = change > 0;
+    const isGood = lowerIsBetter ? !isPositive : isPositive;
+    const color = isGood ? 'good' : 'bad';
+    const arrow = isPositive ? '▲' : '▼';
+    
+    return `<span class="trend ${color}">${arrow}</span>`;
+}
+
+/**
+ * Generates the title for the snapshot panel based on active filters.
+ */
+function generateSnapshotTitle() {
+    const { selectedTeam, selectedCompany, contractTypeFilter, selectedWeek } = appState.profiles;
+    const weeksAgo = selectedWeek === 'live' ? 0 : parseInt(selectedWeek.replace('week_', ''), 10);
+    const weekLabel = getProfilePayrollWeek(weeksAgo).label;
+
+    let context = [];
+
+    if (selectedCompany !== 'All Companies') {
+        context.push(selectedCompany);
+    } else if (selectedTeam !== 'ALL_TEAMS') {
+        context.push(selectedTeam);
+    } else {
+        context.push("All Teams");
+    }
+
+    if (contractTypeFilter !== 'all') {
+        context.push(`(${contractTypeFilter.toUpperCase()})`);
+    }
+
+    return `${context.join(' ')} | ${weekLabel}`;
+}
+function generateSnapshotData() {
+    const { currentTeamData, liveData, selectedWeek, selectedTeam, selectedCompany, contractTypeFilter } = appState.profiles;
+    if (!currentTeamData) return null;
+
+    const { dispatchers, drivers } = currentTeamData;
+    
+    const weeksAgo = selectedWeek === 'live' ? 0 : parseInt(selectedWeek.replace('week_', ''), 10);
+    const { start: prevStart, end: prevEnd } = getPayrollWeekDateRange(weeksAgo + 1);
+
+    // Get previous week data based on the same filters
+    let prevWeekFilteredData = liveData.filter(d => {
+        if (!d.do_date) return false;
+        const doDate = new Date(d.do_date);
+        return doDate >= prevStart && doDate <= prevEnd;
+    });
+    if (selectedTeam !== 'ALL_TEAMS') prevWeekFilteredData = prevWeekFilteredData.filter(d => d.team === selectedTeam);
+    if (selectedCompany !== 'All Companies') prevWeekFilteredData = prevWeekFilteredData.filter(d => d.company_name === selectedCompany);
+    if (contractTypeFilter !== 'all') {
+        prevWeekFilteredData = prevWeekFilteredData.filter(d => {
+             const contract = String(d.contract_type || '').trim().toUpperCase();
+             if (contractTypeFilter === 'oo') return contract === 'OO';
+             if (contractTypeFilter === 'loo') return contract !== 'OO';
+             return true;
+        });
+    }
+
+    // 1. KPIs
+    const currentGross = drivers.reduce((sum, d) => sum + d.gross, 0);
+    const currentMiles = drivers.reduce((sum, d) => sum + d.miles, 0);
+    const currentMargin = drivers.reduce((sum, d) => sum + d.margin, 0);
+    const prevGross = prevWeekFilteredData.reduce((sum, l) => sum + (l.price || 0) + (l.cut || 0), 0);
+    const prevMiles = prevWeekFilteredData.reduce((sum, l) => sum + (l.trip_miles || 0) + (l.deadhead_miles || 0), 0);
+    const prevMargin = prevWeekFilteredData.reduce((sum, l) => sum + (l.cut || 0), 0);
+    const activeTrucks = new Set(drivers.map(d => d.name)).size;
+    const prevActiveTrucks = new Set(prevWeekFilteredData.map(d => d.driver)).size;
+    const wellnessScores = dispatchers.map(d => parseFloat(d.wellness)).filter(w => !isNaN(w));
+    
+    const kpis = {
+        totalGross: { value: currentGross, trend: getSnapshotTrend(currentGross, prevGross) },
+        totalMargin: { value: currentMargin, trend: getSnapshotTrend(currentMargin, prevMargin) },
+        totalRpm: { value: currentMiles > 0 ? currentGross / currentMiles : 0, trend: getSnapshotTrend(currentMiles > 0 ? currentGross / currentMiles : 0, prevMiles > 0 ? prevGross / prevMiles : 0) },
+        activeTrucks: { value: activeTrucks, trend: getSnapshotTrend(activeTrucks, prevActiveTrucks) },
+        dispatchers: { value: dispatchers.length, trend: getSnapshotTrend(0,0) }, // No prev week dispatcher data
+        avgWellness: { value: wellnessScores.length > 0 ? wellnessScores.reduce((a, b) => a + b, 0) / wellnessScores.length : 0, trend: getSnapshotTrend(0,0) }
+    };
+
+    // 2. Dispatcher Rankings & High-Risk Drivers
+    const sortedByRank = [...dispatchers].sort((a, b) => (a.rank1w || Infinity) - (b.rank1w || Infinity));
+    const sortedByCompliance = [...dispatchers].sort((a, b) => (b.complianceScore || 0) - (a.complianceScore || 0));
+    const highRiskDrivers = [...drivers].sort((a, b) => b.risk - a.risk).slice(0, 5);
+    
+    // 3. Flag Snapshot
+    const flagSnapshot = drivers.flatMap(d => d.flags.map(f => f.text)).reduce((acc, flag) => {
+        acc[flag] = (acc[flag] || 0) + 1;
+        return acc;
+    }, {});
+    const badMoves = dispatchers.reduce((sum, d) => sum + (d.badMoves || 0), 0);
+    if (badMoves > 0) flagSnapshot['Bad Moves'] = badMoves;
+
+
+    return {
+        kpis,
+        bestDispatchersRank: sortedByRank.slice(0, 3),
+        worstDispatchersRank: sortedByRank.filter(d => d.rank1w !== null).slice(-3).reverse(),
+        worstDispatchersCompliance: sortedByCompliance.slice(-3).reverse(),
+        highRiskDrivers,
+        flagSnapshot
+    };
+}
+
+/**
+ * Renders the D3 chart for the snapshot panel with adaptive logic.
+ */
+export function renderSnapshotChart(containerId) {
+    const container = d3.select(`#${containerId}`);
+    container.html(""); // Clear previous chart
+
+    const containerNode = container.node();
+    if (!containerNode) return;
+    const { width: containerWidth, height: containerHeight } = containerNode.getBoundingClientRect();
+
+    if (containerWidth < 50 || containerHeight < 50) {
+        setTimeout(() => renderSnapshotChart(containerId), 50);
+        return;
+    }
+
+    const { selectedTeam, selectedCompany } = appState.profiles;
+    const allTeams = [...new Set(appState.allHistoricalData.map(d => d.dispatcherTeam).filter(Boolean))];
+    let datasets = [];
+    let yLabel = "Rank";
+
+    if (selectedCompany !== 'All Companies') {
+        const entityName = selectedCompany;
+        datasets.push({ name: entityName, data: getCompanyOrAllTeamsCriteriaHistory(entityName, 'company', appState.allHistoricalData, 8) });
+        yLabel = "Avg Criteria";
+    } else if (selectedTeam !== 'ALL_TEAMS') {
+        // --- FIX: Correctly find all teams that start with the selected parent team name ---
+        const teamsToPlot = allTeams.filter(t => t.startsWith(selectedTeam));
+        
+        if (teamsToPlot.length > 0) {
+            teamsToPlot.forEach(teamName => {
+                const shortName = teamName.replace(selectedTeam, '').trim() || teamName;
+                datasets.push({ name: shortName, data: getTeamRankHistory(teamName, appState.allHistoricalData, 8) });
+            });
+        } else {
+            // Fallback for teams without explicit sub-teams
+            datasets.push({ name: selectedTeam, data: getTeamRankHistory(selectedTeam, appState.allHistoricalData, 8) });
+        }
+    } else {
+        datasets.push({ name: "All Teams", data: getCompanyOrAllTeamsCriteriaHistory('ALL_TEAMS', 'all', appState.allHistoricalData, 8) });
+        yLabel = "Avg Criteria";
+    }
+
+    const chartData = datasets.flatMap(ds => ds.data.filter(d => d.value !== null));
+    if (!chartData || chartData.length === 0) {
+        container.html(`<div class="flex items-center justify-center h-full text-gray-500 text-sm">Not enough historical data for trend.</div>`);
+        return;
+    }
+    
+    const margin = { top: 20, right: 15, bottom: 40, left: 15 };
+    const width = containerWidth - margin.left - margin.right;
+    const height = containerHeight - margin.top - margin.bottom;
+
+    const svg = container.append("svg").attr("width", containerWidth).attr("height", containerHeight)
+        .append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+    const x = d3.scaleTime().domain(d3.extent(chartData, d => d.date)).range([0, width]);
+    const y = d3.scaleLinear().domain(d3.extent(chartData, d => d.value)).range([height, 0]).nice();
+    if (yLabel === "Rank") y.domain([d3.max(chartData, d => d.value) * 1.1, 0.5]);
+    
+    svg.append("g").attr("class", "axis").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(8).tickFormat(d3.timeFormat("%b %d")));
+    
+    svg.append('g').attr('class', 'grid').call(d3.axisLeft(y).ticks(4).tickSize(-width).tickFormat('')).select('.domain').remove();
+
+    const colorScale = d3.scaleOrdinal(["#2dd4bf", "#a78bfa", "#f472b6", "#fbbf24"]);
+
+    datasets.forEach((dataset, i) => {
+        const color = colorScale(i);
+        const line = d3.line().x(d => x(d.date)).y(d => y(d.value)).defined(d => d.value !== null);
+        svg.append("path").datum(dataset.data).attr("class", "chart-line").attr("d", line).style("stroke", color);
+
+        svg.selectAll(`.label-${i}`).data(dataset.data.filter(d => d.value !== null))
+           .enter().append("text")
+           .attr("class", "chart-data-label")
+           .attr("x", d => x(d.date))
+           .attr("y", d => y(d.value) - 6)
+           .attr("fill", color)
+           .text(d => yLabel === "Rank" ? `#${d.value}` : d3.format(".0%")(d.value));
+    });
+
+    if (datasets.length > 1) {
+        const legend = container.append("div").attr("class", "snapshot-chart-legend");
+        datasets.forEach((ds, i) => {
+            legend.append("div").attr("class", "snapshot-legend-item")
+                .html(`<div class="snapshot-legend-color" style="background-color: ${colorScale(i)};"></div> ${ds.name}`);
+        });
+    }
+
+    const tooltip = d3.select("body").selectAll(".d3-tooltip").data([null]).join("div").attr("class", "d3-tooltip");
+
+    const focus = svg.append("g")
+        .attr("class", "focus")
+        .style("display", "none");
+
+    focus.append("line")
+        .attr("class", "x-hover-line")
+        .attr("y1", 0)
+        .attr("y2", height);
+
+    datasets.forEach((ds, i) => {
+        focus.append("circle")
+            .attr("r", 4)
+            .attr("class", `focus-circle-${i}`)
+            .style("fill", colorScale(i))
+            .style("stroke", "white");
+    });
+
+    svg.append("rect")
+        .attr("width", width)
+        .attr("height", height)
+        .style("fill", "none")
+        .style("pointer-events", "all")
+        .on("mouseover", () => { focus.style("display", null); tooltip.style("opacity", 1); })
+        .on("mouseout", () => { focus.style("display", "none"); tooltip.style("opacity", 0); })
+        .on("mousemove", mousemove);
+
+    function mousemove(event) {
+        const bisectDate = d3.bisector(d => d.date).left;
+        const x0 = x.invert(d3.pointer(event)[0]);
+        let tooltipHtml = `<strong>${d3.timeFormat("%b %d, %Y")(x0)}</strong>`;
+        let closestDateForLine = null;
+
+        datasets.forEach((dataset, i) => {
+            const data = dataset.data.filter(d => d.value !== null);
+            if (data.length === 0) return;
+            
+            const index = bisectDate(data, x0, 1);
+            const d0 = data[index - 1];
+            const d1 = data[index];
+            const d = (d1 && d0) ? (x0 - d0.date > d1.date - x0 ? d1 : d0) : (d0 || d1);
+
+            if (d) {
+                closestDateForLine = d.date; 
+                focus.select(`.focus-circle-${i}`)
+                    .attr("transform", `translate(${x(d.date)},${y(d.value)})`);
+                
+                const formattedValue = yLabel === "Rank" ? `#${d.value}` : d3.format(".0%")(d.value);
+                tooltipHtml += `<br><span style="color:${colorScale(i)}">●</span> ${dataset.name}: ${formattedValue}`;
+            }
+        });
+
+        if (closestDateForLine) {
+            focus.select(".x-hover-line").attr("transform", `translate(${x(closestDateForLine)},0)`);
+        }
+
+        const tooltipNode = tooltip.node();
+        if (!tooltipNode) return;
+        
+        const tooltipWidth = tooltipNode.getBoundingClientRect().width;
+        tooltip.html(tooltipHtml)
+            .style("left", `${event.pageX - tooltipWidth - 15}px`) 
+            .style("top", `${event.pageY - 10}px`);
+    }
+}
+
+/**
+ * Renders the entire snapshot panel with dynamic data.
+ */
+export function renderTeamSnapshot() {
+    const panel = document.getElementById('snapshot-panel');
+    const content = document.getElementById('snapshot-content');
+    if (!panel || !content) return;
+
+    if (!appState.profiles.isSnapshotOpen) {
+        panel.classList.remove('open');
+        return;
+    }
+    
+    panel.classList.add('open');
+    document.getElementById('snapshot-title').textContent = generateSnapshotTitle();
+    
+    const data = generateSnapshotData();
+    if (!data) {
+        content.innerHTML = `<p class="text-gray-400 p-4 text-center">No data available.</p>`;
+        return;
+    }
+
+    const { kpis, bestDispatchersRank, worstDispatchersRank, worstDispatchersCompliance, highRiskDrivers, flagSnapshot } = data;
+    
+    const flagKpis = [
+        { label: 'Balance/PO', value: flagSnapshot['Balance'] || 0 },
+        { label: 'High Tolls', value: flagSnapshot['High Tolls'] || 0 },
+        { label: 'Low Net', value: flagSnapshot['Low Net'] || 0 },
+        { label: 'Low RPM', value: flagSnapshot['Low RPM'] || 0 },
+        { label: 'Low Gross', value: flagSnapshot['Low Gross'] || 0 },
+        { label: 'Heavy Loads', value: flagSnapshot['Heavy Loads'] || 0 },
+        { label: 'Bad Moves', value: flagSnapshot['Bad Moves'] || 0 },
+        { label: 'Hopper', value: flagSnapshot['Hopper'] || 0 },
+    ];
+
+    content.innerHTML = `
+        <div class="snapshot-kpi-grid">
+            <div class="snapshot-kpi-item relative"><div class="label">Total Gross</div><div class="value">$${Math.round(kpis.totalGross.value).toLocaleString()}</div><div class="trend">${kpis.totalGross.trend}</div></div>
+            <div class="snapshot-kpi-item relative"><div class="label">RPM (All)</div><div class="value">$${kpis.totalRpm.value.toFixed(2)}</div><div class="trend">${kpis.totalRpm.trend}</div></div>
+            <div class="snapshot-kpi-item relative"><div class="label">Total Margin</div><div class="value">$${Math.round(kpis.totalMargin.value).toLocaleString()}</div><div class="trend">${kpis.totalMargin.trend}</div></div>
+            <div class="snapshot-kpi-item relative"><div class="label">Active Trucks</div><div class="value">${kpis.activeTrucks.value}</div><div class="trend">${kpis.activeTrucks.trend}</div></div>
+            <div class="snapshot-kpi-item relative"><div class="label">Dispatchers</div><div class="value">${kpis.dispatchers.value}</div><div class="trend">${kpis.dispatchers.trend}</div></div>
+            <div class="snapshot-kpi-item relative"><div class="label">Avg Wellness</div><div class="value">${kpis.avgWellness.value.toFixed(0)}%</div><div class="trend">${kpis.avgWellness.trend}</div></div>
+        </div>
+
+        <div class="snapshot-section flex-grow min-h-0">
+             <h3 class="snapshot-section-title">8-Week Performance Trend</h3>
+             <div class="snapshot-chart-container" id="snapshot-chart-container"></div>
+        </div>
+
+        <div class="snapshot-section">
+            <h3 class="snapshot-section-title">Dispatcher Snapshot</h3>
+            <div class="snapshot-rankings-grid">
+                <div>
+                    <h5>Top 3 (Rank)</h5>
+                    ${bestDispatchersRank.map(d => `<div class="snapshot-list-item"><span class="name">${d.name}</span><span class="value good">#${d.rank1w || '-'}</span></div>`).join('')}
+                </div>
+                <div>
+                    <h5>Bottom 3 (Rank)</h5>
+                    ${worstDispatchersRank.map(d => `<div class="snapshot-list-item"><span class="name">${d.name}</span><span class="value bad">#${d.rank1w || '-'}</span></div>`).join('')}
+                </div>
+                 <div>
+                    <h5>Bottom 3 (Compliance)</h5>
+                    ${worstDispatchersCompliance.map(d => `<div class="snapshot-list-item"><span class="name">${d.name}</span><span class="value bad">${d.complianceScore.toFixed(0)}%</span></div>`).join('')}
+                </div>
+            </div>
+        </div>
+        
+        <div class="snapshot-section">
+            <h3 class="snapshot-section-title">Flag Summary</h3>
+            <div class="snapshot-kpi-grid" style="grid-template-columns: repeat(4, 1fr);">
+                ${flagKpis.map(fk => `<div class="snapshot-kpi-item !py-1 !h-auto"><div class="label">${fk.label}</div><div class="value !text-base">${fk.value}</div></div>`).join('')}
+            </div>
+        </div>
+
+        <div class="snapshot-section">
+        <h3 class="snapshot-section-title">Driver Insight</h3>
+        <table id="snapshot-driver-table">
+            <thead>
+                <tr><th>NAME</th><th>Company</th><th>Contract</th><th>Dispatcher</th><th class="text-right">Risk %</th></tr>
+            </thead>
+            <tbody>
+            ${highRiskDrivers.map(d => `
+                <tr>
+                    <td class="font-semibold">${d.name}</td>
+                    <td>${d.company}</td>
+                    <td>${d.contract}</td>
+                    <td>${d.dispatcher}</td>
+                    <td class="text-right risk-value">${Math.round(d.risk)}%</td>
+                </tr>
+            `).join('')}
+            </tbody>
+        </table>
+    </div>
+    `;
+
+    // --- FIX: Implement ResizeObserver for responsive chart rendering ---
+    const chartContainer = document.getElementById('snapshot-chart-container');
+    if (chartContainer) {
+        // If an observer is already on this element from a previous render, disconnect it first.
+        if (chartContainer._resizeObserver) {
+            chartContainer._resizeObserver.disconnect();
+        }
+
+        // Create a debounced version of the render function to prevent rapid-fire redraws.
+        const debouncedRender = debounce(renderSnapshotChart, 50);
+
+        // Create an observer that calls the debounced render function whenever the container size changes.
+        const observer = new ResizeObserver(() => {
+            debouncedRender('snapshot-chart-container');
+        });
+
+        // Start observing the container.
+        observer.observe(chartContainer);
+
+        // Store the observer on the element itself so we can manage it later.
+        chartContainer._resizeObserver = observer;
+    }
 }
