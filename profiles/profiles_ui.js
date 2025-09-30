@@ -2283,13 +2283,11 @@ function renderDriverToolbar(teamData) {
 
     const franchiseText = appState.profiles.selectedFranchise === 'All Franchises' ? '' : ` for ${appState.profiles.selectedFranchise}`;
     
-    // --- START: Title and Search Bar Logic ---
     const title = selectedDispatcherName 
         ? `Driver Health for ${selectedDispatcherName}` 
         : `Driver Health for ${teamData.teamName}${franchiseText}`;
     
     const modifiedText = isFilterModified ? '<span class="text-sm font-normal text-yellow-400 ml-2">(modified)</span>' : '';
-    // --- END: Title and Search Bar Logic ---
 
     const savedFiltersHTML = savedFilters.map(filter => {
         if (!hasCustomFilters && filter.isDefault) {
