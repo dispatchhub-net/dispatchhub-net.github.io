@@ -3,11 +3,20 @@
 // This URL is for the RANKINGS data
 export const GOOGLE_APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwTm-mVu3-GMqhBbY1Z-mb03ZjJAl0nmD8oMm8DQg8uXLDTToBvDTYspwkoW96jACE-/exec";
 
-// This URL is for the LOADS data
-export const LOADS_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxL53QHVjzEugObQw3SmsCre9En8cvxaPKafENQQfeJAtW4PV0jsgaGLWJNt3IQK60m/exec";
+// --- URLs for split LOADS data ---
+export const LOADS_APPS_SCRIPT_URLS = [
+    "https://script.google.com/macros/s/AKfycbyCxLvwXipdktffUutUjiQzmPtL0CmRI3Qc9TaHVHhg3H37OnAdjlBMFtehbg16LJtdFg/exec",
+    "https://script.google.com/macros/s/AKfycbzLCJ9AWgOZuxXzWtMsxdhht6loJh9yb8Jo9_SoVpIAI1nbB43OKuBAkgSKevwqIVnw/exec",
+    "https://script.google.com/macros/s/AKfycbydKcUF_sLE9ZBtCcbstjL5AbfVGKbONC7Xi3gN3tK312qVZPKjHMz7HMcMhHZrfydL/exec",
+    "https://script.google.com/macros/s/AKfycbx0BHW4vnBYEAsF__RUn8b7gCKuqvvMsF6JwVid17YaehLhYYr83PNfn2gN61iCyx4E/exec"
+];
 
-// This URL is for the new HISTORICAL STUBS data
-export const HISTORICAL_STUBS_URL = "https://script.google.com/macros/s/AKfycbyzlwW-ZpF5kIPwVS9I1l5SDa2cpwSkCAzqY3N9-sLuOn1FcUAcuNF9GCrjhoHcMQIpRw/exec";
+// --- URLs for split HISTORICAL STUBS data ---
+export const HISTORICAL_STUBS_URLS = [
+    "https://script.google.com/macros/s/AKfycbwgs5BM55QmW_BNAFFGIAa7yhcA7oSIh1gBpm_N0SWTf4MhKqnHIvysO2WFTlAX7PQ7/exec",
+    "https://script.google.com/macros/s/AKfycbx8pgYbB7_T_VpE5FFW6WMJLx2JvVXYJz1XH-W9P0zephQleD-V4PyRNkIQTbAwnBQw/exec",
+    "https://script.google.com/macros/s/AKfycbxYRH3kB_16z36jtdm8eE_BCEtuww9wKJLHxk-xuKWSYajORrnOQTbpft238HagtWCL/exec",
+];
 
 // This URL is for the live driver counts used in Profiles
 export const DRIVER_COUNT_LIVE_URL = "https://script.google.com/macros/s/AKfycbzUWzLy4OWSCqQhZlS3dYBLIWaM0EQ3M9ijpKj4CulzTtqSZbYihx72jEFuLbLPuvevaA/exec";
