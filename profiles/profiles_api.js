@@ -1,45 +1,51 @@
-import { LOADS_APPS_SCRIPT_URL } from '../config.js';
+// from 1. DISP TEST/profiles/profiles_api.js
+
+import { LOADS_APPS_SCRIPT_URLS } from '../config.js'; // <-- MODIFIED to import the new array
 import { appState } from '../state.js';
-import { LZW } from '../utils.js'; // <-- Import the new LZW utility
+import { LZW } from '../utils.js';
 
-/**
- * Fetches and processes live load data specifically for the Profiles view.
- * It handles compressed data from the Apps Script and maps columns.
- */
 export async function fetchProfileData() {
-    // FIX: Removed a caching check here that prevented live data from ever being refreshed.
-    // Now, it will always fetch the latest data when called.
     try {
-        const response = await fetch(LOADS_APPS_SCRIPT_URL);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const result = await response.json();
+        // Create an array of fetch promises, one for each URL
+        const fetchPromises = LOADS_APPS_SCRIPT_URLS.map(url => fetch(url).then(res => {
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status} for URL: ${url}`);
+            return res.json();
+        }));
 
-        if (result.error) {
-            throw new Error(result.error);
-        }
+        // Wait for all fetches to complete in parallel
+        const results = await Promise.all(fetchPromises);
 
-        let finalData;
+        let combinedData = [];
+        let spreadsheetTimezone = 'UTC';
 
-        // Check if the data is compressed and decompress it
-        if (result.compressed) {
-            const decompressedString = LZW.decompress(result.data);
-            
-            // --- START OF FIX ---
-            // Add a check to ensure decompression was successful.
-            if (decompressedString === null) {
-                throw new Error("Failed to decompress data from the server. The data might be corrupted or in an unexpected format.");
+        // Process each result from the parallel fetches
+        for (const result of results) {
+            if (result.error) {
+                throw new Error(result.error);
             }
-            // --- END OF FIX ---
 
-            finalData = JSON.parse(decompressedString);
-        } else {
-            // Handle uncompressed data as a fallback
-            finalData = result;
+            let finalData;
+            // Decompress data if necessary
+            if (result.compressed) {
+                const decompressedString = LZW.decompress(result.data);
+                if (decompressedString === null) {
+                    throw new Error("Failed to decompress data. The data might be corrupted.");
+                }
+                finalData = JSON.parse(decompressedString);
+            } else {
+                finalData = result;
+            }
+
+            // Add the data from this fetch to our combined array
+            if (finalData.loadsData) {
+                combinedData.push(...finalData.loadsData);
+            }
+            // Assume timezone is the same across all sheets
+            spreadsheetTimezone = finalData.spreadsheetTimezone || spreadsheetTimezone;
         }
 
-        const mappedData = (finalData.loadsData || []).map(load => ({
+        // Map the final combined data array
+        const mappedData = combinedData.map(load => ({
             id: load.id,
             price: load.price,
             cut: load.cut,
@@ -52,7 +58,7 @@ export async function fetchProfileData() {
             driver: load.driver,
             dispatcher: load.dispatcher,
             team: load.team,
-            franchise_name: load.franchise_name, // NEW
+            franchise_name: load.franchise_name,
             contract_type: load.contract,
             company_name: load.company_name,
             trip_miles: load.trip_miles,
@@ -66,12 +72,13 @@ export async function fetchProfileData() {
             ...load 
         }));
         
+        // Update the application state with the final combined data
         appState.profiles.liveData = mappedData;
         appState.loads.data = mappedData;
-        appState.loads.spreadsheetTimezone = finalData.spreadsheetTimezone || 'UTC';
+        appState.loads.spreadsheetTimezone = spreadsheetTimezone;
 
     } catch (e) {
-        console.error("Error fetching Profiles data:", e);
-        appState.profiles.error = "Failed to load live data for profiles.";
+        console.error("Error fetching Profiles data from multiple sources:", e);
+        appState.profiles.error = "Failed to load live data for profiles. " + e.message;
     }
 }
