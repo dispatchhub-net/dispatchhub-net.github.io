@@ -79,52 +79,53 @@ function calculateDispatcherRanksForPeriod(selectedWeekId, driverTypeFilter) {
 }
 
 function calculateKpiData(baseData, isLiveData, allDrivers, historicalStubs, contractFilter, currentTeamData) {
-    let driversForKpi = allDrivers;
+    console.log(`[KPI Calculation] Starting for ${isLiveData ? 'Live Data' : 'Historical Stubs'}. Initial items: ${baseData.length}, Pre-filtered drivers: ${allDrivers.length}`);
 
-    if (driversForKpi.length === 0 && baseData.length > 0) {
-        const driverNameKey = isLiveData ? 'driver' : 'driver_name';
-        const uniqueDriverNames = [...new Set(baseData.map(d => d[driverNameKey]).filter(Boolean))];
-        driversForKpi = uniqueDriverNames.map(name => ({ name }));
-    }
+    // 'allDrivers' is already pre-filtered by the UI. We'll use this list directly for driver-specific KPIs.
+    const driversForKpi = allDrivers;
 
+    // 'baseData' is the raw, unfiltered load/stub data for the period. We'll filter this for load-specific KPIs.
     let activeData = isLiveData ? baseData.filter(l => l.status !== 'Canceled') : baseData;
-    
+
+    // Apply the contract filter to the raw load/stub data.
     if (contractFilter !== 'all') {
-        const contractKey = isLiveData ? 'contract_type' : 'contract';
+        const contractKey = isLiveData ? 'contract_type' : 'contract_type';
         activeData = activeData.filter(d => {
-            const contractType = String(d[contractKey] || '').trim();
-            if (contractFilter === 'loo') return contractType.toUpperCase() !== 'OO';
-            return contractType.toUpperCase() === contractFilter.toUpperCase();
-        });
-        driversForKpi = allDrivers.filter(d => {
-            const contractType = String(d.contract || '').trim();
-            if (contractFilter === 'loo') return d.contract !== 'OO';
-            return contractType.toUpperCase() === contractFilter.toUpperCase();
+            // **THIS IS THE FIX**: Normalize the contract type from the raw data before comparing.
+            // This ensures variations like 'oo', 'Owner Operator', etc., are all treated as 'OO'.
+            const rawContract = String(d[contractKey] || '').trim().toUpperCase();
+            const normalizedContract = rawContract === 'OO' ? 'OO' : 'LOO';
+
+            if (contractFilter === 'loo') {
+                return normalizedContract !== 'OO';
+            }
+            // This now correctly handles the 'oo' case.
+            return normalizedContract === contractFilter.toUpperCase();
         });
     }
+
+    console.log(`[KPI Calculation] Active data count after contract filter ('${contractFilter}'): ${activeData.length}`);
 
     const dispatcherNameKey = isLiveData ? 'dispatcher' : 'stub_dispatcher';
     const uniqueDispatchersInPeriod = [...new Set(activeData.map(d => d[dispatcherNameKey]).filter(Boolean))];
 
-    // --- FIX START ---
-    // Correctly find the date range for the period being calculated, whether it's live or historical.
-    const periodStartDate = isLiveData ? 
+    const periodStartDate = isLiveData ?
         (activeData.length > 0 ? new Date(Math.min(...activeData.map(d => new Date(d.do_date)))) : new Date()) :
         (baseData.length > 0 ? getPayPeriodFromPayDate(baseData[0].pay_date).start : new Date());
-    
+
     const periodEndDate = isLiveData ?
         (activeData.length > 0 ? new Date(Math.max(...activeData.map(d => new Date(d.do_date)))) : new Date()) :
         (baseData.length > 0 ? getPayPeriodFromPayDate(baseData[0].pay_date).end : new Date());
 
-    // Filter the master 'liveData' source to get the detailed loads corresponding to this period.
     const loadsForCompliancePeriod = appState.profiles.liveData.filter(l => {
         if (!l.do_date) return false;
         const doDate = new Date(l.do_date);
         return doDate >= periodStartDate && doDate <= periodEndDate;
     });
+    console.log(`[KPI Calculation] Found ${loadsForCompliancePeriod.length} loads in the period for compliance/wellness checks.`);
+
 
     const dispatchersForPeriod = uniqueDispatchersInPeriod.map(name => {
-        // Use the filtered 'loadsForCompliancePeriod' to get the necessary details for wellness and compliance metrics.
         const loads = loadsForCompliancePeriod.filter(l => l.dispatcher === name);
         const wellnessLoads = loads.filter(l => l.wellness_fail === 'GOOD' || l.wellness_fail === 'FAIL');
         const goodWellnessLoads = wellnessLoads.filter(l => l.wellness_fail === 'GOOD').length;
@@ -133,22 +134,24 @@ function calculateKpiData(baseData, isLiveData, allDrivers, historicalStubs, con
         return {
             name,
             wellness,
-            loads: loads, // This line fixes the error
+            loads: loads,
             goodMoves: loads.filter(l => l.moved_monday === 'Moved Monday Load' && (l.driver_gross_without_moved < (appState.profiles.thresholdSettings.goodMove.by_contract[l.contract_type] ?? appState.profiles.thresholdSettings.goodMove.default))).length,
             badMoves: loads.filter(l => l.moved_monday === 'Moved Monday Load' && (l.driver_gross_without_moved >= (appState.profiles.thresholdSettings.goodMove.by_contract[l.contract_type] ?? appState.profiles.thresholdSettings.goodMove.default))).length,
             hiddenMiles: loads.filter(l => l.hidden_miles === 'Hidden Miles Found!').length,
             lowRpm: loads.filter(l => l.rpm_all < getLowRpmThreshold(l.contract_type)).length,
         };
     });
-    // --- FIX END ---
 
     const dispatchersWithScores = calculateComplianceScores(dispatchersForPeriod, dispatchersForPeriod);
 
     const totalGross = isLiveData ? activeData.reduce((sum, l) => sum + (l.price || 0) + (l.cut || 0), 0) : activeData.reduce((sum, s) => sum + (s.driver_gross || 0) + (s.margin || 0), 0);
     const totalMiles = isLiveData ? activeData.reduce((sum, l) => sum + (l.trip_miles || 0) + (l.deadhead_miles || 0), 0) : activeData.reduce((sum, s) => sum + (s.total_miles || 0), 0);
     const totalMargin = isLiveData ? activeData.reduce((sum, l) => sum + (l.cut || 0), 0) : activeData.reduce((sum, s) => sum + (s.margin || 0), 0);
+    
+    // **KPI FIX**: 'activeTrucks' now correctly uses the filtered load data.
     const activeTrucks = new Set(activeData.map(d => isLiveData ? d.driver : d.driver_name)).size;
     
+    // KPIs below correctly use the pre-filtered 'driversForKpi' list.
     const riskScores = driversForKpi.map(d => d.risk).filter(r => typeof r === 'number');
     const medianDropRisk = riskScores.length > 0 ? Math.round(calculateMedian(riskScores)) : 0;
 
@@ -158,11 +161,12 @@ function calculateKpiData(baseData, isLiveData, allDrivers, historicalStubs, con
             const mostRecentStub = driverStubs[0];
             const finalBalance = (mostRecentStub.balance || 0) + (mostRecentStub.balance_settle || 0);
             const finalPo = (mostRecentStub.po_deductions || 0) - (mostRecentStub.po_settle || 0);
-            return sum + finalBalance - finalPo;
+            return sum + Math.abs(finalBalance) + finalPo;
         }
         return sum;
     }, 0);
 
+    // This KPI should be calculated from all data for the period, regardless of contract type.
     const canceledLoads = baseData.filter(l => l.status === 'Canceled').length;
 
     const wellnessScores = dispatchersWithScores.map(d => parseFloat(d.wellness)).filter(w => !isNaN(w));
@@ -170,6 +174,9 @@ function calculateKpiData(baseData, isLiveData, allDrivers, historicalStubs, con
     
     const complianceScores = dispatchersWithScores.map(d => d.complianceScore).filter(c => !isNaN(c));
     const medianCompliance = complianceScores.length > 0 ? calculateMedian(complianceScores) : 0;
+    
+    console.log(`[KPI Calculation] Final KPI values:`, { totalGross, teamRpm: totalMiles > 0 ? totalGross / totalMiles : 0, teamMargin: totalMargin, activeTrucks, medianWellness, medianCompliance });
+
 
     return {
         totalGross, teamRpm: totalMiles > 0 ? totalGross / totalMiles : 0, teamMargin: totalMargin,
@@ -373,7 +380,7 @@ const getLowRpmThreshold = (contractType) => {
 };
 
 
-const getChangeDisplay_Profiles = (current, previous, isCurrency = false, isRpm = false, isPercentage = false) => {
+const getChangeDisplay_Profiles = (current, previous, isCurrency = false, isRpm = false, isPercentage = false, lowerIsBetter = false) => {
     if (previous === null || current === null || previous === undefined || current === undefined || isNaN(previous) || isNaN(current)) {
         return '<span class="kpi-trend text-gray-500">-</span>';
     }
@@ -387,7 +394,7 @@ const getChangeDisplay_Profiles = (current, previous, isCurrency = false, isRpm 
         return `<span class="kpi-trend text-gray-400">No Change</span>`;
     }
 
-    const isGood = change > 0;
+    const isGood = lowerIsBetter ? change < 0 : change > 0;
     const colorClass = isGood ? 'text-green-400' : 'text-red-400';
     const arrowSvg = isGood 
         ? `<svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg>`
@@ -475,6 +482,12 @@ function renderProfileHeader(teamData, allTeams, kpis, prevWeekKpis) {
     const headerContainer = document.getElementById('profiles-header');
     if (!headerContainer) return;
 
+    // --- START: Active filter check logic ---
+    const isContractFilterActive = appState.profiles.contractTypeFilter !== 'all';
+    const isCompanyFilterActive = appState.profiles.selectedCompany !== 'All Companies';
+    const isFranchiseFilterActive = appState.profiles.selectedFranchise !== 'All Franchises';
+    // --- END: Active filter check logic ---
+
     const { visibleKpiIds } = appState.profiles.kpiSettings;
     
     const allKpiCards = [
@@ -484,9 +497,8 @@ function renderProfileHeader(teamData, allTeams, kpis, prevWeekKpis) {
         { id: 'activeTrucks', label: 'Active Trucks', value: kpis.activeTrucks.toLocaleString(), trend: getChangeDisplay_Profiles(kpis.activeTrucks, prevWeekKpis.activeTrucks) },
         { id: 'dispatchers', label: 'Dispatchers', value: kpis.dispatchers.toLocaleString(), trend: getChangeDisplay_Profiles(kpis.dispatchers, prevWeekKpis.dispatchers) },
         { id: 'medianDropRisk', label: 'Median Drop Risk', value: `${kpis.medianDropRisk}%`, trend: `<span class="kpi-trend text-gray-500">-</span>` },
-        { id: 'balance', label: 'Total Balance', value: `$${Math.round(kpis.balance).toLocaleString()}`, trend: getChangeDisplay_Profiles(kpis.balance, prevWeekKpis.balance, true) },
-        { id: 'canceledLoads', label: 'Canceled', value: kpis.canceledLoads.toLocaleString(), trend: getChangeDisplay_Profiles(kpis.canceledLoads, prevWeekKpis.canceledLoads) },
-        // FIX: Pass 'isPercentage = true' for these two KPIs
+        { id: 'balance', label: 'Balance + PO', value: `$${Math.round(kpis.balance).toLocaleString()}`, trend: getChangeDisplay_Profiles(kpis.balance, prevWeekKpis.balance, true, false, false, true) },
+        { id: 'canceledLoads', label: 'Canceled', value: kpis.canceledLoads.toLocaleString(), trend: getChangeDisplay_Profiles(kpis.canceledLoads, prevWeekKpis.canceledLoads, false, false, false, true) },
         { id: 'medianWellness', label: 'Median Wellness %', value: `${kpis.medianWellness.toFixed(1)}%`, trend: getChangeDisplay_Profiles(kpis.medianWellness, prevWeekKpis.medianWellness, false, false, true) },
         { id: 'medianCompliance', label: 'Median Compliance %', value: `${kpis.medianCompliance.toFixed(1)}%`, trend: getChangeDisplay_Profiles(kpis.medianCompliance, prevWeekKpis.medianCompliance, false, false, true) },
     ];
@@ -529,17 +541,17 @@ function renderProfileHeader(teamData, allTeams, kpis, prevWeekKpis) {
                 </button>
             </div>
             <div id="contract-type-filter-container" class="relative">
-                <button id="contract-type-filter-btn" class="toolbar-btn !p-2" title="Filter by Contract Type">
+                <button id="contract-type-filter-btn" class="toolbar-btn !p-2 ${isContractFilterActive ? 'filter-active' : ''}" title="Filter by Contract Type">
                     <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
                 </button>
             </div>
             <div id="company-filter-container" class="relative">
-                <button id="company-filter-btn" class="toolbar-btn !p-2" title="Filter by Company">
+                <button id="company-filter-btn" class="toolbar-btn !p-2 ${isCompanyFilterActive ? 'filter-active' : ''}" title="Filter by Company">
                     <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h6M9 11.25h6m-6 4.5h6M6.75 21v-2.25a2.25 2.25 0 012.25-2.25h6a2.25 2.25 0 012.25 2.25V21M6.75 3v2.25a2.25 2.25 0 002.25 2.25h6a2.25 2.25 0 002.25-2.25V3" /></svg>
                 </button>
             </div>
             <div id="franchise-filter-container" class="relative">
-                <button id="franchise-filter-btn" class="toolbar-btn !p-2 !w-10 !h-10 flex items-center justify-center" title="Filter by Franchise">
+                <button id="franchise-filter-btn" class="toolbar-btn !p-2 !w-10 !h-10 flex items-center justify-center ${isFranchiseFilterActive ? 'filter-active' : ''}" title="Filter by Franchise">
                     <span class="text-lg font-bold">F</span>
                 </button>
             </div>
@@ -604,8 +616,31 @@ function renderDriverDeepDiveModal_Profiles() {
 
     if (isModalOpen && selectedDriver) {
         const historicalStubs = getHistoricalStubsForDriver(selectedDriver, appState.loads.historicalStubsData);
+        const driverData = appState.profiles.currentTeamData?.drivers.find(d => d.name === selectedDriver);
+        const contractType = driverData?.contract || null;
 
-        renderModalHeader_Profiles(selectedDriver, historicalStubs);
+        // --- NEW: Logic to determine Team/Solo status ---
+        const isLiveData = appState.profiles.selectedWeek === 'live';
+        let teamStatus = null;
+
+        if (isLiveData) {
+            const driverLoads = appState.profiles.liveData
+                .filter(l => l.driver === selectedDriver && l.status_teams)
+                .sort((a, b) => new Date(b.do_date) - new Date(a.do_date)); // Sort by most recent
+            if (driverLoads.length > 0) {
+                teamStatus = driverLoads[0].status_teams;
+            }
+        } else {
+            // Stubs are already sorted descending by pay_date
+            const recentStubWithStatus = historicalStubs.find(s => s.status_teams);
+            if (recentStubWithStatus) {
+                teamStatus = recentStubWithStatus.status_teams;
+            }
+        }
+        // --- END NEW LOGIC ---
+
+        // Pass the new data to the header rendering function
+        renderModalHeader_Profiles(selectedDriver, historicalStubs, contractType, teamStatus);
         renderModalKpis_Profiles(historicalStubs);
         renderModalHistoricalTable_Profiles(historicalStubs);
         renderModalChart_Profiles(historicalStubs);
@@ -654,37 +689,37 @@ function calculateDropRisk(driver) {
     return Math.min(100, (weightedScore / totalWeight) * 100);
 }
 
-function renderModalHeader_Profiles(driverName, historicalStubs) {
-    const headerEl = document.getElementById('profiles-modal-header');
+function renderModalHeader_Profiles(driverName, historicalStubs, contractType, teamStatus) {
+    const headerEl = document.getElementById('profiles-modal-header'); // Get the parent header
     const leftEl = document.getElementById('profiles-modal-header-left');
     const centerEl = document.getElementById('profiles-modal-header-center');
     if (!headerEl || !leftEl || !centerEl) return;
 
-    // --- KEY CHANGE: Add positioning classes ---
+    // --- START OF FIX: Add positioning classes ---
     // Make the header the positioning container for the center element.
     headerEl.classList.add('relative');
-
     // Position the center element absolutely within the header.
     centerEl.className = 'absolute left-1/2 -translate-x-1/2';
-    // --- END OF KEY CHANGE ---
+    // --- END OF FIX ---
 
     const driverData = appState.profiles.currentTeamData?.drivers.find(d => d.name === driverName);
     const riskPercent = driverData ? Math.round(driverData.risk) : 50;
-
     const mostRecentStub = historicalStubs.length > 0 ? historicalStubs[0] : null;
-    const currentCompany = mostRecentStub?.company_name || '-';
+    const currentCompany = mostRecentStub?.company_name || driverData?.company || '-';
 
-    // Populate the left side
+    const details = [
+        currentCompany !== '-' ? currentCompany : null,
+        contractType,
+        teamStatus
+    ].filter(Boolean).join(', ');
+
     leftEl.innerHTML = `
         <div>
             <h2 class="text-2xl font-bold text-white whitespace-nowrap">${driverName}</h2>
-            <p class="text-sm text-gray-400 mt-1">
-                Company: <span class="font-semibold text-gray-200">${currentCompany}</span>
-            </p>
+            ${details ? `<p class="text-sm text-gray-400 mt-1">${details}</p>` : ''}
         </div>
     `;
 
-    // Populate the center
     centerEl.innerHTML = `
         <div class="modal-risk-display">
             <span class="modal-risk-label">Drop Risk: ${riskPercent}%</span>
@@ -706,8 +741,19 @@ function renderModalKpis_Profiles(historicalStubs) {
 
     const fourWeeksAgo = new Date();
     fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
-    const recentStubs = historicalStubs.filter(s => new Date(s.pay_date) > fourWeeksAgo);
-    const stubsForCalc = recentStubs.length > 0 ? recentStubs : historicalStubs; 
+    
+    // Filter for recent stubs AND stubs with more than 0 miles
+    const recentStubs = historicalStubs.filter(s => new Date(s.pay_date) > fourWeeksAgo && s.total_miles > 0);
+    
+    // If there are recent valid stubs, use them; otherwise, use all valid historical stubs
+    const allValidHistoricalStubs = historicalStubs.filter(s => s.total_miles > 0);
+    const stubsForCalc = recentStubs.length > 0 ? recentStubs : allValidHistoricalStubs; 
+    
+    if (stubsForCalc.length === 0) {
+        kpiContainer.innerHTML = '<p class="text-gray-500 col-span-2 text-center">No stubs with miles found for KPI calculation.</p>';
+        return;
+    }
+
     const totalStubs = stubsForCalc.length;
 
     const avgNetPay = stubsForCalc.reduce((sum, s) => sum + (s.net_pay || 0), 0) / totalStubs;
@@ -1637,6 +1683,25 @@ function renderFranchiseFilterDropdown() {
 
 
 export const renderTeamProfileUI = async () => {
+    // --- START OF THE CORRECTED FIX ---
+    // This logic runs every time any filter changes within the Fleet Health view.
+    const snapshotTrigger = document.getElementById('snapshot-trigger');
+    if (snapshotTrigger) {
+        // Define all conditions required for the button to be visible.
+        const isSpecificTeamSelected = appState.profiles.selectedTeam !== 'ALL_TEAMS';
+        const isHistoricalWeekSelected = appState.profiles.selectedWeek !== 'live';
+        const isAllCompaniesSelected = appState.profiles.selectedCompany === 'All Companies';
+        const isAllFranchisesSelected = appState.profiles.selectedFranchise === 'All Franchises';
+
+        // Show the button ONLY IF all conditions are true. Otherwise, hide it.
+        if (isSpecificTeamSelected && isHistoricalWeekSelected && isAllCompaniesSelected && isAllFranchisesSelected) {
+            snapshotTrigger.style.display = 'flex';
+        } else {
+            snapshotTrigger.style.display = 'none';
+        }
+    }
+    // --- END OF THE CORRECTED FIX ---
+
     const profilesContent = document.getElementById('profiles-content');
     if (!profilesContent) return;
 
@@ -1707,8 +1772,6 @@ export const renderTeamProfileUI = async () => {
     const { start: currentStart, end: currentEnd } = getPayrollWeekDateRange(weeksAgo);
     const { start: prevStart, end: prevEnd } = getPayrollWeekDateRange(weeksAgo + 1);
     
-    // --- START OF THE FIX ---
-    
     const filterDataByDateAndTeam = (source, start, end, isForLiveData, ignoreFilters = false) => {
         let dateFilteredSource = isForLiveData
             ? source.filter(d => d.do_date && new Date(d.do_date) >= start && new Date(d.do_date) <= end)
@@ -1739,11 +1802,9 @@ export const renderTeamProfileUI = async () => {
         return dateFilteredSource;
     };
 
-    // 1. Get a completely unfiltered data source for the selected week.
     const universalDataForPeriod = filterDataByDateAndTeam(useLiveData ? liveData : historicalStubs, currentStart, currentEnd, useLiveData, true);
     const weekFilteredLiveDataForDispatch = liveData.filter(d => d.do_date && new Date(d.do_date) >= currentStart && new Date(d.do_date) <= currentEnd);
 
-    // 2. Build the master list of ALL dispatchers from this universal source.
     let sourceForDispatcherNames = useLiveData ? appState.profiles.liveDriverCountData : universalDataForPeriod;
     const nameKey = useLiveData ? 'dispatcher_name' : 'stub_dispatcher';
     const allDispatcherNamesAcrossAllTeams = [...new Set(sourceForDispatcherNames.map(d => d[nameKey]).filter(Boolean))];
@@ -1777,11 +1838,9 @@ export const renderTeamProfileUI = async () => {
         };
     });
 
-    // 3. Calculate compliance scores for the MASTER list against itself.
     const allProcessedDispatchersForCompliance = calculateComplianceScores(masterDispatcherList, masterDispatcherList);
     appState.profiles.allProcessedDispatchers = allProcessedDispatchersForCompliance;
 
-    // 4. Now, create the data for the VIEW by filtering the master list.
     const currentFilteredData = filterDataByDateAndTeam(useLiveData ? liveData : historicalStubs, currentStart, currentEnd, useLiveData);
     const allDriversInViewUnfiltered = [...new Set(currentFilteredData.map(d => useLiveData ? d.driver : d.driver_name).filter(Boolean))];
     const driverEquipmentMap = historicalStubs.reduce((acc, stub) => {
@@ -1792,7 +1851,7 @@ export const renderTeamProfileUI = async () => {
         }
         return acc;
     }, {});
-    const processedDrivers = allDriversInViewUnfiltered.map((name, index) => {
+    let processedDrivers = allDriversInViewUnfiltered.map((name, index) => {
         let driverData = currentFilteredData.filter(d => (useLiveData ? d.driver : d.driver_name) === name);
         if (useLiveData) driverData = driverData.filter(l => l.status !== 'Canceled');
         const firstEntry = driverData[0] || {};
@@ -1811,7 +1870,7 @@ export const renderTeamProfileUI = async () => {
             team: useLiveData ? firstEntry.team : firstEntry.stub_team || '-',
             franchise: firstEntry.franchise_name || '-', // UPDATED
             contract, equipment, flags: liveFlags,
-            gross: useLiveData ? driverData.reduce((s, l) => s + (l.price || 0), 0) : driverData.reduce((s, l) => s + (l.driver_gross || 0), 0),
+            gross: useLiveData ? driverData.reduce((s, l) => s + ((l.price || 0) - (l.cut || 0)), 0) : driverData.reduce((s, l) => s + (l.driver_gross || 0), 0),
             margin: useLiveData ? driverData.reduce((s, l) => s + (l.cut || 0), 0) : driverData.reduce((s, l) => s + (l.margin || 0), 0),
             miles: useLiveData ? driverData.reduce((s, l) => s + (l.trip_miles || 0), 0) : driverData.reduce((s, l) => s + (l.total_miles || 0), 0),
             rpm: useLiveData ? (driverData.reduce((s, l) => s + (l.trip_miles || 0), 0) > 0 ? driverData.reduce((s, l) => s + (l.price || 0), 0) / driverData.reduce((s, l) => s + (l.trip_miles || 0), 0) : 0) : firstEntry.rpm_all || 0,
@@ -1819,6 +1878,18 @@ export const renderTeamProfileUI = async () => {
         driver.risk = calculateDropRisk(driver);
         return driver;
     });
+    
+    if (contractTypeFilter !== 'all') {
+        processedDrivers = processedDrivers.filter(driver => {
+            if (contractTypeFilter === 'oo') {
+                return driver.contract === 'OO';
+            }
+            if (contractTypeFilter === 'loo') {
+                return driver.contract !== 'OO';
+            }
+            return true;
+        });
+    }
 
     let dispatchersToDisplay = allProcessedDispatchersForCompliance;
     if (contractTypeFilter !== 'all') {
@@ -1846,15 +1917,14 @@ export const renderTeamProfileUI = async () => {
     };
     appState.profiles.currentTeamData = teamData;
     
-    // --- END OF THE FIX ---
-    
     const prevWeeksAgo = weeksAgo + 1;
     const prevTargetStubDate = getRankingDateForProfileWeek(prevWeeksAgo, historicalDates);
     const useLiveDataForPrev = prevWeeksAgo === 0 || !prevTargetStubDate;
     const prevWeekFilteredData = filterDataByDateAndTeam(useLiveDataForPrev ? liveData : historicalStubs, prevStart, prevEnd, useLiveDataForPrev);
-    
+    const prevWeekDriverNames = [...new Set(prevWeekFilteredData.map(d => useLiveDataForPrev ? d.driver : d.driver_name).filter(Boolean))];
+    const prevWeekDrivers = prevWeekDriverNames.map(name => ({ name }));
     const currentKpis = calculateKpiData(currentFilteredData, useLiveData, processedDrivers, historicalStubs, contractTypeFilter, teamData);
-    const prevWeekKpis = calculateKpiData(prevWeekFilteredData, useLiveDataForPrev, [], historicalStubs, contractTypeFilter, teamData);
+    const prevWeekKpis = calculateKpiData(prevWeekFilteredData, useLiveDataForPrev, prevWeekDrivers, historicalStubs, contractTypeFilter, teamData);
     
     appState.profiles.fleetHealthCache[cacheKey] = {
         teamData,
@@ -1955,21 +2025,25 @@ function renderDispatchTable(dispatchersToDisplay, allDispatchers) {
     const franchiseText = appState.profiles.selectedFranchise === 'All Franchises' ? '' : ` for ${appState.profiles.selectedFranchise}`;
     const title = teamData ? `Dispatch Breakdown for ${teamData.teamName}${franchiseText}` : 'Dispatch Breakdown';
 
-
-    const dispatchersWithScores = calculateComplianceScores(dispatchersToDisplay, allDispatchers);
+    // --- START: Search Filtering Logic ---
+    const searchTerm = appState.profiles.dispatcherSearchTerm.toLowerCase();
+    let dispatchersWithScores = calculateComplianceScores(dispatchersToDisplay, allDispatchers);
+    if (searchTerm) {
+        dispatchersWithScores = dispatchersWithScores.filter(d => 
+            d.name.toLowerCase().includes(searchTerm)
+        );
+    }
+    // --- END: Search Filtering Logic ---
     
     const { sortConfig, columnOrder, visibleColumnIds, pinnedLeftColumns, pinnedRightColumns } = appState.profiles.dispatchTable;
     const selectedDispatcherId = appState.profiles.selectedDispatcherId;
     
-    // Start with the user's default visible columns
     let visibleColumns = columnOrder
         .map(id => dispatchTableColumns.find(c => c.id === id))
         .filter(col => col && visibleColumnIds.includes(col.id));
 
-    // If "All Teams" is selected, inject the "Team" column into the visible list
     if (appState.profiles.selectedTeam === 'ALL_TEAMS') {
         const companyIndex = visibleColumns.findIndex(c => c.id === 'company');
-        // If company column exists, insert before it, otherwise insert after the 'name' column (index 1)
         const insertionIndex = companyIndex > -1 ? companyIndex : 1; 
         if (!visibleColumns.some(c => c.id === 'team')) {
             visibleColumns.splice(insertionIndex, 0, { id: 'team', label: 'Team', type: 'string' });
@@ -1995,7 +2069,10 @@ function renderDispatchTable(dispatchersToDisplay, allDispatchers) {
 
     componentContainer.innerHTML = `
         <div class="flex justify-between items-center mb-3">
-            <h3 class="text-lg font-bold text-gray-200">${title}</h3>
+            <div class="flex items-center">
+                <h3 class="text-lg font-bold text-gray-200">${title}</h3>
+                <input type="text" id="dispatcher-search-input" class="profile-table-search" placeholder="Search dispatcher..." value="${appState.profiles.dispatcherSearchTerm}">
+            </div>
             <div class="flex items-center gap-2">
                  <button id="compliance-settings-btn" class="toolbar-btn !p-2" title="Compliance Score Settings">
                     <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" /></svg>
@@ -2062,7 +2139,6 @@ function renderDispatchTable(dispatchersToDisplay, allDispatchers) {
         </div>
     `;
 
-    
     renderDispatchColumnSettingsDropdown();
     initializeDispatchTableDragDrop();
     applyStickyStyles_DispatchTable();
@@ -2206,6 +2282,14 @@ function renderDriverToolbar(teamData) {
     const hasCustomFilters = savedFilters.some(f => !f.isDefault);
 
     const franchiseText = appState.profiles.selectedFranchise === 'All Franchises' ? '' : ` for ${appState.profiles.selectedFranchise}`;
+    
+    // --- START: Title and Search Bar Logic ---
+    const title = selectedDispatcherName 
+        ? `Driver Health for ${selectedDispatcherName}` 
+        : `Driver Health for ${teamData.teamName}${franchiseText}`;
+    
+    const modifiedText = isFilterModified ? '<span class="text-sm font-normal text-yellow-400 ml-2">(modified)</span>' : '';
+    // --- END: Title and Search Bar Logic ---
 
     const savedFiltersHTML = savedFilters.map(filter => {
         if (!hasCustomFilters && filter.isDefault) {
@@ -2214,14 +2298,11 @@ function renderDriverToolbar(teamData) {
 
         const isActive = appState.profiles.activeSavedFilterId === filter.id;
         const isDefault = filter.isDefault;
-
         let styleOverrides = '';
         if (!isDefault && filter.color && filter.color.startsWith('#')) {
             if (isActive) {
-                // Style for when the custom filter is SELECTED
                 styleOverrides = `style="background-color: ${filter.color}; border-color: ${filter.color}; color: white;"`;
             } else {
-                // Style for when the custom filter is NOT SELECTED (outline)
                 styleOverrides = `style="border-color: ${filter.color}; color: ${filter.color};"`;
             }
         }
@@ -2246,28 +2327,28 @@ function renderDriverToolbar(teamData) {
     }).join('');
 
     toolbarContainer.innerHTML = `
-        <div class="relative flex justify-center items-center w-full min-h-[38px]">
-            <h3 id="driver-table-title" class="absolute left-0 text-lg font-bold text-gray-200 flex-shrink-0">
-                ${selectedDispatcherName ? `Driver Health for ${selectedDispatcherName}` : `Driver Health for ${teamData.teamName}${franchiseText}`}
-                ${isFilterModified ? '<span class="text-sm font-normal text-yellow-400 ml-2">(modified)</span>' : ''}
+        <div class="flex items-center">
+             <h3 id="driver-table-title" class="text-lg font-bold text-gray-200 flex-shrink-0">
+                ${title}${modifiedText}
             </h3>
-            
-            <div id="saved-driver-filters-bar" class="flex items-center justify-center gap-x-2 flex-wrap">
-                ${savedFiltersHTML}
-            </div>
+            <input type="text" id="driver-search-input" class="profile-table-search" placeholder="Search driver..." value="${appState.profiles.driverSearchTerm}">
+        </div>
+        
+        <div id="saved-driver-filters-bar" class="flex items-center justify-center gap-x-2 flex-wrap">
+            ${savedFiltersHTML}
+        </div>
 
-            <div class="absolute right-0 flex items-center gap-x-2 flex-shrink-0">
-                <button id="driver-health-settings-btn" class="toolbar-btn !p-2" title="Drop Risk Settings">
-                    <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" /></svg>
-                </button>
-                <button id="driver-filter-btn" class="toolbar-btn !p-2 relative" title="Filters">
-                    <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.572a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" /></svg>
-                    ${activeFiltersCount > 0 ? `<span class="absolute -top-1.5 -right-1.5 bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center border-2 border-gray-800">${activeFiltersCount}</span>` : ''}
-                </button>
-                <button id="driver-settings-btn" class="toolbar-btn !p-2" title="Flag Settings">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924-1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                </button>
-            </div>
+        <div class="flex items-center gap-x-2 flex-shrink-0">
+            <button id="driver-health-settings-btn" class="toolbar-btn !p-2" title="Drop Risk Settings">
+                <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" /></svg>
+            </button>
+            <button id="driver-filter-btn" class="toolbar-btn !p-2 relative" title="Filters">
+                <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.572a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" /></svg>
+                ${activeFiltersCount > 0 ? `<span class="absolute -top-1.5 -right-1.5 bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center border-2 border-gray-800">${activeFiltersCount}</span>` : ''}
+            </button>
+            <button id="driver-settings-btn" class="toolbar-btn !p-2" title="Flag Settings">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924-1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </button>
         </div>
     `;
 }
@@ -2281,6 +2362,15 @@ function renderDriverTable(drivers) {
 
     let filteredDrivers = [...drivers];
     const teamData = appState.profiles.currentTeamData;
+
+    // --- START: Search Filtering Logic ---
+    const searchTerm = appState.profiles.driverSearchTerm.toLowerCase();
+    if (searchTerm) {
+        filteredDrivers = filteredDrivers.filter(d => 
+            d.name.toLowerCase().includes(searchTerm)
+        );
+    }
+    // --- END: Search Filtering Logic ---
 
     const selectedDispatcherName = appState.profiles.selectedDispatcherId
         ? teamData?.dispatchers.find(d => d.id === appState.profiles.selectedDispatcherId)?.name
@@ -2351,7 +2441,6 @@ function renderDriverTable(drivers) {
     let currentColumns = [...driverTableColumns];
     if (appState.profiles.selectedTeam === 'ALL_TEAMS') {
         const dispatcherIndex = currentColumns.findIndex(c => c.id === 'dispatcher');
-        // Insert "Team" and "Franchise" columns if they don't already exist
         if (!currentColumns.some(c => c.id === 'team')) {
             currentColumns.splice(dispatcherIndex + 1, 0, { id: 'team', label: 'Team', type: 'string' });
         }
@@ -2383,98 +2472,43 @@ function renderDriverTable(drivers) {
                 const eqClass = { V: 'eq-v', R: 'eq-r', F: 'eq-f' }[driver.equipment] || '';
                 content = `<td class="py-2 px-3 text-center"><span class="equipment-letter ${eqClass}">${driver.equipment}</span></td>`;
                 break;
-                case 'flags':
+            case 'flags':
                 const flagsHTML = driver.flags.map(flag => {
                     const flagConfig = Object.values(appState.profiles.driverHealthSettings.flags).find(f => f.label === flag.text);
                     if (!flagConfig) return '';
-
                     let tooltipHtml = '';
                     let finalClasses = `driver-flag-icon flag-${flag.color}`;
-
-                    // --- Build detailed tooltip HTML if data exists ---
                     if (flag.text === 'Balance' && flag.tooltipData) {
                         const { balance, po, date } = flag.tooltipData;
                         const formattedDate = new Date(date).toLocaleDateString('en-US', { timeZone: 'UTC' });
-                        tooltipHtml = `
-                            <strong class='tooltip-title'>${flag.text} (from ${formattedDate})</strong>
-                            <div class='tooltip-grid'>
-                                <span class='tooltip-label'>Final Balance:</span>
-                                <span class='font-mono ${balance < 0 ? 'text-red-400' : 'text-green-400'}'>
-                                    $${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </span>
-                                <span class='tooltip-label'>Final PO:</span>
-                                <span class='font-mono text-orange-400'>
-                                    $${po.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </span>
-                            </div>
-                        `;
+                        tooltipHtml = `<strong class='tooltip-title'>${flag.text} (from ${formattedDate})</strong><div class='tooltip-grid'><span class='tooltip-label'>Final Balance:</span><span class='font-mono ${balance < 0 ? 'text-red-400' : 'text-green-400'}'>$${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span><span class='tooltip-label'>Final PO:</span><span class='font-mono text-orange-400'>$${po.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>`;
                     } else if (flag.text === 'High Tolls' && flag.tooltipData) {
                         const { avgTolls, lookback } = flag.tooltipData;
-                        tooltipHtml = `
-                            <strong class='tooltip-title'>${flag.text}</strong>
-                            <div class='tooltip-grid'>
-                                <span class='tooltip-label'>Avg Tolls/${lookback} wks:</span>
-                                <span class='font-mono text-orange-400'>
-                                    $${avgTolls.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </span>
-                            </div>
-                        `;
+                        tooltipHtml = `<strong class='tooltip-title'>${flag.text}</strong><div class='tooltip-grid'><span class='tooltip-label'>Avg Tolls/${lookback} wks:</span><span class='font-mono text-orange-400'>$${avgTolls.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>`;
                     } else if (flag.text === 'Heavy Loads' && flag.tooltipData) {
                         const { avgWeight, loadCount } = flag.tooltipData;
-                        tooltipHtml = `
-                            <strong class='tooltip-title'>${flag.text}</strong>
-                            <div class='tooltip-grid'>
-                                <span class='tooltip-label'>Avg. Weight:</span>
-                                <span class='font-mono text-blue-400'>
-                                    ${Math.round(avgWeight).toLocaleString()} lbs
-                                </span>
-                                <span class='tooltip-label'>Loads Sampled:</span>
-                                <span>${loadCount}</span>
-                            </div>
-                        `;
+                        tooltipHtml = `<strong class='tooltip-title'>${flag.text}</strong><div class='tooltip-grid'><span class='tooltip-label'>Avg. Weight:</span><span class='font-mono text-blue-400'>${Math.round(avgWeight).toLocaleString()} lbs</span><span class='tooltip-label'>Loads Sampled:</span><span>${loadCount}</span></div>`;
                     } else if (['Low RPM', 'Low Gross', 'Low Net'].includes(flag.text) && flag.tooltipData) {
                         const { stubsBelow, totalStubs, threshold, metric } = flag.tooltipData;
                         const isRpm = metric === 'lowRpm';
                         const formattedThreshold = isRpm ? `$${threshold.toFixed(2)}` : `$${threshold.toLocaleString()}`;
-                        tooltipHtml = `
-                            <strong class='tooltip-title'>${flag.text}</strong>
-                            <div class='tooltip-grid'>
-                                <span class='tooltip-label'>Stubs Below Threshold:</span>
-                                <span class='font-mono text-red-400'>${stubsBelow} of ${totalStubs}</span>
-                                <span class='tooltip-label'>Threshold:</span>
-                                <span>Less than ${formattedThreshold}</span>
-                            </div>
-                        `;
+                        tooltipHtml = `<strong class='tooltip-title'>${flag.text}</strong><div class='tooltip-grid'><span class='tooltip-label'>Stubs Below Threshold:</span><span class='font-mono text-red-400'>${stubsBelow} of ${totalStubs}</span><span class='tooltip-label'>Threshold:</span><span>Less than ${formattedThreshold}</span></div>`;
                     } else if (flag.text === 'Hopper' && flag.tooltipData) {
                         const { dispatchers, count, lookback } = flag.tooltipData;
-                        tooltipHtml = `
-                            <strong class='tooltip-title'>${flag.text} (${lookback})</strong>
-                            <div class='tooltip-grid'>
-                                <span class='tooltip-label'>Count:</span>
-                                <span class='font-mono text-purple-400'>${count} Dispatchers</span>
-                                <span class='tooltip-label'>Names:</span>
-                                <span>${dispatchers.join(', ')}</span>
-                            </div>
-                        `;
+                        tooltipHtml = `<strong class='tooltip-title'>${flag.text} (${lookback})</strong><div class='tooltip-grid'><span class='tooltip-label'>Count:</span><span class='font-mono text-purple-400'>${count} Dispatchers</span><span class='tooltip-label'>Names:</span><span>${dispatchers.join(', ')}</span></div>`;
                     }
                     
-                    // --- Attach tooltip data and classes to the icon div ---
-                    let tooltipAttr = `title="${flag.text}"`; // Simple tooltip as a fallback
+                    let tooltipAttr = `title="${flag.text}"`;
                     if (tooltipHtml) {
                         const cleanedTooltipHtml = tooltipHtml.replace(/"/g, '&quot;').replace(/\n/g, '').trim();
                         tooltipAttr = `data-tooltip-html="${cleanedTooltipHtml}"`;
                         finalClasses += ' dispatch-tooltip-trigger cursor-help';
                     }
 
-                    return `
-                        <div class="${finalClasses}" ${tooltipAttr}>
-                            ${flagConfig.icon}
-                        </div>
-                    `;
+                    return `<div class="${finalClasses}" ${tooltipAttr}>${flagConfig.icon}</div>`;
                 }).join('');
                 content = `<td class="py-2 px-3"><div class="flex flex-wrap gap-1.5">${flagsHTML}</div></td>`;
                 break;
-            
             case 'risk':
                 content = `<td class="py-2 px-3 text-center"><div class="flex items-center justify-center gap-2"><div class="risk-bar"><div style="width: ${Math.round(driver.risk)}%;" class="risk-bar-fill"></div></div><span class="font-mono text-xs">${Math.round(driver.risk)}%</span></div></td>`;
                 break;
@@ -2494,7 +2528,6 @@ function renderDriverTable(drivers) {
         }
         return content;
     };
-
 
     tableContainer.innerHTML = `
     <table class="w-full text-sm text-left text-gray-400">
@@ -2517,20 +2550,12 @@ function renderDriverTable(drivers) {
                     };
                     const titleAttribute = tooltipText[col.id] ? `title="${tooltipText[col.id]}"` : '';
 
-                    return `
-                    <th class="py-2 px-3 cursor-pointer select-none ${headerClass}" onclick="requestDriverSort('${col.id}')" ${titleAttribute}>
-                        ${col.label}${getSortIcon(col.id)}
-                    </th>
-                    `
+                    return `<th class="py-2 px-3 cursor-pointer select-none ${headerClass}" onclick="requestDriverSort('${col.id}')" ${titleAttribute}>${col.label}${getSortIcon(col.id)}</th>`
                 }).join('')}
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-700">
-            ${filteredDrivers.length > 0 ? filteredDrivers.map(driver => `
-                <tr class="hover:bg-gray-700/50 cursor-pointer" data-driver-name="${driver.name}">
-                    ${currentColumns.map(col => renderCell(driver, col)).join('')}
-                </tr>
-            `).join('') : `<tr><td colspan="${currentColumns.length}" class="text-center py-6 text-gray-500">No drivers match the current filters.</td></tr>`}
+            ${filteredDrivers.length > 0 ? filteredDrivers.map(driver => `<tr class="hover:bg-gray-700/50 cursor-pointer" data-driver-name="${driver.name}">${currentColumns.map(col => renderCell(driver, col)).join('')}</tr>`).join('') : `<tr><td colspan="${currentColumns.length}" class="text-center py-6 text-gray-500">No drivers match the current filters.</td></tr>`}
         </tbody>
     </table>
 `;
@@ -2738,31 +2763,35 @@ function initializeDispatchTableDragDrop() {
 
 
 export function initializeProfileEventListeners() {
-    // This new guard ensures that the global listeners on the body are only attached ONCE.
     if (!document.body.profileListenersAttached) {
-        // General click listener to close popups
+        // --- START: Updated Global Click Listener ---
         document.body.addEventListener('click', (e) => {
-            const settingsBtn = document.getElementById('dispatch-table-settings-btn');
+            const openDropdowns = {
+                kpi: appState.profiles.isKpiSettingsOpen,
+                contract: appState.profiles.isContractTypeFilterOpen,
+                company: appState.profiles.isCompanyFilterOpen,
+                franchise: appState.profiles.isFranchiseFilterOpen,
+                week: appState.profiles.isWeekSelectorOpen
+            };
+
+            const isClickInsideAnyDropdown = e.target.closest('#kpi-settings-container, #contract-type-filter-container, #company-filter-container, #franchise-filter-container, #profile-week-selector-container');
+            
+            if (Object.values(openDropdowns).some(isOpen => isOpen) && !isClickInsideAnyDropdown) {
+                appState.profiles.isKpiSettingsOpen = false;
+                appState.profiles.isContractTypeFilterOpen = false;
+                appState.profiles.isCompanyFilterOpen = false;
+                appState.profiles.isFranchiseFilterOpen = false;
+                appState.profiles.isWeekSelectorOpen = false;
+                renderTeamProfileUI();
+            }
+
+            // Close settings dropdown
             const settingsDropdown = document.getElementById('dispatch-column-settings-dropdown');
-            if (settingsDropdown && !settingsDropdown.classList.contains('hidden') && !settingsBtn?.contains(e.target) && !settingsDropdown.contains(e.target)) {
+            if (settingsDropdown && !settingsDropdown.classList.contains('hidden') && !e.target.closest('#dispatch-table-settings-btn') && !settingsDropdown.contains(e.target)) {
                 settingsDropdown.classList.add('hidden');
             }
-            const kpiSettingsContainer = document.getElementById('kpi-settings-container');
-            if (appState.profiles.isKpiSettingsOpen && kpiSettingsContainer && !kpiSettingsContainer.contains(e.target)) {
-                appState.profiles.isKpiSettingsOpen = false;
-                renderKpiSettingsDropdown();
-            }
-            const contractFilterContainer = document.getElementById('contract-type-filter-container');
-            if (appState.profiles.isContractTypeFilterOpen && contractFilterContainer && !contractFilterContainer.contains(e.target)) {
-                appState.profiles.isContractTypeFilterOpen = false;
-                renderContractTypeFilterDropdown();
-            }
-            const companyFilterContainer = document.getElementById('company-filter-container');
-            if (appState.profiles.isCompanyFilterOpen && companyFilterContainer && !companyFilterContainer.contains(e.target)) {
-                appState.profiles.isCompanyFilterOpen = false;
-                renderCompanyFilterDropdown();
-            }
         });
+        // --- END: Updated Global Click Listener ---
 
         document.body.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
@@ -2772,11 +2801,30 @@ export function initializeProfileEventListeners() {
                 }
             }
         });
-
         document.body.profileListenersAttached = true;
     }
+    
+    // ... (dispatcher and driver search listeners remain the same) ...
+    const dispatcherSearchInput = document.getElementById('dispatcher-search-input');
+    if (dispatcherSearchInput && !dispatcherSearchInput.listenerAttached) {
+        dispatcherSearchInput.addEventListener('input', debounce((e) => {
+            appState.profiles.dispatcherSearchTerm = e.target.value;
+            const teamData = appState.profiles.currentTeamData;
+            renderDispatchTable(teamData.dispatchers, appState.profiles.allProcessedDispatchers);
+        }, 300));
+        dispatcherSearchInput.listenerAttached = true;
+    }
 
-    // The rest of this function will now run every time, re-attaching listeners to the dynamic content below.
+    const driverSearchInput = document.getElementById('driver-search-input');
+    if (driverSearchInput && !driverSearchInput.listenerAttached) {
+        driverSearchInput.addEventListener('input', debounce((e) => {
+            appState.profiles.driverSearchTerm = e.target.value;
+            const teamData = appState.profiles.currentTeamData;
+            renderDriverTable(teamData.drivers);
+        }, 300));
+        driverSearchInput.listenerAttached = true;
+    }
+    // ...
 
     const teamSelector = document.getElementById('team-selector');
     if (teamSelector && !teamSelector.listenerAttached) {
@@ -2787,10 +2835,56 @@ export function initializeProfileEventListeners() {
         teamSelector.listenerAttached = true;
     }
 
+    const header = document.getElementById('profiles-header');
+    if (header) {
+        if (header._clickHandler) header.removeEventListener('click', header._clickHandler);
+        
+        // --- START: New Header Click Handler for Exclusive Dropdowns ---
+        header._clickHandler = (e) => {
+            const targetId = e.target.closest('button')?.id;
+            if (!targetId) {
+                // Handle selecting an option from a dropdown
+                const weekOption = e.target.closest('.profile-week-option');
+                if (weekOption) {
+                    e.preventDefault();
+                    appState.profiles.selectedWeek = weekOption.dataset.weekId;
+                    appState.profiles.isWeekSelectorOpen = false;
+                    renderTeamProfileUI();
+                }
+                return;
+            }
+
+            e.stopPropagation();
+
+            const dropdownStates = {
+                'kpi-settings-btn': 'isKpiSettingsOpen',
+                'contract-type-filter-btn': 'isContractTypeFilterOpen',
+                'company-filter-btn': 'isCompanyFilterOpen',
+                'franchise-filter-btn': 'isFranchiseFilterOpen',
+                'profile-week-selector-btn': 'isWeekSelectorOpen'
+            };
+
+            const clickedStateKey = dropdownStates[targetId];
+            if (!clickedStateKey) return;
+
+            const wasOpen = appState.profiles[clickedStateKey];
+
+            // Close all dropdowns
+            Object.values(dropdownStates).forEach(key => appState.profiles[key] = false);
+            
+            // Toggle the clicked one
+            appState.profiles[clickedStateKey] = !wasOpen;
+
+            renderTeamProfileUI();
+        };
+        // --- END: New Header Click Handler ---
+        header.addEventListener('click', header._clickHandler);
+    }
+
+    // ... (The rest of the function remains the same, handling tooltips, modals, table clicks etc.)
     const tooltip = document.getElementById('dispatch-tooltip');
     const attachTooltipListeners = (containerElement) => {
         if (!containerElement || !tooltip) return;
-
         if (containerElement._mouseoverHandler) containerElement.removeEventListener('mouseover', containerElement._mouseoverHandler);
         containerElement._mouseoverHandler = (e) => {
             const trigger = e.target.closest('.dispatch-tooltip-trigger');
@@ -2813,7 +2907,6 @@ export function initializeProfileEventListeners() {
             }
         };
         containerElement.addEventListener('mouseover', containerElement._mouseoverHandler);
-
         if (containerElement._mousemoveHandler) containerElement.removeEventListener('mousemove', containerElement._mousemoveHandler);
         containerElement._mousemoveHandler = (e) => {
             if (tooltip.classList.contains('visible')) {
@@ -2825,7 +2918,6 @@ export function initializeProfileEventListeners() {
             }
         };
         containerElement.addEventListener('mousemove', containerElement._mousemoveHandler);
-
         if (containerElement._mouseoutHandler) containerElement.removeEventListener('mouseout', containerElement._mouseoutHandler);
         containerElement._mouseoutHandler = (e) => {
             if (e.target.closest('.dispatch-tooltip-trigger')) {
@@ -2841,45 +2933,32 @@ export function initializeProfileEventListeners() {
         dispatchTable._clickHandler = (e) => {
             const teamData = appState.profiles.currentTeamData;
             if (!teamData) return;
-
             const tooltipTrigger = e.target.closest('.dispatch-tooltip-trigger');
             const row = e.target.closest('.dispatch-table-row');
-
             if (tooltipTrigger) {
-                // Handle copy on click for tooltip cells
                 const dispatcherId = parseInt(tooltipTrigger.parentElement.dataset.dispatcherId, 10);
                 const dispatcher = teamData.dispatchers.find(d => d.id === dispatcherId);
                 const metricId = tooltipTrigger.dataset.tooltipMetric;
-
                 if (dispatcher && metricId) {
                     const htmlContent = generateDispatchTooltipHTML(dispatcher, metricId, appState.profiles.liveData);
                     const plainText = htmlContent.replace(/<br\s*[\/]?>/gi, "\n").replace(/<[^>]*>/g, '').trim();
                     copyToClipboard(plainText);
-                    
                     const tooltipElement = document.getElementById('dispatch-tooltip');
                     tooltipElement.classList.add('copied');
                     setTimeout(() => tooltipElement.classList.remove('copied'), 500);
                 }
             } else if (row) {
-                // --- FIX START ---
                 const dispatcherId = parseInt(row.dataset.dispatcherId, 10);
-
-                // Handle row selection
                 appState.profiles.selectedDispatcherId = appState.profiles.selectedDispatcherId === dispatcherId ? null : dispatcherId;
-                
-                // Re-render the necessary components
                 renderDispatchTable(teamData.dispatchers, appState.profiles.allProcessedDispatchers);
                 renderDriverToolbar(teamData);
                 renderDriverTable(teamData.drivers);
-
-                // After re-rendering, find the new row and scroll it into view
                 requestAnimationFrame(() => {
                     const newRow = document.querySelector(`.dispatch-table-row[data-dispatcher-id='${dispatcherId}']`);
                     if (newRow) {
                         newRow.scrollIntoView({ behavior: 'auto', block: 'nearest' });
                     }
                 });
-                // --- FIX END ---
             }
         };
         dispatchTable.addEventListener('click', dispatchTable._clickHandler);
@@ -2900,7 +2979,8 @@ export function initializeProfileEventListeners() {
         driverTableContainer.addEventListener('click', driverTableContainer._clickHandler);
         attachTooltipListeners(driverTableContainer);
     }
-
+    
+    // The rest of the function continues as before...
     const driverDeepDiveModal = document.getElementById('profiles-driver-deep-dive-modal');
     if (driverDeepDiveModal && !driverDeepDiveModal._clickHandlerAttached) {
         driverDeepDiveModal.addEventListener('click', (e) => {
@@ -2913,7 +2993,6 @@ export function initializeProfileEventListeners() {
         driverDeepDiveModal._clickHandlerAttached = true;
     }
 
-    // --- START: ADD SNAPSHOT EVENT LISTENERS ---
     const snapshotTrigger = document.getElementById('snapshot-trigger');
     if (snapshotTrigger && !snapshotTrigger._clickHandlerAttached) {
         snapshotTrigger.addEventListener('click', () => {
@@ -2931,53 +3010,7 @@ export function initializeProfileEventListeners() {
         });
         snapshotCloseBtn._clickHandlerAttached = true;
     }
-    // --- END: ADD SNAPSHOT EVENT LISTENERS ---
-
-    const header = document.getElementById('profiles-header');
-    if (header) {
-        if (header._clickHandler) header.removeEventListener('click', header._clickHandler);
-        header._clickHandler = (e) => {
-            const button = e.target.closest('#profile-week-selector-btn');
-            const option = e.target.closest('.profile-week-option');
-            const kpiSettingsBtn = e.target.closest('#kpi-settings-btn');
-            const contractFilterBtn = e.target.closest('#contract-type-filter-btn');
-            const companyFilterBtn = e.target.closest('#company-filter-btn');
-            const franchiseFilterBtn = e.target.closest('#franchise-filter-btn'); // NEW
-
-            if (button) {
-                appState.profiles.isWeekSelectorOpen = !appState.profiles.isWeekSelectorOpen;
-                renderProfileWeekSelector();
-            }
-            if (option) {
-                e.preventDefault();
-                appState.profiles.selectedWeek = option.dataset.weekId;
-                appState.profiles.isWeekSelectorOpen = false;
-                renderTeamProfileUI();
-            }
-            if (kpiSettingsBtn) {
-                 e.stopPropagation();
-                 appState.profiles.isKpiSettingsOpen = !appState.profiles.isKpiSettingsOpen;
-                 renderKpiSettingsDropdown();
-            }
-            if(contractFilterBtn){
-                e.stopPropagation();
-                appState.profiles.isContractTypeFilterOpen = !appState.profiles.isContractTypeFilterOpen;
-                renderContractTypeFilterDropdown();
-            }
-            if(companyFilterBtn){
-                e.stopPropagation();
-                appState.profiles.isCompanyFilterOpen = !appState.profiles.isCompanyFilterOpen;
-                renderCompanyFilterDropdown();
-            }
-            if (franchiseFilterBtn) { // NEW
-                e.stopPropagation();
-                appState.profiles.isFranchiseFilterOpen = !appState.profiles.isFranchiseFilterOpen;
-                renderFranchiseFilterDropdown();
-            }
-        };
-        header.addEventListener('click', header._clickHandler);
-    }
-
+    
     const complianceSettingsBtn = document.getElementById('compliance-settings-btn');
     if (complianceSettingsBtn) {
         if (complianceSettingsBtn._clickHandler) complianceSettingsBtn.removeEventListener('click', complianceSettingsBtn._clickHandler);
@@ -3054,8 +3087,6 @@ export function initializeProfileEventListeners() {
             const actionsTrigger = e.target.closest('.filter-actions-trigger');
             const editBtn = e.target.closest('.edit-driver-filter-btn');
             const deleteBtn = e.target.closest('.delete-driver-filter-btn');
-
-            // Handle clicking the main part of a filter button
             if (savedFilterBtn) {
                 const filterId = savedFilterBtn.dataset.filterId;
                 const savedFilter = appState.profiles.savedDriverFilters.find(f => f.id === filterId);
@@ -3067,8 +3098,6 @@ export function initializeProfileEventListeners() {
                 }
                 return;
             }
-
-            // Handle clicking the sandwich menu icon (☰)
             if (actionsTrigger) {
                 e.stopPropagation();
                 const panel = actionsTrigger.nextElementSibling;
@@ -3079,8 +3108,6 @@ export function initializeProfileEventListeners() {
                 }
                 return;
             }
-
-            // Handle clicking the "Edit" button in the dropdown
             if (editBtn) {
                 e.stopPropagation();
                 const filterId = editBtn.dataset.filterId;
@@ -3093,8 +3120,6 @@ export function initializeProfileEventListeners() {
                 }
                 return;
             }
-
-            // Handle clicking the "Delete" button in the dropdown
             if (deleteBtn) {
                 e.stopPropagation();
                 const filterIdToDelete = deleteBtn.dataset.filterId;
@@ -3109,8 +3134,6 @@ export function initializeProfileEventListeners() {
                 }
                 return;
             }
-            
-            // Handle other toolbar buttons
             if (e.target.closest('#driver-filter-btn')) {
                 appState.profiles.driverFilters.isFilterModalOpen = true;
                 renderDriverFilterModal();
@@ -3128,9 +3151,6 @@ export function initializeProfileEventListeners() {
         driverToolbar.addEventListener('click', driverToolbar._clickHandler);
     }
     
-    // --- START: CORRECTED DRIVER FILTER MODAL HANDLER ---
-// --- START: FINAL, ROBUST DRIVER FILTER MODAL HANDLER ---
-// --- START: FINAL, ROBUST DRIVER FILTER MODAL HANDLER V2 ---
 const driverFilterModal = document.getElementById('profiles-driver-filter-modal');
 if (driverFilterModal && !driverFilterModal._listenersAttached) {
     const teamData = appState.profiles.currentTeamData;
@@ -3138,31 +3158,25 @@ if (driverFilterModal && !driverFilterModal._listenersAttached) {
 
     const readCriteriaFromModal = () => {
         const criteriaRows = driverFilterModal.querySelectorAll('.driver-filter-criteria-row');
-        console.log(`Found ${criteriaRows.length} criteria rows to read.`);
-        return Array.from(criteriaRows).map((row, index) => {
+        return Array.from(criteriaRows).map((row) => {
             const columnId = row.querySelector('.column-select').value;
             const operator = row.querySelector('.operator-select').value;
             let value;
-
             const multiSelectContainer = row.querySelector('.filter-multiselect-container');
             const standardInput = row.querySelector('.value-input');
             const previousDaysContainer = row.querySelector('.load-filter-previous-days-container');
 
             if (multiSelectContainer && multiSelectContainer.offsetParent !== null) {
                 value = Array.from(row.querySelectorAll('.multiselect-checkbox:checked')).map(cb => cb.value);
-                console.log(`Row ${index} (Multi-select): value is`, value);
             } else if (previousDaysContainer && previousDaysContainer.offsetParent !== null) {
                  value = {
                     days: parseInt(row.querySelector('.load-filter-previous-days-input').value, 10) || 7,
                     from: row.querySelector('.load-filter-previous-days-from-select').value
                 };
-                console.log(`Row ${index} (Date Range): value is`, value);
             } else if (standardInput && standardInput.offsetParent !== null) {
                 value = standardInput.value;
-                console.log(`Row ${index} (Standard Input): value is`, value);
             } else {
                 value = null;
-                console.log(`Row ${index}: No visible value input found.`);
             }
             
             return { columnId, operator, value };
@@ -3199,19 +3213,14 @@ if (driverFilterModal && !driverFilterModal._listenersAttached) {
     });
 
     driverFilterModal.querySelector('#save-driver-filter-btn')?.addEventListener('click', () => {
-        console.log("--- Save Filter Button Clicked ---");
         const newFilters = readCriteriaFromModal();
-        console.log("Final criteria read for saving:", newFilters);
-    
         if (newFilters.length === 0) {
             alert("Please add at least one valid criterion before saving.");
-            console.log("Save cancelled: No valid criteria found.");
             return;
         }
         
         appState.profiles.driverFilters.activeFilters = newFilters;
         appState.profiles.driverFilters.isSaveModalOpen = true;
-        console.log("Opening the 'Save Name' modal now.");
         renderSaveFilterModal();
     });
 
@@ -3223,7 +3232,7 @@ if (driverHealthSettingsModal && !driverHealthSettingsModal.listenerAttached) {
     driverHealthSettingsModal.addEventListener('click', e => {
         if (e.target.closest('#close-driver-health-settings-modal-btn') || e.target.closest('#save-driver-health-settings-btn')) {
             appState.profiles.driverHealthSettings.isModalOpen = false;
-            appState.profiles.fleetHealthCache = {}; // FIX: Clear the cache to force recalculation
+            appState.profiles.fleetHealthCache = {};
             renderTeamProfileUI();
         }
     });
@@ -3236,7 +3245,7 @@ if (driverHealthSettingsModal && !driverHealthSettingsModal.listenerAttached) {
         driverSettingsModal._clickHandler = (e) => {
             if (e.target.closest('#close-driver-settings-modal-btn')) {
                 appState.profiles.isDriverSettingsModalOpen = false;
-                appState.profiles.tempDriverHealthSettings = null; // Discard changes
+                appState.profiles.tempDriverHealthSettings = null;
                 renderDriverSettingsModal();
             }
             if (e.target.closest('#save-driver-settings-btn')) {
@@ -3247,8 +3256,6 @@ if (driverHealthSettingsModal && !driverHealthSettingsModal.listenerAttached) {
         initializeDriverSettingsModalEventListeners(); 
     }
 
-    // --- START: ADDED SAVE FILTER MODAL HANDLER ---
-    // --- START: ADDED SAVE FILTER MODAL HANDLER ---
     const saveFilterModal = document.getElementById('save-driver-filter-modal');
     if (saveFilterModal && !saveFilterModal._clickHandlerAttached) {
         saveFilterModal.addEventListener('click', e => {
@@ -3266,10 +3273,8 @@ if (driverHealthSettingsModal && !driverHealthSettingsModal.listenerAttached) {
                     alert('Please provide a name for the filter.');
                     return;
                 }
-
                 const filterToEdit = appState.profiles.driverFilters.filterToEdit;
                 if (filterToEdit) {
-                    // Editing existing filter
                     const existingFilter = appState.profiles.savedDriverFilters.find(f => f.id === filterToEdit.id);
                     if (existingFilter) {
                         existingFilter.name = filterName;
@@ -3278,7 +3283,6 @@ if (driverHealthSettingsModal && !driverHealthSettingsModal.listenerAttached) {
                         existingFilter.logic = appState.profiles.driverFilters.filterLogic;
                     }
                 } else {
-                    // Creating a new filter
                     const newFilter = {
                         id: `custom_${Date.now()}`,
                         name: filterName,
@@ -3302,7 +3306,6 @@ if (driverHealthSettingsModal && !driverHealthSettingsModal.listenerAttached) {
         });
         saveFilterModal._clickHandlerAttached = true;
     }
-    // --- END: ADDED SAVE FILTER MODAL HANDLER ---
 }
 
 
@@ -3846,12 +3849,50 @@ function generateSnapshotData() {
     const { currentTeamData, liveData, selectedWeek, selectedTeam, selectedCompany, contractTypeFilter } = appState.profiles;
     if (!currentTeamData) return null;
 
+    const weeksAgo = selectedWeek === 'live' ? 0 : parseInt(selectedWeek.replace('week_', ''), 10);
+    const { start: currentStart, end: currentEnd } = getPayrollWeekDateRange(weeksAgo);
+    const useLiveData = selectedWeek === 'live';
+
+    // --- FIX START: The date filtering logic for historical stubs has been corrected ---
+    let baseFilteredData = (useLiveData ? liveData : appState.loads.historicalStubsData).filter(d => {
+        if (useLiveData) {
+            const dateKey = 'do_date';
+            if (!d[dateKey]) return false;
+            const itemDate = new Date(d[dateKey]);
+            return itemDate >= currentStart && itemDate <= currentEnd;
+        } else {
+            // Corrected logic for historical data
+            if (!d.pay_date) return false;
+            const payDate = new Date(d.pay_date);
+            if (isNaN(payDate.getTime())) return false;
+            
+            // Calculate the target Thursday for the selected week's pay period
+            const weekEndForPayDate = new Date(currentEnd);
+            weekEndForPayDate.setUTCDate(weekEndForPayDate.getUTCDate() + 3); 
+            
+            // Match the stub's pay_date with the target Thursday
+            return payDate.toISOString().split('T')[0] === weekEndForPayDate.toISOString().split('T')[0];
+        }
+    });
+
+    if (selectedTeam !== 'ALL_TEAMS') {
+        const teamKey = useLiveData ? 'team' : 'stub_team';
+        baseFilteredData = baseFilteredData.filter(d => d[teamKey] === selectedTeam);
+    }
+    if (selectedCompany !== 'All Companies') {
+        baseFilteredData = baseFilteredData.filter(d => d.company_name === selectedCompany);
+    }
+    
+    // This now receives the correctly filtered data
+    const snapshotKpis = calculateKpiData(baseFilteredData, useLiveData, currentTeamData.drivers, appState.loads.historicalStubsData, contractTypeFilter, currentTeamData);
+    // --- END FIX ---
+
+
     const { dispatchers, drivers } = currentTeamData;
     
-    const weeksAgo = selectedWeek === 'live' ? 0 : parseInt(selectedWeek.replace('week_', ''), 10);
     const { start: prevStart, end: prevEnd } = getPayrollWeekDateRange(weeksAgo + 1);
 
-    // Get previous week data based on the same filters
+    // Get previous week data based on the same filters (ignoring contract type for an apples-to-apples comparison)
     let prevWeekFilteredData = liveData.filter(d => {
         if (!d.do_date) return false;
         const doDate = new Date(d.do_date);
@@ -3859,41 +3900,23 @@ function generateSnapshotData() {
     });
     if (selectedTeam !== 'ALL_TEAMS') prevWeekFilteredData = prevWeekFilteredData.filter(d => d.team === selectedTeam);
     if (selectedCompany !== 'All Companies') prevWeekFilteredData = prevWeekFilteredData.filter(d => d.company_name === selectedCompany);
-    if (contractTypeFilter !== 'all') {
-        prevWeekFilteredData = prevWeekFilteredData.filter(d => {
-             const contract = String(d.contract_type || '').trim().toUpperCase();
-             if (contractTypeFilter === 'oo') return contract === 'OO';
-             if (contractTypeFilter === 'loo') return contract !== 'OO';
-             return true;
-        });
-    }
-
-    // 1. KPIs
-    const currentGross = drivers.reduce((sum, d) => sum + d.gross, 0);
-    const currentMiles = drivers.reduce((sum, d) => sum + d.miles, 0);
-    const currentMargin = drivers.reduce((sum, d) => sum + d.margin, 0);
+    
     const prevGross = prevWeekFilteredData.reduce((sum, l) => sum + (l.price || 0) + (l.cut || 0), 0);
-    const prevMiles = prevWeekFilteredData.reduce((sum, l) => sum + (l.trip_miles || 0) + (l.deadhead_miles || 0), 0);
-    const prevMargin = prevWeekFilteredData.reduce((sum, l) => sum + (l.cut || 0), 0);
-    const activeTrucks = new Set(drivers.map(d => d.name)).size;
     const prevActiveTrucks = new Set(prevWeekFilteredData.map(d => d.driver)).size;
-    const wellnessScores = dispatchers.map(d => parseFloat(d.wellness)).filter(w => !isNaN(w));
     
     const kpis = {
-        totalGross: { value: currentGross, trend: getSnapshotTrend(currentGross, prevGross) },
-        totalMargin: { value: currentMargin, trend: getSnapshotTrend(currentMargin, prevMargin) },
-        totalRpm: { value: currentMiles > 0 ? currentGross / currentMiles : 0, trend: getSnapshotTrend(currentMiles > 0 ? currentGross / currentMiles : 0, prevMiles > 0 ? prevGross / prevMiles : 0) },
-        activeTrucks: { value: activeTrucks, trend: getSnapshotTrend(activeTrucks, prevActiveTrucks) },
-        dispatchers: { value: dispatchers.length, trend: getSnapshotTrend(0,0) }, // No prev week dispatcher data
-        avgWellness: { value: wellnessScores.length > 0 ? wellnessScores.reduce((a, b) => a + b, 0) / wellnessScores.length : 0, trend: getSnapshotTrend(0,0) }
+        totalGross: { value: snapshotKpis.totalGross, trend: getSnapshotTrend(snapshotKpis.totalGross, prevGross) },
+        totalMargin: { value: snapshotKpis.teamMargin, trend: getSnapshotTrend(0,0) },
+        totalRpm: { value: snapshotKpis.teamRpm, trend: getSnapshotTrend(0,0)},
+        activeTrucks: { value: snapshotKpis.activeTrucks, trend: getSnapshotTrend(snapshotKpis.activeTrucks, prevActiveTrucks) },
+        dispatchers: { value: snapshotKpis.dispatchers, trend: getSnapshotTrend(0,0) }, 
+        avgWellness: { value: snapshotKpis.medianWellness, trend: getSnapshotTrend(0,0) }
     };
 
-    // 2. Dispatcher Rankings & High-Risk Drivers
     const sortedByRank = [...dispatchers].sort((a, b) => (a.rank1w || Infinity) - (b.rank1w || Infinity));
     const sortedByCompliance = [...dispatchers].sort((a, b) => (b.complianceScore || 0) - (a.complianceScore || 0));
     const highRiskDrivers = [...drivers].sort((a, b) => b.risk - a.risk).slice(0, 5);
     
-    // 3. Flag Snapshot
     const flagSnapshot = drivers.flatMap(d => d.flags.map(f => f.text)).reduce((acc, flag) => {
         acc[flag] = (acc[flag] || 0) + 1;
         return acc;
@@ -3928,6 +3951,13 @@ export function renderSnapshotChart(containerId) {
         return;
     }
 
+    // --- START OF THE FIX ---
+    // 1. Store the original, global filter from the Rankings view.
+    const originalDriverFilter = appState.driverTypeFilter;
+    // 2. Temporarily set the global filter to match the one selected in the Profiles view.
+    appState.driverTypeFilter = appState.profiles.contractTypeFilter;
+    // --- END OF THE FIX ---
+
     const { selectedTeam, selectedCompany } = appState.profiles;
     const allTeams = [...new Set(appState.allHistoricalData.map(d => d.dispatcherTeam).filter(Boolean))];
     let datasets = [];
@@ -3935,25 +3965,33 @@ export function renderSnapshotChart(containerId) {
 
     if (selectedCompany !== 'All Companies') {
         const entityName = selectedCompany;
+        // This will now use the correct, temporarily set filter
         datasets.push({ name: entityName, data: getCompanyOrAllTeamsCriteriaHistory(entityName, 'company', appState.allHistoricalData, 8) });
         yLabel = "Avg Criteria";
     } else if (selectedTeam !== 'ALL_TEAMS') {
-        // --- FIX: Correctly find all teams that start with the selected parent team name ---
         const teamsToPlot = allTeams.filter(t => t.startsWith(selectedTeam));
         
         if (teamsToPlot.length > 0) {
             teamsToPlot.forEach(teamName => {
                 const shortName = teamName.replace(selectedTeam, '').trim() || teamName;
+                // This will now use the correct, temporarily set filter
                 datasets.push({ name: shortName, data: getTeamRankHistory(teamName, appState.allHistoricalData, 8) });
             });
         } else {
-            // Fallback for teams without explicit sub-teams
+            // This will now use the correct, temporarily set filter
             datasets.push({ name: selectedTeam, data: getTeamRankHistory(selectedTeam, appState.allHistoricalData, 8) });
         }
     } else {
+        // This will now use the correct, temporarily set filter
         datasets.push({ name: "All Teams", data: getCompanyOrAllTeamsCriteriaHistory('ALL_TEAMS', 'all', appState.allHistoricalData, 8) });
         yLabel = "Avg Criteria";
     }
+
+    // --- START OF THE FIX ---
+    // 3. Immediately reset the global filter to its original value so it doesn't affect the Rankings view.
+    appState.driverTypeFilter = originalDriverFilter;
+    // --- END OF THE FIX ---
+
 
     const chartData = datasets.flatMap(ds => ds.data.filter(d => d.value !== null));
     if (!chartData || chartData.length === 0) {
