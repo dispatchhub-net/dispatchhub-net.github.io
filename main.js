@@ -1,7 +1,6 @@
 // 1. DISPEČ TEST/main.js
 
-import { startTimer } from './utils.js';
-// MODIFIED: Import the new URL array for historical stubs
+import { startTimer, fetchWithRetry } from './utils.js'; // <-- Import fetchWithRetry
 import { HISTORICAL_STUBS_URLS, DRIVER_COUNT_LIVE_URL } from './config.js';
 import { renderLoadsAnalyticsUI, initializeAnalyticsEventListeners } from './loads/loads_ui.js';
 import { appState, allColumns, setDraggedColumnId, setDraggedViewName } from './state.js';
@@ -32,28 +31,51 @@ import {
 
 // --- NEW: Data Refresh Function ---
 
+const updateProgressBar = (percentage) => {
+    const progressBar = document.getElementById('loading-progress-bar');
+    const finalPercentage = Math.min(100, Math.round(percentage));
+
+    if (progressBar) {
+        progressBar.style.width = `${finalPercentage}%`;
+    }
+};
+
 const refreshData = async (isInitialLoad = false) => {
     console.log(`%c[REFRESH] Starting data refresh (Initial Load: ${isInitialLoad})...`, 'color: cyan');
+    if (isInitialLoad) {
+        updateProgressBar(5); // Start with a small amount of progress
+    }
     if (!isInitialLoad) {
         appState.isRefreshing = true;
-        renderRefreshStatus(); // Show the "Syncing..." indicator in the sidebar
+        renderRefreshStatus();
     }
 
     try {
         console.log('[REFRESH] Kicking off parallel data fetches...');
         const dataFetchTimer = startTimer('All Data Fetching (Parallel)');
         
-        // Add individual timers to pinpoint slow fetches
+        // --- START: Progress tracking logic ---
+        let loadedCount = 0;
+        const totalFetches = 4; // We have 4 main data sources
+        const updateProgress = () => {
+            loadedCount++;
+            // We start at 5% and the fetches make up the next 90%
+            const percentage = 5 + (loadedCount / totalFetches) * 90;
+            updateProgressBar(percentage);
+        };
+        // --- END: Progress tracking logic ---
+
         const historicalTimer = startTimer('fetchAllHistoricalData');
         const profileTimer = startTimer('fetchProfileData');
         const stubsTimer = startTimer('fetchHistoricalStubs');
         const countsTimer = startTimer('fetchLiveDriverCounts');
 
         await Promise.all([
-            fetchAllHistoricalData().then(res => { historicalTimer.stop(); console.log('[REFRESH] ✅ fetchAllHistoricalData finished.'); return res; }),
-            fetchProfileData().then(res => { profileTimer.stop(); console.log('[REFRESH] ✅ fetchProfileData finished.'); return res; }),
-            fetchHistoricalStubs().then(res => { stubsTimer.stop(); console.log('[REFRESH] ✅ fetchHistoricalStubs finished.'); return res; }),
-            fetchLiveDriverCounts().then(res => { countsTimer.stop(); console.log('[REFRESH] ✅ fetchLiveDriverCounts finished.'); return res; })
+            // Each fetch now calls updateProgress() when it completes
+            fetchAllHistoricalData().then(res => { historicalTimer.stop(); updateProgress(); console.log('[REFRESH] ✅ fetchAllHistoricalData finished.'); return res; }),
+            fetchProfileData().then(res => { profileTimer.stop(); updateProgress(); console.log('[REFRESH] ✅ fetchProfileData finished.'); return res; }),
+            fetchHistoricalStubs().then(res => { stubsTimer.stop(); updateProgress(); console.log('[REFRESH] ✅ fetchHistoricalStubs finished.'); return res; }),
+            fetchLiveDriverCounts().then(res => { countsTimer.stop(); updateProgress(); console.log('[REFRESH] ✅ fetchLiveDriverCounts finished.'); return res; })
         ]);
 
         console.log('[REFRESH] All parallel data fetches have completed.');
@@ -66,7 +88,7 @@ const refreshData = async (isInitialLoad = false) => {
         console.log('[REFRESH] Starting data processing...');
         const processingTimer = startTimer('Data Processing and UI Setup');
         appState.profiles.fleetHealthCache = {};
-        appState.precomputationCache = { dispatcher: {}, team: {} }; // FIX: Clear the stale data cache
+        appState.precomputationCache = { dispatcher: {}, team: {} };
 
         if (isInitialLoad) {
             loadDefaultView();
@@ -96,21 +118,21 @@ const refreshData = async (isInitialLoad = false) => {
         console.log('[REFRESH] Data processing finished.');
         processingTimer.stop();
         
-        appState.lastRefreshed = new Date(); // Set the timestamp on successful refresh
+        appState.lastRefreshed = new Date();
 
     } catch (e) {
         console.error("%c[REFRESH] 🛑 ERROR during data refresh:", 'color: red; font-weight: bold;', e);
         appState.error = "Failed to refresh application data. " + e.message;
     } finally {
+        if (isInitialLoad) {
+            updateProgressBar(100); // Set to 100% when all processing is done
+        }
         if (!isInitialLoad) {
             appState.isRefreshing = false;
-            // FIX: This ensures the sidebar icon is updated back to the checkmark
-            // after the refresh cycle completes, regardless of the current view.
             renderRefreshStatus();
         }
         
         console.log(`%c[REFRESH] Refresh cycle finished. Re-rendering UI for view: ${appState.currentView}.`, 'color: cyan');
-        // Always re-render the appropriate UI based on the current view
         switch (appState.currentView) {
             case 'rankings':
                 renderUI();
@@ -504,9 +526,62 @@ const addEventListeners = () => {
     });
 };
 
+
+// In 1. DISP TEST/main.js
+
+const initializeParticles = () => {
+    if (typeof particlesJS !== 'undefined') {
+        particlesJS('particles-js', {
+            "particles": {
+                "number": { "value": 60, "density": { "enable": true, "value_area": 800 } },
+                "color": { "value": "#38bdf8" }, // A nice bluish color
+                "shape": { "type": "circle" },
+                "opacity": { "value": 0.5, "random": true },
+                "size": { "value": 2, "random": true },
+                "line_linked": { "enable": false },
+                "move": {
+                    "enable": true, "speed": 0.4, "direction": "none",
+                    "random": true, "straight": false, "out_mode": "out", "bounce": false
+                }
+            },
+            "interactivity": { "detect_on": "canvas", "events": { "onhover": { "enable": false }, "onclick": { "enable": false } } },
+            "retina_detect": true
+        });
+    }
+};
+
+
 // --- UI Interaction Logic ---
 
 const initializeUIEventListeners = () => {
+    // --- START: New Loader-Specific Logic ---
+    const loader = document.getElementById('full-page-loader');
+    if (loader && !loader.classList.contains('hidden')) {
+        initializeParticles();
+        const background = document.getElementById('loader-background');
+        const cursorDot = document.getElementById('cursor-dot');
+        const cursorOutline = document.getElementById('cursor-outline');
+
+        // --- THIS IS THE CORRECTED MOUSEMOVE LOGIC ---
+        const onMouseMove = (e) => {
+            const { clientX, clientY } = e;
+            // Update CSS variables for the gradient
+            if (background) {
+                background.style.setProperty('--mouse-x', `${clientX}px`);
+                background.style.setProperty('--mouse-y', `${clientY}px`);
+            }
+            // Directly update the style. The CSS transition will handle the animation.
+            if (cursorDot) {
+                cursorDot.style.transform = `translate(${clientX}px, ${clientY}px)`;
+            }
+            if (cursorOutline) {
+                cursorOutline.style.transform = `translate(${clientX}px, ${clientY}px)`;
+            }
+        };
+        window.addEventListener('mousemove', onMouseMove);
+    }
+    // --- END: New Loader-Specific Logic ---
+
     const sidebar = document.getElementById('sidebar');
     const toggleButton = document.getElementById('sidebar-toggle');
     
@@ -522,85 +597,60 @@ const initializeUIEventListeners = () => {
     }
 
     const tips = [
-        "Did you know? The 'Driver Happiness' metric is a combination of Net Pay and Miles Driven, rewarding dispatchers who balance both.",
-        "Tip: Use the '4W' columns in the main table to spot long-term performance trends, not just weekly changes.",
-        "Fact: 'Company Happiness' focuses on cash flow, but takes into account the truck's depreciation. More miles & higher gross does not equal better ranking performance, if RPM is low.",
-        "Hint: You can save your custom filters, column visibility, and sorting settings as a 'View' for quick access later.",
-        "Did you know? The 'Low Performers' tracker helps identify consistent underperformance, not just a single bad week.",
-        "Tip: Click and drag column headers in the main table to reorder them to your preference.",
-        "Fact: The 'Performance Drops' tracker highlights dispatchers whose performance has significantly declined compared to their own historical average.",
-        "Tip: In the 'Historical Rank Changes' chart, you can select specific dispatchers to get a clearer view of head-to-head performance."
+        "'Driver Happiness' combines Net Pay and Miles Driven to reward balance.",
+        "Use '4W' columns to track long-term trends, not just weekly changes.",
+        "'Company Happiness' tracks cash flow and truck depreciation; high miles don’t always mean better ranking.",
+        "Save filters, column visibility, and sorting as a 'View' for quick access.",
+        "'Low Performers' spots consistent underperformance, not single bad weeks.",
+        "Drag column headers to reorder the table.",
+        "'Performance Drops' shows dispatchers falling vs their historical average.",
+        "In 'Historical Rank Changes', select dispatchers to compare performance."
     ];
-
-    function shuffleArray(array) {
-        for (let i = array.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [array[i], array[j]] = [array[j], array[i]];
-        }
-    }
-
-    shuffleArray(tips);
-
+    
     let currentTipIndex = 0;
     const tipTextElement = document.getElementById('loading-tip-text');
-    const prevBtn = document.getElementById('prev-tip-btn');
-    const nextBtn = document.getElementById('next-tip-btn');
     
-    function showTip(index) {
-        if (tipTextElement) {
-            tipTextElement.textContent = tips[index];
-        }
-    }
-
-    if (prevBtn) {
-        prevBtn.addEventListener('click', () => {
-            currentTipIndex = (currentTipIndex - 1 + tips.length) % tips.length;
-            showTip(currentTipIndex);
-        });
-    }
-
-    if (nextBtn) {
-        nextBtn.addEventListener('click', () => {
+    function showNextTip() {
+        if (!tipTextElement) return;
+        
+        tipTextElement.classList.add('tip-fade-exit', 'tip-fade-exit-active');
+        
+        setTimeout(() => {
             currentTipIndex = (currentTipIndex + 1) % tips.length;
-            showTip(currentTipIndex);
-        });
+            tipTextElement.textContent = tips[currentTipIndex];
+            
+            tipTextElement.classList.remove('tip-fade-exit', 'tip-fade-exit-active');
+            tipTextElement.classList.add('tip-fade-enter');
+            
+            requestAnimationFrame(() => {
+                tipTextElement.classList.remove('tip-fade-enter');
+            });
+        }, 450);
+    }
+
+    if (tipTextElement) {
+        tipTextElement.textContent = tips[currentTipIndex];
+        setInterval(showNextTip, 5000);
     }
     
-    showTip(currentTipIndex);
-    setInterval(() => {
-        currentTipIndex = (currentTipIndex + 1) % tips.length;
-        showTip(currentTipIndex);
-    }, 5000);
     updateNavActiveState();
 };
 
 const fetchHistoricalStubs = async () => {
     try {
-        // Create an array of fetch promises, one for each URL
-        const fetchPromises = HISTORICAL_STUBS_URLS.map(url => fetch(url).then(res => {
-            if (!res.ok) {
-                throw new Error(`HTTP error for historical stubs! status: ${res.status} for URL: ${url}`);
-            }
-            return res.json();
-        }));
+        // Use the new fetchWithRetry function for each URL
+        const fetchPromises = HISTORICAL_STUBS_URLS.map(url => 
+            fetchWithRetry(url).then(res => res.json()) // Use it here
+        );
 
-        // Wait for all fetches to complete in parallel
         const results = await Promise.all(fetchPromises);
-
         let combinedHistoricalData = [];
 
-        // Process and combine results from all fetches
         for (const result of results) {
-            if (result.error) {
-                throw new Error(result.error);
-            }
-            if (result.historicalData) {
-                combinedHistoricalData.push(...result.historicalData);
-            }
+            if (result.error) throw new Error(result.error);
+            if (result.historicalData) combinedHistoricalData.push(...result.historicalData);
         }
-
         appState.loads.historicalStubsData = combinedHistoricalData;
-
     } catch (e) {
         console.error("Error fetching historical stubs from multiple sources:", e);
         appState.error = (appState.error || "") + " Failed to load Historical Stubs. " + e.message;
@@ -609,19 +659,14 @@ const fetchHistoricalStubs = async () => {
 
 const fetchLiveDriverCounts = async () => {
     try {
-        const response = await fetch(DRIVER_COUNT_LIVE_URL);
-        if (!response.ok) {
-            throw new Error(`HTTP error for live driver counts! status: ${response.status}`);
-        }
+        // Use the new fetchWithRetry for the single URL
+        const response = await fetchWithRetry(DRIVER_COUNT_LIVE_URL); // Use it here
         const result = await response.json();
 
         if (result.error) {
             throw new Error(result.error);
         }
-
-        // The endpoint returns an object with a "data" key holding the array
         appState.profiles.liveDriverCountData = result || [];
-
     } catch (e) {
         console.error("Error fetching live driver counts:", e);
         appState.error = (appState.error || "") + " Failed to load Live Driver Counts. " + e.message;
