@@ -175,6 +175,10 @@ export function loadView(viewName) {
         processDataForMode();
         getOrComputeHistoricalMetrics();
         renderUI();
+    } else if (viewName === '1wk ALL View') {
+        load1WkAllView();
+    } else if (viewName === '4wk ALL View') {
+        load4WkAllView();
     } else {
         const savedViews = JSON.parse(localStorage.getItem('dispatcherHubViews')) || {};
         const viewState = savedViews[viewName];
@@ -209,8 +213,44 @@ export function loadDefaultView() {
     appState.visibleColumns = visibleColumnsMap;
     appState.sortConfig = { key: 'rank', direction: 'ascending' };
     appState.tableMaxHeight = 500;
-    appState.visibleKeyMetrics = ['mainCriteria', 'driverHappiness', 'companyHappiness', 'totalDrivers', 'totalDispatchers', 'rpmAll'];
+    appState.visibleKeyMetrics = [];
     appState.driverTypeFilter = 'all';
+};
+
+export function load1WkAllView() {
+    const allColumns = generateAllColumns();
+    const visibleColumnsMap = new Map();
+    const oneWkColumnIds = new Set([
+        'rank', 'entityName', 'dispatcherTeam', 'numOOs', 'numLOOs', 
+        'pNet_current', 'pDriverGross_current', 'pMargin_current', 'pMileage_current', 
+        'pMainCriteriaNetDriverMargin_current', 'pMainCriteria2CashFlow_current', 'mainCriteria_current'
+    ]);
+
+    allColumns.forEach(col => {
+        visibleColumnsMap.set(col.id, oneWkColumnIds.has(col.id));
+    });
+
+    appState.visibleColumns = visibleColumnsMap;
+    // Keep other state like filters, sort, etc., as they are, just change columns
+    renderUI();
+};
+
+export function load4WkAllView() {
+    const allColumns = generateAllColumns();
+    const visibleColumnsMap = new Map();
+    const fourWkColumnIds = new Set([
+        'rank', 'entityName', 'dispatcherTeam', 'numOOs_4wkAvg', 'numLOOs_4wkAvg',
+        'pNet_4wkAvg', 'pDriverGross_4wkAvg', 'pMargin_4wkAvg', 'pMileage_4wkAvg',
+        'pMainCriteriaNetDriverMargin_4wkAvg', 'pMainCriteria2CashFlow_4wkAvg', 'mainCriteria_4wkAvg'
+    ]);
+
+    allColumns.forEach(col => {
+        visibleColumnsMap.set(col.id, fourWkColumnIds.has(col.id));
+    });
+    
+    appState.visibleColumns = visibleColumnsMap;
+    // Keep other state like filters, sort, etc., as they are, just change columns
+    renderUI();
 };
 
 function handleViewDragStart(e) {
@@ -656,7 +696,7 @@ export const renderMainTable = () => {
                     break;
                 // --- END OF FIX ---
                 default:
-                     if (metricInfo) {
+                    if (metricInfo) {
                         let displayValue;
                         if (value === null || value === undefined || isNaN(value)) {
                             displayValue = '-';
@@ -671,7 +711,11 @@ export const renderMainTable = () => {
                         }
                         content = `<span class="${col.color}${baseMetricId === 'mainCriteria' ? ' font-bold' : ''}">${displayValue}</span>`;
                     } else {
-                        content = `<span class="text-gray-300">${(value === null || value === undefined) ? '-' : String(value).includes('.') ? parseFloat(value).toFixed(0) : value}</span>`;
+                        if (col.decimalPlaces && (value !== null && value !== undefined)) {
+                             content = `<span class="text-gray-300">${parseFloat(value).toFixed(col.decimalPlaces)}</span>`;
+                        } else {
+                             content = `<span class="text-gray-300">${(value === null || value === undefined) ? '-' : String(value).includes('.') ? parseFloat(value).toFixed(0) : value}</span>`;
+                        }
                     }
                     break;
             }
@@ -2421,9 +2465,17 @@ export const renderViewDropdown = () => {
     viewOrder = viewOrder.filter(name => savedViewNames.includes(name));
     localStorage.setItem('dispatcherHubViewsOrder', JSON.stringify(viewOrder));
 
-    const defaultViewItem = createViewListItem('Default View', false);
-    savedViewsList.appendChild(defaultViewItem);
+    // Add the default, non-deletable views first
+    savedViewsList.appendChild(createViewListItem('Default View', false));
+    savedViewsList.appendChild(createViewListItem('1wk ALL View', false));
+    savedViewsList.appendChild(createViewListItem('4wk ALL View', false));
 
+    // Add a separator
+    const separator = document.createElement('hr');
+    separator.className = 'border-gray-600 my-1';
+    savedViewsList.appendChild(separator);
+
+    // Add user-saved views
     viewOrder.forEach(viewName => {
         const viewItem = createViewListItem(viewName, true);
         savedViewsList.appendChild(viewItem);
