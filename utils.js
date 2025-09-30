@@ -113,3 +113,34 @@ export const LZW = {
       return result;
     }
   };
+
+
+  // In 1. DISP TEST/utils.js
+
+/**
+ * Fetches a resource with a specified number of retries on failure.
+ * @param {string} url - The URL to fetch.
+ * @param {number} retries - The number of times to retry on failure.
+ * @param {number} delay - The delay in milliseconds between retries.
+ * @returns {Promise<Response>} A promise that resolves to the fetch Response.
+ */
+export const fetchWithRetry = async (url, retries = 2, delay = 1000) => {
+    for (let i = 0; i <= retries; i++) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                // Throw an error for server-side issues (like 403, 500)
+                throw new Error(`HTTP error! status: ${response.status} for URL: ${url}`);
+            }
+            return response; // Success
+        } catch (error) {
+            console.warn(`Fetch attempt ${i + 1} for ${url} failed. Retrying in ${delay / 1000}s...`);
+            if (i === retries) {
+                console.error(`All fetch attempts for ${url} failed.`);
+                throw error; // Throw the final error if all retries fail
+            }
+            // Wait for the specified delay before the next attempt
+            await new Promise(res => setTimeout(res, delay));
+        }
+    }
+};
