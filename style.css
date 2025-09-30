@@ -3866,3 +3866,37 @@
 .snapshot-list-item .name {
     white-space: nowrap; /* Forces name onto one line */
 }
+
+/* Increase max height for the stubs table in the rankings modal */
+#modal-stubs-container {
+    max-height: 500px !important;
+}
+
+
+/* --- NEW: Minimalist Search Input for Profile Tables --- */
+.profile-table-search {
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid #4b5563; /* gray-600 */
+    color: #e5e7eb; /* gray-200 */
+    padding: 0.1rem 0.25rem;
+    font-size: 0.875rem; /* 14px */
+    transition: border-color 0.2s ease-in-out;
+    width: 200px; /* Set a default width */
+    margin-left: 1rem;
+}
+
+.profile-table-search:focus {
+    outline: none;
+    border-bottom: 1px solid #2dd4bf; /* teal-400 */
+}
+
+.profile-table-search::placeholder {
+    color: #6b7280; /* gray-500 */
+    font-style: italic;
+}
+
+/* --- NEW: Active Filter Button Indicator --- */
+.toolbar-btn.filter-active {
+    box-shadow: 0 0 0 2px #10b981; /* teal-500 */
+}
