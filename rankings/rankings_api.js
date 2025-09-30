@@ -1137,11 +1137,15 @@ export const getIndividualEntityChartData = (entityName) => {
 
 
 export const getCompanyOrAllTeamsCriteriaHistory = (entityName, entityType, allHistoricalData, numWeeks = 8) => {
-    const uniqueDates = [...new Set(allHistoricalData.map(d => d.date.toISOString().split('T')[0]))].sort().reverse();
+    // Get data filtered by the currently selected driver type (OO, LOO, All) first
+    const dataToUse = getFilteredDataByDriverType(allHistoricalData);
+
+    const uniqueDates = [...new Set(dataToUse.map(d => d.date.toISOString().split('T')[0]))].sort().reverse();
     const relevantDates = uniqueDates.slice(0, numWeeks).sort();
     
     return relevantDates.map(dateString => {
-        let relevantData = allHistoricalData.filter(d => d.date.toISOString().split('T')[0] === dateString);
+        // Filter the already contract-filtered data for the specific date
+        let relevantData = dataToUse.filter(d => d.date.toISOString().split('T')[0] === dateString);
         
         if (entityType === 'company') {
             relevantData = relevantData.filter(d => d.company_name === entityName);
@@ -1161,13 +1165,16 @@ export const getCompanyOrAllTeamsCriteriaHistory = (entityName, entityType, allH
 };
 
 export const getTeamRankHistory = (teamName, allHistoricalData, numWeeks = 8) => {
-    const uniqueDates = [...new Set(allHistoricalData.map(d => d.date.toISOString().split('T')[0]))].sort().reverse();
+    // Get data filtered by the currently selected driver type (OO, LOO, All)
+    const dataToUse = getFilteredDataByDriverType(allHistoricalData);
+
+    const uniqueDates = [...new Set(dataToUse.map(d => d.date.toISOString().split('T')[0]))].sort().reverse();
     const relevantDates = uniqueDates.slice(0, numWeeks).sort();
 
     const rankHistory = relevantDates.map(dateString => {
-        const dataForDate = allHistoricalData.filter(d => d.date.toISOString().split('T')[0] === dateString);
+        // Filter the already contract-filtered data for the specific date
+        const dataForDate = dataToUse.filter(d => d.date.toISOString().split('T')[0] === dateString);
         
-        // --- FIX: Use the same team aggregation logic as the main table ---
         const aggregatedTeamsForDate = aggregateTeamData(dataForDate);
 
         const rankedData = aggregatedTeamsForDate
