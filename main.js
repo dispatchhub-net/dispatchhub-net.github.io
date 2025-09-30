@@ -1,7 +1,8 @@
 // 1. DISPEČ TEST/main.js
 
 import { startTimer } from './utils.js';
-import { HISTORICAL_STUBS_URL, DRIVER_COUNT_LIVE_URL } from './config.js';
+// MODIFIED: Import the new URL array for historical stubs
+import { HISTORICAL_STUBS_URLS, DRIVER_COUNT_LIVE_URL } from './config.js';
 import { renderLoadsAnalyticsUI, initializeAnalyticsEventListeners } from './loads/loads_ui.js';
 import { appState, allColumns, setDraggedColumnId, setDraggedViewName } from './state.js';
 import { generateAllColumns } from './config.js';
@@ -575,20 +576,33 @@ const initializeUIEventListeners = () => {
 
 const fetchHistoricalStubs = async () => {
     try {
-        const response = await fetch(HISTORICAL_STUBS_URL);
-        if (!response.ok) {
-            throw new Error(`HTTP error for historical stubs! status: ${response.status}`);
-        }
-        const result = await response.json();
+        // Create an array of fetch promises, one for each URL
+        const fetchPromises = HISTORICAL_STUBS_URLS.map(url => fetch(url).then(res => {
+            if (!res.ok) {
+                throw new Error(`HTTP error for historical stubs! status: ${res.status} for URL: ${url}`);
+            }
+            return res.json();
+        }));
 
-        if (result.error) {
-            throw new Error(result.error);
+        // Wait for all fetches to complete in parallel
+        const results = await Promise.all(fetchPromises);
+
+        let combinedHistoricalData = [];
+
+        // Process and combine results from all fetches
+        for (const result of results) {
+            if (result.error) {
+                throw new Error(result.error);
+            }
+            if (result.historicalData) {
+                combinedHistoricalData.push(...result.historicalData);
+            }
         }
 
-        appState.loads.historicalStubsData = result.historicalData || [];
+        appState.loads.historicalStubsData = combinedHistoricalData;
 
     } catch (e) {
-        console.error("Error fetching historical stubs:", e);
+        console.error("Error fetching historical stubs from multiple sources:", e);
         appState.error = (appState.error || "") + " Failed to load Historical Stubs. " + e.message;
     }
 };
