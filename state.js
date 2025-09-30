@@ -119,6 +119,9 @@ export let appState = {
             selectedDriver: null,
             chartView: 'net_pay'
         },
+        // --- ADD THESE TWO LINES ---
+        dispatcherSearchTerm: '',
+        driverSearchTerm: '',
         // --- FIX START: Add a place to store the master list of all processed dispatchers ---
         allProcessedDispatchers: [],
         // --- FIX END ---
