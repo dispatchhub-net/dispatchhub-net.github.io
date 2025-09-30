@@ -67,7 +67,7 @@ export let appState = {
     },
     unfilteredRanks: new Map(), // For stable ranking in tracker
     visibleKeyMetrics: [
-        'mainCriteria', 'driverHappiness', 'companyHappiness', 'totalDrivers', 'totalDispatchers', 'rpmAll'
+       
     ],
     driverTypeFilter: 'all', // 'all', 'oo', or 'loo'
     enableHeatmap: false, // Control for heatmap feature
@@ -199,27 +199,27 @@ export let appState = {
                 lowRpm: {
                     enabled: true, label: 'Low RPM', color: 'gray',
                     icon: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6L9 12.75l4.286-4.286a11.948 11.948 0 014.306 6.43l.776 2.898m0 0l3.182-5.511m-3.182 5.51l-5.511-3.181" /></svg>',
-                    lookback: { type: 'weeks', value: 10 }, thresholds: { default: 1.80, by_contract: {"LOO": 1.75} }, minPercentageOfStubs: 40, minStubs: 4
+                    lookback: { type: 'weeks', value: 8 }, thresholds: { default: 1.80, by_contract: {"LOO": 1.75} }, minPercentageOfStubs: 50, minStubs: 4
                 },
                 lowGross: {
                     enabled: true, label: 'Low Gross', color: 'red',
                     icon: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 11.21 12.768 11 12 11c-.768 0-1.536.21-2.121.782L9 12M12 6v12" /></svg>',
-                    lookback: { type: 'weeks', value: 10 }, thresholds: { default: 5000, by_contract: {"LOO": 6000} }, minPercentageOfStubs: 50, minStubs: 4
+                    lookback: { type: 'weeks', value: 8 }, thresholds: { default: 5000, by_contract: {"LOO": 6000} }, minPercentageOfStubs: 50, minStubs: 4
                 },
                 lowNet: {
                     enabled: true, label: 'Low Net', color: 'orange',
                     icon: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 11.21 12.768 11 12 11c-.768 0-1.536.21-2.121.782L9 12m-3 0a9 9 0 1118 0 9 9 0 01-18 0z" /></svg>',
-                    lookback: { type: 'weeks', value: 10 }, thresholds: { default: 1000, by_contract: {"OO": 2000} }, minPercentageOfStubs: 50, minStubs: 4
+                    lookback: { type: 'weeks', value: 8 }, thresholds: { default: 850, by_contract: {"OO": 1500} }, minPercentageOfStubs: 50, minStubs: 4
                 },
                 heavyLoads: {
                     enabled: true, label: 'Heavy Loads', color: 'blue',
                     icon: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.096.428m3.095 2.074A5.983 5.983 0 0118.75 20.25m-13.5-14.78A48.416 48.416 0 0112 4.5c2.291 0 4.545.16 6.75.47m-13.5 0c-1.01.143-2.01.317-3 .52m3-.52l-2.62 10.726c-.122.499.106 1.028.589 1.202a5.989 5.989 0 002.096.428m-3.095 2.074A5.983 5.983 0 005.25 20.25" /></svg>',
-                    lookback: { type: 'weeks', value: 10 }, thresholds: { default: 40000, by_contract: {} }, minLoads: 8
+                    lookback: { type: 'weeks', value: 8 }, thresholds: { default: 41000, by_contract: {} }, minLoads: 4
                 },
                 negative: {
                     enabled: true, label: 'Balance', color: 'red',
                     icon: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>',
-                    thresholds: { default: 3000, by_contract: {"OO": 2000} }, minStubs: 6
+                    thresholds: { default: 2000, by_contract: {"OO": 2500} }, minStubs: 6
                 }
             }
         },
