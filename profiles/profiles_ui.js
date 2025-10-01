@@ -85,7 +85,9 @@ function calculateKpiData(baseData, isLiveData, allDrivers, historicalStubs, con
     const driversForKpi = allDrivers;
 
     // 'baseData' is the raw, unfiltered load/stub data for the period. We'll filter this for load-specific KPIs.
-    let activeData = isLiveData ? baseData.filter(l => l.status !== 'Canceled') : baseData;
+    let activeData = isLiveData
+    ? baseData.filter(l => l.status !== 'Canceled')
+    : baseData.filter(s => s.stub_team && s.total_miles > 0);
 
     // Apply the contract filter to the raw load/stub data.
     if (contractFilter !== 'all') {
