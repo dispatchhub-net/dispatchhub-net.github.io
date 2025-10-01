@@ -214,66 +214,71 @@ const handleSnapshotClick = () => {
         return;
     }
 
-    const originalTable = tableContainer.querySelector('table');
-    if (!originalTable) return;
-    const tableScrollWidth = originalTable.scrollWidth;
-
     const snapshotWrapper = document.createElement('div');
-    const paddingValue = 40;
-    snapshotWrapper.style.backgroundColor = '#1f2937';
-    snapshotWrapper.style.padding = `${paddingValue}px`;
-    
-    const totalWidth = tableScrollWidth + (paddingValue * 2);
-    snapshotWrapper.style.width = `${totalWidth}px`;
+    snapshotWrapper.style.backgroundColor = '#1f2937'; // gray-800
+    snapshotWrapper.style.padding = '40px';
+    snapshotWrapper.style.display = 'inline-block'; // Shrink to content
 
     const titleEl = document.createElement('h2');
     const rankingModeText = appState.rankingMode.charAt(0).toUpperCase() + appState.rankingMode.slice(1);
     const driverTypeText = appState.driverTypeFilter === 'all' ? '' : ` (${appState.driverTypeFilter.toUpperCase()})`;
     titleEl.textContent = `${rankingModeText} Rankings${driverTypeText} for ${appState.selectedDate}`;
     titleEl.style.color = '#e2e8f0';
-    titleEl.style.fontSize = '33px';
+    titleEl.style.fontSize = '28px';
     titleEl.style.fontWeight = 'bold';
     titleEl.style.textAlign = 'center';
     titleEl.style.marginBottom = '25px';
     snapshotWrapper.appendChild(titleEl);
 
-    const clonedTableContainer = tableContainer.cloneNode(true);
-    const clonedTable = clonedTableContainer.querySelector('table');
+    const clonedTable = tableContainer.querySelector('table').cloneNode(true);
 
     if (clonedTable) {
-        clonedTableContainer.style.maxHeight = 'none';
-        clonedTableContainer.style.overflow = 'visible';
-
-        const stickyCells = clonedTable.querySelectorAll('.sticky');
-        stickyCells.forEach(cell => {
-            cell.style.position = 'static';
-            cell.style.left = '';
-            cell.style.right = '';
-            cell.style.zIndex = 'auto';
-            cell.style.boxShadow = 'none';
-        });
-
+        clonedTable.style.width = 'auto';
         clonedTable.style.borderCollapse = 'collapse';
-        const cells = clonedTable.querySelectorAll('th, td');
-        const subtleBorderColor = '#333c4a';
-        cells.forEach(cell => {
-            cell.style.border = 'none';
-            cell.style.borderBottom = `1px solid ${subtleBorderColor}`;
+
+        // --- Header Styling ---
+        clonedTable.querySelectorAll('thead th').forEach(th => {
+            th.className = ''; // Remove Tailwind classes
+            Object.assign(th.style, {
+                padding: '8px 10px', // Reduced from 12px
+                borderBottom: '2px solid #4a5568',
+                color: '#cbd5e1',
+                fontWeight: 'bold',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'nowrap',
+            });
         });
 
-        const rows = clonedTable.querySelectorAll('#main-table-body tr');
-        rows.forEach((row, index) => {
-            const isOddRow = (index % 2 === 1);
-            const bgColor = isOddRow ? '#242e3c' : '#1f2937';
-            row.style.backgroundColor = bgColor;
-            Array.from(row.children).forEach(cell => {
-                cell.style.backgroundColor = bgColor;
+        // --- Body Cell Styling ---
+        clonedTable.querySelectorAll('tbody td').forEach(td => {
+            td.className = ''; // Remove Tailwind classes
+            Object.assign(td.style, {
+                padding: '5px 1px', // Reduced from 10px
+                borderBottom: '1px solid #374151',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'nowrap',
+                fontSize: '14px',
             });
+        });
+        
+        // --- Alignment Overrides & Zebra Striping ---
+        clonedTable.querySelectorAll('tr').forEach((row, rowIndex) => {
+            // Left-align the first two columns
+            if (row.children[0]) row.children[0].style.textAlign = 'left';
+            if (row.children[1]) row.children[1].style.textAlign = 'left';
+
+            // Apply zebra striping to body rows
+            if (row.closest('tbody') && rowIndex % 2 === 1) {
+                Array.from(row.children).forEach(cell => {
+                    cell.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
+                });
+            }
         });
     }
 
-    snapshotWrapper.appendChild(clonedTableContainer);
-
+    snapshotWrapper.appendChild(clonedTable);
     snapshotWrapper.style.position = 'absolute';
     snapshotWrapper.style.left = '-9999px';
     document.body.appendChild(snapshotWrapper);
