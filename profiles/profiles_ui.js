@@ -351,6 +351,61 @@ const getHistoricalStubsForDriver = (driverName, historicalStubs = []) => {
     return driverData.sort((a, b) => new Date(b.pay_date) - new Date(a.pay_date));
 };
 
+
+/**
+ * Creates a "predicted" stub object for a given week by aggregating a driver's loads.
+ * @param {string} driverName - The name of the driver.
+ * @param {number} weeksAgo - The number of weeks ago to calculate for (0 for current, 1 for previous).
+ * @returns {object|null} A single predicted stub object, or null if no loads are found.
+ */
+function createPredictedStub(driverName, weeksAgo) {
+    const { start, end } = getPayrollWeekDateRange(weeksAgo);
+    const driverLoads = appState.profiles.liveData.filter(load =>
+        load.driver === driverName &&
+        load.do_date &&
+        new Date(load.do_date) >= start &&
+        new Date(load.do_date) <= end &&
+        load.status !== 'Canceled'
+    );
+
+    if (driverLoads.length === 0) {
+        return null;
+    }
+
+    // Aggregate data from all loads in the period
+    const predictedStub = driverLoads.reduce((acc, load) => {
+        const gross = (load.price || 0) - (load.cut || 0);
+        acc.driver_gross += gross;
+        acc.margin += (load.cut || 0);
+        acc.total_miles += (load.trip_miles || 0) + (load.deadhead_miles || 0);
+        acc.total_price += (load.price || 0);
+        return acc;
+    }, {
+        is_predicted: true,
+        weeks_ago: weeksAgo, // Store how many weeks ago this prediction is for
+        pay_date: end.toISOString(),
+        driver_name: driverName, // Use driver_name to match historical stub property
+        driver_gross: 0,
+        margin: 0,
+        total_miles: 0,
+        total_price: 0,
+        stub_dispatcher: driverLoads[0]?.dispatcher || 'N/A',
+        stub_team: driverLoads[0]?.team || 'N/A',
+        trailer_type: driverLoads[0]?.trailer_type || 'V',
+        net_pay: '-',
+        balance: '-',
+        balance_settle: '-',
+        po_settle: '-',
+    });
+
+    predictedStub.rpm_all = predictedStub.total_miles > 0 
+        ? predictedStub.total_price / predictedStub.total_miles 
+        : 0;
+    
+    return predictedStub;
+}
+
+
 // --- START: ADD THIS NEW HELPER FUNCTION ---
 /**
  * Calculates the start (Tuesday) and end (Monday) date objects for a given payroll week.
@@ -620,32 +675,49 @@ function renderDriverDeepDiveModal_Profiles() {
         const historicalStubs = getHistoricalStubsForDriver(selectedDriver, appState.loads.historicalStubsData);
         const driverData = appState.profiles.currentTeamData?.drivers.find(d => d.name === selectedDriver);
         const contractType = driverData?.contract || null;
+        
+        const predictedStubs = [];
+        const today = new Date().getUTCDay(); // Sunday = 0, Tuesday = 2, Wednesday = 3
 
-        // --- NEW: Logic to determine Team/Solo status ---
+        // Always check for the current week (weeksAgo = 0) first to ensure it's at the top
+        const currentWeekPrediction = createPredictedStub(selectedDriver, 0);
+        if (currentWeekPrediction) {
+            predictedStubs.push(currentWeekPrediction);
+        }
+
+        // If it's Tuesday or Wednesday, also check for the previous week (weeksAgo = 1)
+        if (today === 2 || today === 3) {
+            const previousWeekPrediction = createPredictedStub(selectedDriver, 1);
+            if (previousWeekPrediction) {
+                // Add the previous week after the current week
+                predictedStubs.push(previousWeekPrediction);
+            }
+        }
+        
+        // Combine predicted stubs (now correctly ordered) with historical ones
+        const allStubsForDisplay = [...predictedStubs, ...historicalStubs];
+
+        // --- Logic to determine Team/Solo status ---
         const isLiveData = appState.profiles.selectedWeek === 'live';
         let teamStatus = null;
-
         if (isLiveData) {
             const driverLoads = appState.profiles.liveData
                 .filter(l => l.driver === selectedDriver && l.status_teams)
-                .sort((a, b) => new Date(b.do_date) - new Date(a.do_date)); // Sort by most recent
+                .sort((a, b) => new Date(b.do_date) - new Date(a.do_date));
             if (driverLoads.length > 0) {
                 teamStatus = driverLoads[0].status_teams;
             }
         } else {
-            // Stubs are already sorted descending by pay_date
             const recentStubWithStatus = historicalStubs.find(s => s.status_teams);
             if (recentStubWithStatus) {
                 teamStatus = recentStubWithStatus.status_teams;
             }
         }
-        // --- END NEW LOGIC ---
 
-        // Pass the new data to the header rendering function
         renderModalHeader_Profiles(selectedDriver, historicalStubs, contractType, teamStatus);
         renderModalKpis_Profiles(historicalStubs);
-        renderModalHistoricalTable_Profiles(historicalStubs);
-        renderModalChart_Profiles(historicalStubs);
+        renderModalHistoricalTable_Profiles(allStubsForDisplay);
+        renderModalChart_Profiles(historicalStubs); // Chart always uses full history
     }
 }
 
@@ -782,28 +854,41 @@ function renderModalKpis_Profiles(historicalStubs) {
 
 // 1. DISPEČ TEST/profiles/profiles_ui.js
 
-function renderModalHistoricalTable_Profiles(historicalStubs) {
+function renderModalHistoricalTable_Profiles(stubsData) {
     const tableContainer = document.getElementById('profiles-modal-table-container');
     if (!tableContainer) return;
 
-    if (historicalStubs.length === 0) {
-        tableContainer.innerHTML = '<p class="p-4 text-center text-gray-500">No historical stubs found for this driver.</p>';
+    if (stubsData.length === 0) {
+        const message = 'No historical stubs or live loads found for this driver.';
+        tableContainer.innerHTML = `<p class="p-4 text-center text-gray-500">${message}</p>`;
         return;
     }
 
     const headers = [
-        { label: 'Pay Date', key: 'pay_date', format: (d) => new Date(d).toLocaleDateString() },
+        { label: 'Pay Date', key: 'pay_date', format: (d, stub) => {
+            if (stub.is_predicted) {
+                 const date = new Date(d);
+                 const formattedDate = date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' });
+                 return `
+                    <div class="flex items-center justify-center gap-x-2">
+                        <span class="font-bold text-teal-400">Live - ${formattedDate}</span>
+                        <svg title="This is a prediction based on unsettled loads." class="w-4 h-4 text-teal-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
+                    </div>
+                `;
+            }
+            return new Date(d).toLocaleDateString();
+        }},
         { label: 'Flags', key: 'flags' },
         { label: 'Gross', key: 'driver_gross', format: (d) => `$${(d || 0).toLocaleString()}`, class: 'text-blue-400' },
         { label: 'Margin', key: 'margin', format: (d) => `$${(d || 0).toLocaleString()}`, class: 'text-yellow-400' },
-        { label: 'Net', key: 'net_pay', format: (d) => `$${(d || 0).toLocaleString()}`, class: 'text-green-400' },
+        { label: 'Net', key: 'net_pay', format: (d) => d === '-' ? '-' : `$${(d || 0).toLocaleString()}`, class: 'text-green-400' },
         { label: 'Miles', key: 'total_miles', format: (val) => (val || 0).toLocaleString() },
         { label: 'RPM', key: 'rpm_all', format: (d) => `$${(d || 0).toFixed(2)}` },
         { label: 'Dispatch', key: 'stub_dispatcher' },
         { label: 'Team', key: 'stub_team' },
-        { label: 'Balance', key: 'balance', format: (d) => `$${(d || 0).toFixed(2)}` },
-        { label: 'Bal. Settle', key: 'balance_settle', format: (d) => `$${(d || 0).toFixed(2)}` },
-        { label: 'PO Settle', key: 'po_settle', format: (d) => `$${(d || 0).toFixed(2)}` },
+        { label: 'Balance', key: 'balance', format: (d) => d === '-' ? '-' : `$${(d || 0).toFixed(2)}` },
+        { label: 'Bal. Settle', key: 'balance_settle', format: (d) => d === '-' ? '-' : `$${(d || 0).toFixed(2)}` },
+        { label: 'PO Settle', key: 'po_settle', format: (d) => d === '-' ? '-' : `$${(d || 0).toFixed(2)}` },
         {
             label: 'Equipment',
             key: 'trailer_type',
@@ -826,9 +911,11 @@ function renderModalHistoricalTable_Profiles(historicalStubs) {
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-800">
-                ${historicalStubs.map(stub => {
-                    // --- NEW LOGIC TO DETERMINE MOVE FLAG FOR THE STUB ---
-                    const { start, end } = getPayPeriodFromPayDate(stub.pay_date);
+                ${stubsData.map(stub => {
+                    const { start, end } = stub.is_predicted
+                        ? getPayrollWeekDateRange(stub.weeks_ago)
+                        : getPayPeriodFromPayDate(stub.pay_date);
+
                     const loadsForStub = appState.profiles.liveData.filter(load =>
                         load.driver === stub.driver_name &&
                         new Date(load.do_date) >= start &&
@@ -844,7 +931,7 @@ function renderModalHistoricalTable_Profiles(historicalStubs) {
                             const isGoodMove = (load.driver_gross_without_moved || 0) < threshold;
                             if (!isGoodMove) {
                                 moveFlag = { text: 'Bad Move', color: 'red' };
-                                break; // A single bad move is enough to flag the whole stub
+                                break;
                             }
                             hasGoodMove = true;
                         }
@@ -852,16 +939,16 @@ function renderModalHistoricalTable_Profiles(historicalStubs) {
                     if (!moveFlag && hasGoodMove) {
                         moveFlag = { text: 'Good Move', color: 'green' };
                     }
-                    // --- END OF NEW LOGIC ---
 
                     return `
                     <tr class="hover:bg-gray-700/50 cursor-pointer stub-row"
                         data-pay-date="${stub.pay_date}"
-                        data-driver-name="${stub.driver_name}">
+                        data-driver-name="${stub.driver_name}"
+                        data-is-predicted="${stub.is_predicted || false}"
+                        data-weeks-ago="${stub.weeks_ago !== undefined ? stub.weeks_ago : ''}">
                         ${headers.map(h => {
                             let displayValue;
                             if (h.key === 'flags') {
-                                // Combine existing flags with our new move flag
                                 const existingFlags = Array.isArray(stub.flags) ? stub.flags : [];
                                 const allFlags = moveFlag ? [...existingFlags, moveFlag] : existingFlags;
                                 displayValue = allFlags.length > 0
@@ -879,12 +966,14 @@ function renderModalHistoricalTable_Profiles(historicalStubs) {
         </table>
     `;
 
-    // The event listener logic for expanding rows remains unchanged
     const tableBody = tableContainer.querySelector('tbody');
     if (tableBody && !tableBody._clickHandlerAttached) {
         tableBody.addEventListener('click', e => {
             const stubRow = e.target.closest('.stub-row');
             if (!stubRow) return;
+            
+            const isPredicted = stubRow.dataset.isPredicted === 'true';
+            const weeksAgo = parseInt(stubRow.dataset.weeksAgo, 10);
 
             const existingDetailsRow = stubRow.nextElementSibling;
             if (existingDetailsRow && existingDetailsRow.classList.contains('stub-details-row')) {
@@ -900,7 +989,8 @@ function renderModalHistoricalTable_Profiles(historicalStubs) {
 
             const payDate = stubRow.dataset.payDate;
             const driverName = stubRow.dataset.driverName;
-            const { start, end } = getPayPeriodFromPayDate(payDate);
+            
+            const { start, end } = isPredicted ? getPayrollWeekDateRange(weeksAgo) : getPayPeriodFromPayDate(payDate);
 
             const loadsForStub = appState.profiles.liveData.filter(load =>
                 load.driver === driverName &&
@@ -927,7 +1017,7 @@ function renderModalHistoricalTable_Profiles(historicalStubs) {
                     const puDate = new Date(load.pu_date).toLocaleDateString('en-US', {month: '2-digit', day: '2-digit'});
                     const doDate = new Date(load.do_date).toLocaleDateString('en-US', {month: '2-digit', day: '2-digit'});
                     const totalMiles = (load.trip_miles || 0) + (load.deadhead_miles || 0);
-                    const driverRate = (load.price || 0) - (load.cut || 0); // Calculate the correct driver rate
+                    const driverRate = (load.price || 0) - (load.cut || 0);
 
                     return `
                         <tr class="hover:bg-cyan-700/50 ${isCanceled ? 'opacity-50' : ''}">
