@@ -1,14 +1,19 @@
 // ** IMPORTANT: THESE ARE YOUR GOOGLE APPS SCRIPT WEB APP URLS **
 
-// This URL is for the RANKINGS data
-export const GOOGLE_APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwTm-mVu3-GMqhBbY1Z-mb03ZjJAl0nmD8oMm8DQg8uXLDTToBvDTYspwkoW96jACE-/exec";
+// NEW: This URL is for the RANKINGS data (now an array)
+export const RANKINGS_APPS_SCRIPT_URLS = [
+    "https://script.google.com/macros/s/AKfycbyhdFPx1gW3MWLPIm8UWk_i1ORtlm5rS5XY8fNoG6Ktsf772_65t-pHItXkJQL70hHI-Q/exec",
+    "https://script.google.com/macros/s/AKfycbwsl6BfKqbDHz5iDt14zupUtrLHBwECwWs2dQfk20Y_NsNH3dRCVe0ENKhmiOMNVuvpyw/exec",
+    "https://script.google.com/macros/s/AKfycbwD7F1PqQ5zHdM4YbWDO7xWehYVVyAM_5wIjqeDZZHXYm-ffgcky058rgsZ7DQ8nP5S/exec"
+];
 
 // --- URLs for split LOADS data ---
 export const LOADS_APPS_SCRIPT_URLS = [
     "https://script.google.com/macros/s/AKfycbyCxLvwXipdktffUutUjiQzmPtL0CmRI3Qc9TaHVHhg3H37OnAdjlBMFtehbg16LJtdFg/exec",
     "https://script.google.com/macros/s/AKfycbzLCJ9AWgOZuxXzWtMsxdhht6loJh9yb8Jo9_SoVpIAI1nbB43OKuBAkgSKevwqIVnw/exec",
     "https://script.google.com/macros/s/AKfycbydKcUF_sLE9ZBtCcbstjL5AbfVGKbONC7Xi3gN3tK312qVZPKjHMz7HMcMhHZrfydL/exec",
-    "https://script.google.com/macros/s/AKfycbx0BHW4vnBYEAsF__RUn8b7gCKuqvvMsF6JwVid17YaehLhYYr83PNfn2gN61iCyx4E/exec"
+    "https://script.google.com/macros/s/AKfycbx0BHW4vnBYEAsF__RUn8b7gCKuqvvMsF6JwVid17YaehLhYYr83PNfn2gN61iCyx4E/exec",
+    "https://script.google.com/macros/s/AKfycbwJj0VBfiraZdb-DbD-AcwzA6PMag5vyI1Wlv_nMXFW9Su2s024zfLGmL_Qpo-LaRr39g/exec"
 ];
 
 // --- URLs for split HISTORICAL STUBS data ---
@@ -20,6 +25,9 @@ export const HISTORICAL_STUBS_URLS = [
 
 // This URL is for the live driver counts used in Profiles
 export const DRIVER_COUNT_LIVE_URL = "https://script.google.com/macros/s/AKfycbzUWzLy4OWSCqQhZlS3dYBLIWaM0EQ3M9ijpKj4CulzTtqSZbYihx72jEFuLbLPuvevaA/exec";
+
+// NEW: This URL is for the live contract status data.
+export const CONTRACT_STATUS_URL = "https://script.google.com/macros/s/AKfycbyRbkOCQ3tH5kQG6CRGym4ad4xcNY0WD4DbzJ7M7jeBmTzYDabuCvgZdIsOUuqVcfN0Hg/exec";
 
 export const coreMetrics = [
     { id: 'pNet', label: 'Net', unit: '%', lowerIsWorse: true, color: 'text-yellow-100', color4W: 'text-green-100' },
