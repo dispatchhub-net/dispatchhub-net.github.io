@@ -2454,8 +2454,14 @@ function renderDriverTable(drivers) {
     const tableContainer = document.getElementById('profiles-driver-table-container');
     if (!tableContainer) return;
 
-    let filteredDrivers = [...drivers];
     const teamData = appState.profiles.currentTeamData;
+    if (!teamData) {
+        tableContainer.innerHTML = `<p class="text-center py-6 text-gray-500">No data available to display driver table.</p>`;
+        return;
+    }
+
+    const sourceDrivers = drivers || teamData.drivers;
+    let filteredDrivers = [...sourceDrivers];
 
     // --- START: Search Filtering Logic ---
     const searchTerm = appState.profiles.driverSearchTerm.toLowerCase();
@@ -3630,6 +3636,7 @@ function renderDriverFilterModal() {
     // --- START: UPDATED FILTERABLE COLUMNS ---
     const filterColumns = [
         { id: 'name', label: 'Driver Name', type: 'string' },
+        { id: 'status', label: 'Status', type: 'select', options: ['Active', 'Terminated'] },
         { id: 'company', label: 'Company', type: 'select', options: [...new Set(teamData.drivers.map(d => d.company))] },
         { id: 'dispatcher', label: 'Dispatcher', type: 'select', options: [...new Set(teamData.drivers.map(d => d.dispatcher))] },
         { id: 'team', label: 'Team', type: 'select', options: [...new Set(teamData.drivers.map(d => d.team))] },
