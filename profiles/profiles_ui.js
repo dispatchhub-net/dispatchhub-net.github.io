@@ -648,6 +648,7 @@ const dispatchTableColumns = [
 // --- FIX: Updated the driver table configuration ---
 const driverTableColumns = [
     { id: 'name', label: 'Driver Name', type: 'string' },
+    { id: 'status', label: 'Status', type: 'string' },
     { id: 'company', label: 'Company', type: 'string' },
     { id: 'dispatcher', label: 'Dispatcher', type: 'string' },
     // 'team' is added dynamically for "All Teams" view
@@ -1956,12 +1957,15 @@ export const renderTeamProfileUI = async () => {
         const liveFlags = calculateLiveFlagsForDriver(name, historicalStubs, allDriversInViewUnfiltered);
         const contractType = firstEntry.contract_type ? firstEntry.contract_type.toUpperCase() : 'LOO';
         const contract = contractType === 'OO' ? 'OO' : 'LOO';
+        const statusInfo = appState.profiles.contractStatusData.find(s => s.driver_name === name);
         const driver = {
             id: 1000 + index, name, company: firstEntry.company_name || '-',
             dispatcher: useLiveData ? firstEntry.dispatcher : firstEntry.stub_dispatcher || '-',
             team: useLiveData ? firstEntry.team : firstEntry.stub_team || '-',
             franchise: firstEntry.franchise_name || '-', // UPDATED
-            contract, equipment, flags: liveFlags,
+            contract, equipment, 
+            status: statusInfo ? statusInfo.contract_status : 'Unknown',
+            flags: liveFlags,
             gross: useLiveData ? driverData.reduce((s, l) => s + ((l.price || 0) - (l.cut || 0)), 0) : driverData.reduce((s, l) => s + (l.driver_gross || 0), 0),
             margin: useLiveData ? driverData.reduce((s, l) => s + (l.cut || 0), 0) : driverData.reduce((s, l) => s + (l.margin || 0), 0),
             miles: useLiveData ? driverData.reduce((s, l) => s + (l.trip_miles || 0), 0) : driverData.reduce((s, l) => s + (l.total_miles || 0), 0),
@@ -2545,6 +2549,8 @@ function renderDriverTable(drivers) {
         let content = driver[col.id] ?? '-';
         let cellClass = '';
         const numericCols = ['risk', 'gross', 'margin', 'rpm', 'miles'];
+        // Define columns that should not wrap
+        const noWrapCols = ['name', 'company', 'dispatcher', 'team', 'franchise', 'status'];
 
         if (numericCols.includes(col.id)) {
             cellClass = 'text-right font-mono';
@@ -2553,10 +2559,16 @@ function renderDriverTable(drivers) {
         } else {
             cellClass = 'text-left';
         }
+        
+        // Add the nowrap class if the column id is in the list
+        if (noWrapCols.includes(col.id)) {
+            cellClass += ' whitespace-nowrap';
+        }
+
 
         switch (col.id) {
             case 'name':
-                content = `<td class="py-2 px-3 font-medium text-gray-200">${driver.name}</td>`;
+                content = `<td class="py-2 px-3 font-medium text-gray-200 whitespace-nowrap">${driver.name}</td>`;
                 break;
             case 'equipment':
                 const eqClass = { V: 'eq-v', R: 'eq-r', F: 'eq-f' }[driver.equipment] || '';
@@ -2597,7 +2609,7 @@ function renderDriverTable(drivers) {
 
                     return `<div class="${finalClasses}" ${tooltipAttr}>${flagConfig.icon}</div>`;
                 }).join('');
-                content = `<td class="py-2 px-3"><div class="flex flex-wrap gap-1.5">${flagsHTML}</div></td>`;
+                content = `<td class="py-2 px-3"><div class="flex flex-nowrap gap-1.5">${flagsHTML}</div></td>`;
                 break;
             case 'risk':
                 content = `<td class="py-2 px-3 text-center"><div class="flex items-center justify-center gap-2"><div class="risk-bar"><div style="width: ${Math.round(driver.risk)}%;" class="risk-bar-fill"></div></div><span class="font-mono text-xs">${Math.round(driver.risk)}%</span></div></td>`;
@@ -2625,12 +2637,17 @@ function renderDriverTable(drivers) {
             <tr>
                 ${currentColumns.map(col => {
                     let headerClass = '';
+                    const noWrapCols = ['name', 'company', 'dispatcher', 'team', 'franchise', 'status'];
                     if (['risk', 'gross', 'margin', 'rpm', 'miles', 'balance', 'po'].includes(col.id)) {
                         headerClass = 'text-right';
                     } else if (col.id === 'equipment') {
                         headerClass = 'text-center';
                     } else {
                         headerClass = 'text-left';
+                    }
+
+                    if (noWrapCols.includes(col.id)) {
+                        headerClass += ' whitespace-nowrap';
                     }
                     
                     const tooltipText = {
