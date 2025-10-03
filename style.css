@@ -4025,3 +4025,6 @@
     z-index: 1; /* Behind the card, but on top of the background */
   }
   
+  .whitespace-nowrap {
+    white-space: nowrap;
+}
