@@ -1,7 +1,7 @@
 // 1. DISPEČ TEST/main.js
 
 import { startTimer, fetchWithRetry } from './utils.js'; // <-- Import fetchWithRetry
-import { HISTORICAL_STUBS_URLS, DRIVER_COUNT_LIVE_URL } from './config.js';
+import { HISTORICAL_STUBS_URLS, DRIVER_COUNT_LIVE_URL, CONTRACT_STATUS_URL } from './config.js';
 import { renderLoadsAnalyticsUI, initializeAnalyticsEventListeners } from './loads/loads_ui.js';
 import { appState, allColumns, setDraggedColumnId, setDraggedViewName } from './state.js';
 import { generateAllColumns } from './config.js';
@@ -54,29 +54,31 @@ const refreshData = async (isInitialLoad = false) => {
         console.log('[REFRESH] Kicking off parallel data fetches...');
         const dataFetchTimer = startTimer('All Data Fetching (Parallel)');
         
-        // --- START: Progress tracking logic ---
         let loadedCount = 0;
-        const totalFetches = 4; // We have 4 main data sources
+        const totalFetches = 5; // Updated from 4 to 5
         const updateProgress = () => {
             loadedCount++;
-            // We start at 5% and the fetches make up the next 90%
             const percentage = 5 + (loadedCount / totalFetches) * 90;
             updateProgressBar(percentage);
         };
-        // --- END: Progress tracking logic ---
 
         const historicalTimer = startTimer('fetchAllHistoricalData');
         const profileTimer = startTimer('fetchProfileData');
         const stubsTimer = startTimer('fetchHistoricalStubs');
         const countsTimer = startTimer('fetchLiveDriverCounts');
+        const statusTimer = startTimer('fetchContractStatus'); // New timer
 
-        await Promise.all([
-            // Each fetch now calls updateProgress() when it completes
-            fetchAllHistoricalData().then(res => { historicalTimer.stop(); updateProgress(); console.log('[REFRESH] ✅ fetchAllHistoricalData finished.'); return res; }),
+        // fetchProfileData is initiated first, then the rest are initiated right after.
+        // Promise.all waits for all of them to complete in parallel.
+        const fetchPromises = [
             fetchProfileData().then(res => { profileTimer.stop(); updateProgress(); console.log('[REFRESH] ✅ fetchProfileData finished.'); return res; }),
+            fetchAllHistoricalData().then(res => { historicalTimer.stop(); updateProgress(); console.log('[REFRESH] ✅ fetchAllHistoricalData finished.'); return res; }),
             fetchHistoricalStubs().then(res => { stubsTimer.stop(); updateProgress(); console.log('[REFRESH] ✅ fetchHistoricalStubs finished.'); return res; }),
-            fetchLiveDriverCounts().then(res => { countsTimer.stop(); updateProgress(); console.log('[REFRESH] ✅ fetchLiveDriverCounts finished.'); return res; })
-        ]);
+            fetchLiveDriverCounts().then(res => { countsTimer.stop(); updateProgress(); console.log('[REFRESH] ✅ fetchLiveDriverCounts finished.'); return res; }),
+            fetchContractStatus().then(res => { statusTimer.stop(); updateProgress(); console.log('[REFRESH] ✅ fetchContractStatus finished.'); return res; }) // New fetch call
+        ];
+
+        await Promise.all(fetchPromises);
 
         console.log('[REFRESH] All parallel data fetches have completed.');
         dataFetchTimer.stop();
@@ -123,9 +125,10 @@ const refreshData = async (isInitialLoad = false) => {
     } catch (e) {
         console.error("%c[REFRESH] 🛑 ERROR during data refresh:", 'color: red; font-weight: bold;', e);
         appState.error = "Failed to refresh application data. " + e.message;
+        throw e; // Re-throw the error to be caught by initializeApp
     } finally {
         if (isInitialLoad) {
-            updateProgressBar(100); // Set to 100% when all processing is done
+            updateProgressBar(100);
         }
         if (!isInitialLoad) {
             appState.isRefreshing = false;
@@ -176,6 +179,13 @@ const initializeApp = async () => {
     renderUI(); // This will show the full-page loader
 
     try {
+        // Check if we've already tried to reload once
+        if (sessionStorage.getItem('initialLoadFailed')) {
+            // If so, clear the flag and let the error show to prevent a loop
+            sessionStorage.removeItem('initialLoadFailed');
+            throw new Error("Initial data fetch failed after one automatic refresh. Please check the console for errors.");
+        }
+
         await refreshData(true); // Perform the initial data load
         
         // Set up the hourly refresh interval AFTER the first successful load
@@ -183,15 +193,33 @@ const initializeApp = async () => {
         setInterval(refreshData, ONE_HOUR);
 
     } catch (e) {
+        // If the initial data load fails...
         console.error("Error initializing app:", e);
+
+        // Check if we haven't tried reloading yet
+        if (!sessionStorage.getItem('initialLoadFailed')) {
+            // Set a flag in session storage to indicate we're trying a reload
+            sessionStorage.setItem('initialLoadFailed', 'true');
+            // Force a full page refresh
+            console.warn("Initial data load failed. Attempting a one-time automatic page refresh...");
+            location.reload();
+            return; // Stop further execution
+        }
+        
+        // If we're here, it means the refresh also failed. Show the error.
         appState.error = "Failed to initialize application. " + e.message;
+
     } finally {
-        appState.loading = false;
-        populateDateDropdown(); // Populate dropdown once with all dates
-        renderUI(); // Hide loader, show app content
-        window.requestStubsSort = requestStubsSort;
-        addEventListeners(); // Add event listeners only once
-        appLoadTimer.stop();
+        // This block will only run if the data loads successfully,
+        // or if it fails after the automatic refresh.
+        if (!sessionStorage.getItem('initialLoadFailed')) {
+            appState.loading = false;
+            populateDateDropdown(); // Populate dropdown once with all dates
+            renderUI(); // Hide loader, show app content
+            window.requestStubsSort = requestStubsSort;
+            addEventListeners(); // Add event listeners only once
+            appLoadTimer.stop();
+        }
     }
 };
 
@@ -659,6 +687,7 @@ const fetchHistoricalStubs = async () => {
     } catch (e) {
         console.error("Error fetching historical stubs from multiple sources:", e);
         appState.error = (appState.error || "") + " Failed to load Historical Stubs. " + e.message;
+        throw e; // Re-throw the error
     }
 };
 
@@ -675,6 +704,22 @@ const fetchLiveDriverCounts = async () => {
     } catch (e) {
         console.error("Error fetching live driver counts:", e);
         appState.error = (appState.error || "") + " Failed to load Live Driver Counts. " + e.message;
+        throw e; // Re-throw the error
+    }
+};
+
+const fetchContractStatus = async () => {
+    try {
+        const response = await fetchWithRetry(CONTRACT_STATUS_URL);
+        const result = await response.json();
+        if (result.error) {
+            throw new Error(result.error);
+        }
+        appState.profiles.contractStatusData = result || [];
+    } catch (e) {
+        console.error("Error fetching contract status:", e);
+        appState.error = (appState.error || "") + " Failed to load Contract Status. " + e.message;
+        // We don't throw an error here to allow the app to load without this non-critical data
     }
 };
 
