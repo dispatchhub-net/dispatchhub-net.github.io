@@ -57,5 +57,6 @@ export async function fetchProfileData() {
     } catch (e) {
         console.error("Error fetching Profiles data from multiple sources:", e);
         appState.profiles.error = "Failed to load live data for profiles. " + e.message;
+        throw e; // Re-throw the error
     }
 }
