@@ -1,6 +1,8 @@
-import { GOOGLE_APPS_SCRIPT_WEB_APP_URL, coreMetrics } from '../config.js';
+// from 1. DISP TEST/rankings/rankings_api.js
+
+import { RANKINGS_APPS_SCRIPT_URLS, coreMetrics } from '../config.js';
 import { appState, stubsSortConfig } from '../state.js';
-import { calculateMedian, formatPercentage } from '../utils.js';
+import { calculateMedian, formatPercentage, fetchWithRetry } from '../utils.js';
 
 const recalculateMetrics = (stubs, driverType) => {
     if (!stubs || stubs.length === 0) {
@@ -59,17 +61,23 @@ const recalculateMetrics = (stubs, driverType) => {
 
 export const fetchAllHistoricalData = async () => {
     try {
-        const response = await fetch(GOOGLE_APPS_SCRIPT_WEB_APP_URL);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const result = await response.json();
+        const fetchPromises = RANKINGS_APPS_SCRIPT_URLS.map(url =>
+            fetchWithRetry(url).then(res => res.json())
+        );
 
-        if (result.error) {
-            throw new Error(result.error);
+        const results = await Promise.all(fetchPromises);
+        let combinedHistoricalData = [];
+
+        for (const result of results) {
+            if (result.error) {
+                throw new Error(`Error from one of the sources: ${result.error}`);
+            }
+            if (result.historicalData) {
+                combinedHistoricalData.push(...result.historicalData);
+            }
         }
 
-        const historicalData = result.historicalData.map(item => {
+        const historicalData = combinedHistoricalData.map(item => {
             const newItem = { ...item, dispatcherName: item.dispatcherName || item.name, date: new Date(item.date) };
 
             // FIX: Use the team from the specific row, and only trim it if it exists.
@@ -130,6 +138,7 @@ export const fetchAllHistoricalData = async () => {
     } catch (e) {
         console.error("Error fetching all historical data:", e);
         appState.error = "Failed to load historical data. Please check your Google Sheet setup and Apps Script deployment. Error: " + e.message;
+        throw e; // Re-throw the error
     }
 };
 
