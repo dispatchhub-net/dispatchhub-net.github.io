@@ -86,6 +86,7 @@ export let appState = {
         fleetHealthCache: {},
         liveData: [],
         liveDriverCountData: [],
+        contractStatusData: [], // NEW: To store live contract status
         currentTeamData: null,
         selectedTeam: 'SMT',
         isKpiSettingsOpen: false,
