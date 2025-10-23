@@ -779,6 +779,30 @@ const initializeUIEventListeners = () => {
     });
     // --- END: New Loader-Specific Logic ---
 
+    // --- NEW: Password Visibility Toggle ---
+    const togglePasswordButton = document.getElementById('toggle-password-visibility');
+    const passwordInput = document.getElementById('login-password');
+    const eyeIcon = document.getElementById('eye-icon');
+    const eyeSlashIcon = document.getElementById('eye-slash-icon');
+
+    if (togglePasswordButton && passwordInput && eyeIcon && eyeSlashIcon) {
+        // Check if the listener is already attached to prevent duplicates
+        if (!togglePasswordButton.listenerAttached) {
+            togglePasswordButton.addEventListener('click', () => {
+                // Toggle the type attribute
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+
+                // Toggle the icon visibility
+                eyeIcon.classList.toggle('hidden');
+                eyeSlashIcon.classList.toggle('hidden');
+            });
+            // Mark the button to indicate listener is attached
+            togglePasswordButton.listenerAttached = true;
+        }
+    }
+    // --- END: Password Visibility Toggle ---
+
     const sidebar = document.getElementById('sidebar');
     const toggleButton = document.getElementById('sidebar-toggle');
     
