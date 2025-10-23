@@ -4839,3 +4839,19 @@ body {
     max-height: 400px; /* Sets a maximum height for the dropdown */
     overflow-y: auto;  /* Adds a vertical scrollbar when needed */
 }
+
+/* --- Login Password Toggle --- */
+.login-input {
+    /* Ensure padding-right is sufficient if not already added via Tailwind */
+    padding-right: 2.5rem;
+}
+
+#toggle-password-visibility {
+    /* Fine-tune positioning if needed */
+    right: 0.75rem; /* Adjust if needed */
+}
+
+/* Ensure icons within the button don't interfere with clicks */
+#toggle-password-visibility svg {
+    pointer-events: none;
+}
