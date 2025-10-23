@@ -175,6 +175,7 @@ export let appState = {
             pinnedRightColumns: ['complianceScore'],
             draggedColumnId: null,
         },
+        dispatchTableFlexBasis: null,
         driverTable: {
             sortConfig: { key: 'risk', direction: 'descending' }
         },
