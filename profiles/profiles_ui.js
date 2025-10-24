@@ -1838,6 +1838,97 @@ async function saveDriverHealthSettings() {
     renderTeamProfileUI(); // Re-render the main UI to reflect the saved changes
 }
 
+const getThreshold = (thresholdsObject, contractType = 'default') => {
+    // Use the specific contract threshold if it exists, otherwise use the default
+    const contractKey = (contractType || 'LOO').toUpperCase(); // Default to LOO if undefined
+    return thresholdsObject.by_contract[contractKey] ?? thresholdsObject.default;
+};
+
+function generateFlagTooltipText(label) {
+    const { flags } = appState.profiles.driverHealthSettings;
+    const { goodMove, lowRpm } = appState.profiles.thresholdSettings;
+
+    // Helper to format thresholds including overrides
+    const formatThresholdText = (thresholdSetting, unit = '', higherIsBetter = false, lowerIsBetter = false) => {
+        if (!thresholdSetting || typeof thresholdSetting !== 'object') return 'N/A';
+        const defaultVal = thresholdSetting.default;
+        const ooOverride = thresholdSetting.by_contract?.['OO'];
+        const looOverride = thresholdSetting.by_contract?.['LOO'];
+
+        let text = `${higherIsBetter ? '>' : '<'} ${defaultVal.toLocaleString()}${unit}`; // Default
+        if (ooOverride !== undefined && ooOverride !== defaultVal) {
+            text += ` (OO: ${higherIsBetter ? '>' : '<'} ${ooOverride.toLocaleString()}${unit})`;
+        }
+        if (looOverride !== undefined && looOverride !== defaultVal) {
+            text += ` (LOO: ${higherIsBetter ? '>' : '<'} ${looOverride.toLocaleString()}${unit})`;
+        }
+        return text;
+    };
+
+    const flagKey = Object.keys(flags).find(key =>
+        flags[key].label === label || flags[key].positiveLabel === label
+    );
+
+    // Special cases first
+    if (label === 'Good Moves' || label === 'Bad Moves') {
+        const defaultThresh = goodMove.default;
+        const ooThresh = goodMove.by_contract?.['OO'] ?? defaultThresh;
+        const looThresh = goodMove.by_contract?.['LOO'] ?? defaultThresh;
+        return `Counts moved Monday loads where driver's weekly gross (excl. load) was < $${ooThresh.toLocaleString()} (OO) or < $${looThresh.toLocaleString()} (LOO). 'Bad Moves' are >= threshold.`;
+    }
+    if (label === 'Overdue Days') {
+         if (flags.overdueDays && flags.overdueDays.thresholds) {
+             const defaultThresh = flags.overdueDays.thresholds.default;
+             return `Total days past D.O. for dispatchers' loads. Drivers flagged if total > ${defaultThresh} days.`;
+        } else {
+             return `Total days past D.O. for dispatchers' loads.`;
+        }
+    }
+
+    if (!flagKey || !flags[flagKey]) return `Definition for ${label} not found.`;
+
+    const setting = flags[flagKey];
+    const thresholdsExist = setting.thresholds && typeof setting.thresholds === 'object';
+    const lookback = setting.lookback ? (setting.lookback.type === 'weeks' ? `${setting.lookback.value} wks` : 'All Time') : '';
+    const minStubs = setting.minStubs ? ` (min ${setting.minStubs} stubs)` : '';
+    const minLoads = setting.minLoads ? ` (min ${setting.minLoads} loads)` : '';
+
+    switch (flagKey) {
+        case 'negative':
+            const negThresholdText = thresholdsExist ? formatThresholdText(setting.thresholds, '$', true) : 'N/A'; // Balance+PO > X
+            return `Driver Balance + PO liability ${negThresholdText}${minStubs}.`;
+        case 'highTolls':
+            const tollsThresholdText = thresholdsExist ? `${setting.thresholds.default}%` : 'N/A'; // Only default % supported here
+            return `Driver avg tolls in top ${tollsThresholdText} of drivers over ${lookback}${minStubs}.`;
+        case 'dispatcherHopper':
+            const dispThresholdText = thresholdsExist ? formatThresholdText(setting.thresholds, '', true) : 'N/A'; // > X dispatchers
+            return `Driver worked with ${dispThresholdText} dispatchers over ${lookback}${minStubs}.`;
+        case 'heavyLoads':
+            const heavyThresholdText = thresholdsExist ? formatThresholdText(setting.thresholds, ' lbs', true) : 'N/A'; // > X lbs
+            return `Driver avg load weight ${heavyThresholdText} over ${lookback}${minLoads}.`;
+        case 'lowRpm':
+        case 'lowGross':
+        case 'lowNet':
+            const metricThresholdText = thresholdsExist ? formatThresholdText(setting.thresholds, flagKey === 'lowRpm' ? '/mi' : '$') : 'N/A'; // < X
+            const metricMinPercent = setting.minPercentageOfStubs;
+            return `At least ${metricMinPercent}% of stubs over ${lookback} had ${setting.label} ${metricThresholdText}${minStubs}.`;
+        case 'tenure':
+            const newHireThresh = setting.newHireThresholds ? formatThresholdText(setting.newHireThresholds) : 'N/A'; // < X stubs
+            const vetThresh = setting.veteranThresholds ? formatThresholdText(setting.veteranThresholds, '', true) : 'N/A'; // >= X stubs (formatted as > X-1)
+            if (label === 'New Hire') {
+                return `Driver has ${newHireThresh} total pay stubs with more then 0 miles.`;
+            } else if (label === 'Veteran') {
+                // Adjusting the veteran threshold text slightly for clarity
+                let vetText = `Driver has ${vetThresh.replace('>', '>=')} total pay stubs with more then 0 miles.`;
+                return vetText;
+            }
+            break;
+        default:
+            return `Definition for ${label} not set up yet.`;
+    }
+    return `Definition for ${label} not set up yet.`;
+}
+
 // --- FIX: Updated the entire renderTeamProfileUI function ---
 function renderFlagSummary(drivers) { // Keep 'drivers' parameter for other flags
     const container = document.getElementById('fleet-health-flag-summary');
@@ -1891,14 +1982,19 @@ function renderFlagSummary(drivers) { // Keep 'drivers' parameter for other flag
         return;
     }
 
-    // --- UPDATED: HTML Generation ---
-    // Ensure the color variable is defined for yellow
-    container.innerHTML = sortedFlags.map(([label, data]) => `
-        <div class="flag-summary-item">
+    container.innerHTML = sortedFlags.map(([label, data]) => {
+        // Generate tooltip text using the function created in Step 2
+        // Escape quotes within the tooltip text to make it a valid HTML attribute
+        const tooltipText = generateFlagTooltipText(label).replace(/"/g, '&quot;');
+
+        // Store text in data-tooltip-text instead of data-tooltip
+        return `
+        <div class="flag-summary-item summary-tooltip-trigger" data-tooltip-text="${tooltipText}">
             <span class="flag-summary-count" style="color: var(--flag-color-${data.color}, '#e5e7eb');">${data.count}</span>
             <span class="flag-summary-label">${label}</span>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function renderFranchiseFilterDropdown() {
@@ -3843,6 +3939,67 @@ export function initializeProfileEventListeners() {
         driverToolbar.addEventListener('click', driverToolbar._clickHandler);
     }
     
+    const summaryBar = document.getElementById('fleet-health-flag-summary');
+    const summaryTooltip = document.getElementById('summary-tooltip');
+    
+    if (summaryBar && summaryTooltip && !summaryBar._tooltipListenersAttached) {
+        summaryBar.addEventListener('mouseover', (e) => {
+            const trigger = e.target.closest('.summary-tooltip-trigger');
+            if (trigger && trigger.dataset.tooltipText) {
+                summaryTooltip.innerHTML = trigger.dataset.tooltipText; // Use innerHTML for potential line breaks
+                summaryTooltip.classList.remove('hidden');
+                summaryTooltip.classList.add('visible');
+                // Initial position update
+                positionTooltip(e, summaryTooltip);
+            }
+        });
+    
+        summaryBar.addEventListener('mousemove', (e) => {
+            if (summaryTooltip.classList.contains('visible')) {
+                positionTooltip(e, summaryTooltip);
+            }
+        });
+    
+        summaryBar.addEventListener('mouseout', (e) => {
+            const trigger = e.target.closest('.summary-tooltip-trigger');
+            // Check if the mouse is still inside the summary bar but not over a trigger
+            if (trigger || !summaryBar.contains(e.relatedTarget)) {
+                summaryTooltip.classList.remove('visible');
+                summaryTooltip.classList.add('hidden');
+            }
+        });
+    
+        summaryBar._tooltipListenersAttached = true;
+    }
+    
+    // Helper function for positioning
+    function positionTooltip(event, tooltipElement) {
+        const offset = 15; // Distance from cursor
+        const tooltipRect = tooltipElement.getBoundingClientRect();
+        let left = event.pageX + offset;
+        let top = event.pageY + offset;
+    
+        // Adjust if too close to the right edge
+        if (left + tooltipRect.width > window.innerWidth - offset) {
+            left = event.pageX - tooltipRect.width - offset;
+        }
+        // Adjust if too close to the bottom edge
+        if (top + tooltipRect.height > window.innerHeight - offset) {
+            top = event.pageY - tooltipRect.height - offset;
+        }
+        // Adjust if too close to the left edge
+        if (left < offset) {
+            left = offset;
+        }
+        // Adjust if too close to the top edge
+        if (top < offset) {
+            top = offset;
+        }
+    
+        tooltipElement.style.left = `${left}px`;
+        tooltipElement.style.top = `${top}px`;
+    }
+
 const driverFilterModal = document.getElementById('profiles-driver-filter-modal');
 if (driverFilterModal && !driverFilterModal._listenersAttached) {
     const teamData = appState.profiles.currentTeamData;
