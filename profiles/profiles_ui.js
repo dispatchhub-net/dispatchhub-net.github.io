@@ -629,6 +629,7 @@ const dispatchTableColumns = [
     { id: 'hiddenMiles', label: 'Hidden Miles', type: 'number' },
     { id: 'lowRpm', label: 'Low RPM', type: 'number' },
     { id: 'newStarts', label: 'New Starts', type: 'number' },
+    { id: 'overdueLoads', label: 'Overdue', type: 'number' }, // <-- ADDED HERE
     { id: 'wellness', label: 'Wellness %', type: 'percentage' },
     { id: 'canceled', label: 'Canceled', type: 'number' },
     { id: 'complianceScore', label: '% Compliance', type: 'percentage' },
@@ -1334,6 +1335,7 @@ function calculateComplianceScores(dispatchers, allDispatchers) {
         { id: 'badMoves', higherIsBetter: false },
         { id: 'hiddenMiles', higherIsBetter: false },
         { id: 'lowRpm', higherIsBetter: false },
+        { id: 'overdueLoads', higherIsBetter: false }, // <-- ADDED HERE
         { id: 'wellness', higherIsBetter: true }
     ];
 
@@ -1393,6 +1395,7 @@ function renderComplianceSettingsModal(allDispatchers) {
         { id: 'badMoves', label: 'Bad Moves' },
         { id: 'hiddenMiles', label: 'Hidden Miles' },
         { id: 'lowRpm', label: 'Low RPM Loads' },
+        { id: 'overdueLoads', label: 'Overdue Loads' }, // <-- ADDED HERE
         { id: 'wellness', label: 'Wellness %' },
     ];
 
@@ -1836,13 +1839,13 @@ async function saveDriverHealthSettings() {
 }
 
 // --- FIX: Updated the entire renderTeamProfileUI function ---
-function renderFlagSummary(drivers) {
+function renderFlagSummary(drivers) { // Keep 'drivers' parameter for other flags
     const container = document.getElementById('fleet-health-flag-summary');
     if (!container) return;
 
     const allPossibleFlags = appState.profiles.driverHealthSettings.flags;
     const flagCounts = {};
-    
+
     // Initialize counts for all possible flags, including positive ones
     Object.values(allPossibleFlags).forEach(flag => {
         flagCounts[flag.label] = { count: 0, color: flag.color };
@@ -1862,10 +1865,20 @@ function renderFlagSummary(drivers) {
     const dispatchers = appState.profiles.currentTeamData?.dispatchers || [];
     flagCounts['Good Moves'] = { count: dispatchers.reduce((sum, d) => sum + d.goodMoves, 0), color: 'green' };
     flagCounts['Bad Moves'] = { count: dispatchers.reduce((sum, d) => sum + d.badMoves, 0), color: 'red' };
-    
-    // ** THIS IS THE MODIFIED ORDER **
+
+    // --- NEW: Calculate Total Overdue Days ---
+    const dispatcherNamesInView = new Set(dispatchers.map(d => d.name)); // Get names of dispatchers currently shown
+    const totalOverdueDays = appState.profiles.overdueLoadsData
+        .filter(ol => dispatcherNamesInView.has(ol.dispatcher)) // Filter for currently viewed dispatchers
+        .reduce((sum, ol) => sum + (ol.daysPastDO || 0), 0);
+    flagCounts['Overdue Days'] = { count: totalOverdueDays, color: 'yellow' }; // Add to counts
+    // --- END: New Calculation ---
+
     const displayOrder = [
-        'Balance', 'Low Net', 'Low Gross', 'Low RPM', 'Veteran', 'New Hire', 'Heavy Loads', 'High Tolls', 'Hopper', 'Good Moves', 'Bad Moves'
+        'Balance', 'Low Net', 'Low Gross', 'Low RPM', 'Veteran', 'New Hire',
+        'Heavy Loads', 'High Tolls', 'Hopper',
+        'Overdue Days', // <-- ADDED HERE
+        'Good Moves', 'Bad Moves'
     ];
 
     // Filter and sort the flags based on the predefined order
@@ -1878,6 +1891,8 @@ function renderFlagSummary(drivers) {
         return;
     }
 
+    // --- UPDATED: HTML Generation ---
+    // Ensure the color variable is defined for yellow
     container.innerHTML = sortedFlags.map(([label, data]) => `
         <div class="flag-summary-item">
             <span class="flag-summary-count" style="color: var(--flag-color-${data.color}, '#e5e7eb');">${data.count}</span>
@@ -2243,6 +2258,9 @@ export const renderTeamProfileUI = async () => {
             goodMoves, badMoves: movedLoads.length - goodMoves,
             hiddenMiles: loadsForStats.filter(d => d.hidden_miles === 'Hidden Miles Found!').length,
             lowRpm: loadsForStats.filter(d => d.rpm_all < getLowRpmThreshold(d.contract_type)).length,
+            overdueLoads: appState.profiles.overdueLoadsData
+            .filter(ol => ol.dispatcher === name) // Filter loads for the current dispatcher
+            .reduce((sum, ol) => sum + (ol.daysPastDO || 0), 0), // Sum the overdue days 
             newStarts: new Set(loadsForStats.filter(d => d.new_start === 'NEW START').map(l => l.driver)).size,
             canceled: loadsForStats.filter(d => d.status === 'Canceled').length,
             rank1w: ranks.rank1w, rank4w: ranks.rank4w,
@@ -2659,7 +2677,7 @@ function renderDispatchTable(dispatchersToDisplay, allDispatchers) {
                                 let cellClass = 'text-center';
                                 let tooltipAttr = '';
 
-                                if (['goodMoves', 'badMoves', 'hiddenMiles', 'lowRpm', 'newStarts', 'wellness', 'canceled'].includes(col.id)) {
+                                if (['goodMoves', 'badMoves', 'hiddenMiles', 'lowRpm', 'newStarts', 'wellness', 'canceled', 'overdueLoads'].includes(col.id)) { // <-- ADDED 'overdueLoads'
                                     cellClass += ' dispatch-tooltip-trigger cursor-help';
                                     tooltipAttr = `data-tooltip-metric="${col.id}"`;
                                 }
@@ -4006,21 +4024,21 @@ function generateDispatchTooltipHTML(dispatcher, metricId, allLoadsForSearch) {
     let content = '';
     const allLoadsForDispatcher = dispatcher.loads || [];
     let filteredLoads = [];
-    
+
     const goodMoveThresholds = appState.profiles.thresholdSettings.goodMove;
 
     const findPreviousLoad = (currentLoad) => {
         if (!currentLoad.driver || typeof currentLoad.load_order !== 'number' && typeof currentLoad.load_order !== 'string') {
             return null;
         }
-        
+
         const currentOrder = parseInt(currentLoad.load_order, 10);
         if (isNaN(currentOrder)) return null;
 
         const targetLoadOrder = currentOrder - 1;
 
         const driverLoads = allLoadsForSearch.filter(l => l.driver === currentLoad.driver);
-        
+
         return driverLoads.find(l => l.load_order != null && parseInt(l.load_order, 10) === targetLoadOrder) || null;
     };
 
@@ -4043,96 +4061,116 @@ function generateDispatchTooltipHTML(dispatcher, metricId, allLoadsForSearch) {
         case 'newStarts':
             filteredLoads = allLoadsForDispatcher.filter(l => l.new_start === 'NEW START');
             break;
-            case 'wellness':
-                const goodLoads = allLoadsForDispatcher.filter(d => d.wellness_fail === 'GOOD');
-                const passedLoads = allLoadsForDispatcher.filter(d => d.wellness_fail === '-');
-                const failedLoads = allLoadsForDispatcher.filter(d => d.wellness_fail === 'FAIL');
-                
-                let stats = `<div class="tooltip-grid">
-                    <span class="tooltip-label">Passed Wellness Plan:</span><span class="tooltip-value-green">${goodLoads.length}</span>
-                    <span class="tooltip-label">Good Wellness:</span><span class="tooltip-value-green">${passedLoads.length}</span>
-                    <span class="tooltip-label">Failed Wellness Plan:</span><span class="tooltip-value-orange">${failedLoads.length}</span>
-                </div>`;
-    
-                if (failedLoads.length > 0) {
-                stats += `<hr class="tooltip-hr"><strong class="tooltip-title !mb-1">Failed Wellness Plan Details</strong>`;
-                const failedLoadsList = failedLoads.map(load => 
-                    `<div class="tooltip-load-row-flex">
-                        <span class="font-bold text-gray-400">#${load.id}</span>
-                        <span class="tooltip-driver-name">${load.driver || 'N/A'}</span>
-                        <span class="tooltip-route-flex">${load.pu_location || 'N/A'} → ${load.do_location || 'N/A'}</span>
-                    </div>`
-                ).join('');
-                content = `<div class="tooltip-load-list">${stats}${failedLoadsList}</div>`;
-            } else {
-                content = stats;
-            }
-            return title + content; // Return directly since content is fully built
-        default:
-            return 'No details available.';
-    }
+        case 'overdueLoads': // <-- ADDED CASE
+            filteredLoads = appState.profiles.overdueLoadsData.filter(ol => ol.dispatcher === dispatcher.name);
+            break; // <-- Don't forget the break
+        case 'wellness':
+            const goodLoads = allLoadsForDispatcher.filter(d => d.wellness_fail === 'GOOD');
+            const passedLoads = allLoadsForDispatcher.filter(d => d.wellness_fail === '-');
+            const failedLoads = allLoadsForDispatcher.filter(d => d.wellness_fail === 'FAIL');
 
-    if (filteredLoads.length === 0) {
-        return `${title}<div class="p-2 text-gray-500">No matching loads found.</div>`;
-    }
-
-    if (metricId === 'newStarts') {
-        const newStartsByDriver = filteredLoads.reduce((acc, load) => {
-            const driver = load.driver;
-            if (!acc[driver] || new Date(load.pu_date) < new Date(acc[driver].pu_date)) {
-                acc[driver] = load;
-            }
-            return acc;
-        }, {});
-
-        const sortedNewStarts = Object.values(newStartsByDriver).sort((a,b) => new Date(a.pu_date) - new Date(b.pu_date));
-        
-        content = `<div class="tooltip-load-list">${sortedNewStarts.map(load => {
-            const puDate = new Date(load.pu_date);
-            const dayOfWeek = puDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
-            const formattedDate = puDate.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', timeZone: 'UTC' });
-
-            return `<div class="tooltip-load-row-flex">
-                <span class="tooltip-driver-name">${load.driver || 'N/A'}</span>
-                <span class="tooltip-details-flex ml-auto">First load on ${formattedDate} (${dayOfWeek})</span>
+            let stats = `<div class="tooltip-grid">
+                <span class="tooltip-label">Passed Wellness Plan:</span><span class="tooltip-value-green">${goodLoads.length}</span>
+                <span class="tooltip-label">Good Wellness:</span><span class="tooltip-value-green">${passedLoads.length}</span>
+                <span class="tooltip-label">Failed Wellness Plan:</span><span class="tooltip-value-orange">${failedLoads.length}</span>
             </div>`;
-        }).join('')}</div>`;
 
-    } else {
-        const loadToHtml = (load) => {
-            let details = '';
+            if (failedLoads.length > 0) {
+            stats += `<hr class="tooltip-hr"><strong class="tooltip-title !mb-1">Failed Wellness Plan Details</strong>`;
+            const failedLoadsList = failedLoads.map(load =>
+                `<div class="tooltip-load-row-flex">
+                    <span class="font-bold text-gray-400">#${load.id}</span>
+                    <span class="tooltip-driver-name">${load.driver || 'N/A'}</span>
+                    <span class="tooltip-route-flex">${load.pu_location || 'N/A'} → ${load.do_location || 'N/A'}</span>
+                </div>`
+            ).join('');
+            content = `<div class="tooltip-load-list">${stats}${failedLoadsList}</div>`;
+        } else {
+            content = stats;
+        }
+        return title + content; // Return directly since content is fully built
+    default:
+        return 'No details available.';
+}
+
+if (filteredLoads.length === 0) {
+    return `${title}<div class="p-2 text-gray-500">No matching loads found.</div>`;
+}
+
+if (metricId === 'newStarts') {
+    const newStartsByDriver = filteredLoads.reduce((acc, load) => {
+        const driver = load.driver;
+        if (!acc[driver] || new Date(load.pu_date) < new Date(acc[driver].pu_date)) {
+            acc[driver] = load;
+        }
+        return acc;
+    }, {});
+
+    const sortedNewStarts = Object.values(newStartsByDriver).sort((a,b) => new Date(a.pu_date) - new Date(b.pu_date));
+
+    content = `<div class="tooltip-load-list">${sortedNewStarts.map(load => {
+        const puDate = new Date(load.pu_date);
+        const dayOfWeek = puDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+        const formattedDate = puDate.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', timeZone: 'UTC' });
+
+        return `<div class="tooltip-load-row-flex">
+            <span class="tooltip-driver-name">${load.driver || 'N/A'}</span>
+            <span class="tooltip-details-flex ml-auto">First load on ${formattedDate} (${dayOfWeek})</span>
+        </div>`;
+    }).join('')}</div>`;
+
+} else {
+    const loadToHtml = (load) => {
+        let details = '';
+        let loadId = load.id; // Default for non-overdue
+        let driverName = load.driver; // Default
+        let puLocation = load.pu_location; // Default
+        let doLocation = load.do_location; // Default
+
+        // --- Logic specific to OVERDUE loads ---
+        if (metricId === 'overdueLoads') {
+             loadId = load.loadId; // Use loadId from overdue data
+             driverName = load.driver;
+             puLocation = 'N/A'; // Assume not available in overdue data
+             doLocation = 'N/A';
+             details = `Status: <span class="tooltip-value-orange">${load.status}</span> | Days Past: <span class="tooltip-value-red">${load.daysPastDO}</span>`;
+        }
+        // --- Logic for OTHER metrics ---
+        else {
             switch (metricId) {
                 case 'goodMoves':
                 case 'badMoves':
                     const threshold = goodMoveThresholds.by_contract[load.contract_type] ?? goodMoveThresholds.default;
                     details = `Gross w/o: <span class="tooltip-rate">$${(load.driver_gross_without_moved || 0).toLocaleString()}</span> (Thresh: $${threshold.toLocaleString()})`;
                     break;
-                    case 'lowRpm':
-                        details = `RPM: <span class="tooltip-value-yellow">$${(load.rpm_all || 0).toFixed(2)}</span>`;
-                        break;
-                    case 'canceled':
-                        details = `Status: <span class="tooltip-canceled">Canceled</span>`;
-                        break;
-                    case 'hiddenMiles':
-                     const startCity = load.start_location_city || '-';
-                     const startState = load.start_location_state || '';
-                     const previousLoad = findPreviousLoad(load);
-                     const prevDOLocation = previousLoad ? previousLoad.do_location : '-';
-                     details = `Prev DO: <span class="tooltip-value-purple">${prevDOLocation}</span> | Start: <span class="tooltip-value-purple">${startCity}, ${startState}</span>`;
-                     break;
+                case 'lowRpm':
+                    details = `RPM: <span class="tooltip-value-yellow">$${(load.rpm_all || 0).toFixed(2)}</span>`;
+                    break;
+                case 'canceled':
+                    details = `Status: <span class="tooltip-canceled">Canceled</span>`;
+                    break;
+                case 'hiddenMiles':
+                 const startCity = load.start_location_city || '-';
+                 const startState = load.start_location_state || '';
+                 const previousLoad = findPreviousLoad(load); // You need findPreviousLoad defined elsewhere
+                 const prevDOLocation = previousLoad ? previousLoad.do_location : '-';
+                 details = `Prev DO: <span class="tooltip-value-purple">${prevDOLocation}</span> | Start: <span class="tooltip-value-purple">${startCity}, ${startState}</span>`;
+                 break;
             }
+         }
 
-            return `<div class="tooltip-load-row-flex">
-                <span class="font-bold text-gray-400">#${load.id}</span>
-                <span class="tooltip-driver-name">${load.driver || 'N/A'}</span>
-                <span class="tooltip-route-flex">${load.pu_location || 'N/A'} → ${load.do_location || 'N/A'}</span>
-                <span class="tooltip-details-flex ml-auto">${details}</span>
-            </div>`;
-        };
-        content = `<div class="tooltip-load-list">${filteredLoads.map(loadToHtml).join('')}</div>`;
-    }
+        // Common HTML structure for all tooltip rows
+        return `<div class="tooltip-load-row-flex">
+            <span class="font-bold text-gray-400">#${loadId}</span>
+            <span class="tooltip-driver-name">${driverName || 'N/A'}</span>
+            ${metricId !== 'overdueLoads' ? `<span class="tooltip-route-flex">${puLocation || 'N/A'} → ${doLocation || 'N/A'}</span>` : ''}
+            <span class="tooltip-details-flex ml-auto">${details}</span>
+        </div>`;
+    };
+    content = `<div class="tooltip-load-list">${filteredLoads.map(loadToHtml).join('')}</div>`;
+}
 
-    return title + content;
+return title + content;
 }
 
 function copyToClipboard(text) {
