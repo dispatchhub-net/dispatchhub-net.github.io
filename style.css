@@ -3417,6 +3417,8 @@
     --flag-color-blue: #3b82f6;
     --flag-color-orange: #f97316;
     --flag-color-green: #22c55e;
+    --flag-color-yellow: #eab308;
+    --flag-color-cyan: #22d3ee;
 }
 
 /* --- Fleet Health Compact UI Tweaks --- */
