@@ -164,12 +164,12 @@ export let appState = {
                 'name', 'company', 'team', 'allTrucks', 'ooTrucks', 'looTrucks',
                 'dryvan', 'reefer', 'flatbed',
                 'rank1w', 'rank4w', 'goodMoves',
-                'badMoves', 'hiddenMiles', 'lowRpm', 'newStarts', 'wellness', 'canceled', 'complianceScore'
+                'badMoves', 'hiddenMiles', 'lowRpm', 'newStarts', 'overdueLoads','wellness', 'canceled', 'complianceScore'
             ],
             visibleColumnIds: [
                 'name', 'company', 'allTrucks', 'ooTrucks', 'looTrucks',
                 'rank1w', 'rank4w', 'goodMoves', 'badMoves', 'hiddenMiles',
-                'lowRpm', 'newStarts', 'wellness', 'complianceScore'
+                'lowRpm', 'newStarts', 'overdueLoads', 'wellness', 'complianceScore'
             ],
             pinnedLeftColumns: ['name'],
             pinnedRightColumns: ['complianceScore'],
@@ -199,6 +199,7 @@ export let appState = {
     },
 
     liveDriverFlagsCache: {},
+    overdueLoadsData: [],
 
      // --- START ADDITION FOR LOADS ---
      loads: {
