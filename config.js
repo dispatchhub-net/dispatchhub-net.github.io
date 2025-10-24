@@ -16,6 +16,9 @@ export const RANKINGS_APPS_SCRIPT_URLS = [
     API_BASE_URL + "RANKINGS_URL_2"
 ];
 
+// This one is for overdue loads.
+export const OVERDUE_LOADS_URL = API_BASE_URL + "OVERDUE_LOADS_URL";
+
 // This one is for loads.
 export const LOADS_APPS_SCRIPT_URLS = [
     API_BASE_URL + "LOADS_URL_0",
