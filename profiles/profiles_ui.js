@@ -1930,14 +1930,21 @@ function generateFlagTooltipText(label) {
 }
 
 // --- FIX: Updated the entire renderTeamProfileUI function ---
-function renderFlagSummary(drivers) { // Keep 'drivers' parameter for other flags
+function renderFlagSummary(drivers) { // 'drivers' is the already filtered list for the driver table
     const container = document.getElementById('fleet-health-flag-summary');
     if (!container) return;
+
+    // Use the currently displayed dispatchers from the state
+    const dispatchers = appState.profiles.currentTeamData?.dispatchers || [];
+    if (!dispatchers) {
+        container.innerHTML = ''; // Handle case where dispatchers aren't loaded yet
+        return;
+    }
 
     const allPossibleFlags = appState.profiles.driverHealthSettings.flags;
     const flagCounts = {};
 
-    // Initialize counts for all possible flags, including positive ones
+    // Initialize counts for all possible flags
     Object.values(allPossibleFlags).forEach(flag => {
         flagCounts[flag.label] = { count: 0, color: flag.color };
         if (flag.positiveLabel) {
@@ -1945,34 +1952,44 @@ function renderFlagSummary(drivers) { // Keep 'drivers' parameter for other flag
         }
     });
 
-    // Populate counts from the drivers who have flags
+    // --- FIX 1: Count flags ONLY from the currently displayed drivers ---
+    // The 'drivers' array passed to this function is already filtered by team, company, contract, search, etc.
     drivers.flatMap(d => d.flags).forEach(flag => {
         if (flagCounts[flag.text]) {
             flagCounts[flag.text].count++;
         }
     });
+    // --- End FIX 1 ---
 
-    // Manually calculate and add good/bad moves from the dispatch breakdown data
-    const dispatchers = appState.profiles.currentTeamData?.dispatchers || [];
+    // Good/Bad moves are still based on the displayed dispatchers
     flagCounts['Good Moves'] = { count: dispatchers.reduce((sum, d) => sum + d.goodMoves, 0), color: 'green' };
     flagCounts['Bad Moves'] = { count: dispatchers.reduce((sum, d) => sum + d.badMoves, 0), color: 'red' };
 
-    // --- NEW: Calculate Total Overdue Days ---
+    // --- FIX 2: Filter Overdue Days by selected week and displayed dispatchers ---
+    const { selectedWeek } = appState.profiles;
+    const weeksAgo = selectedWeek === 'live' ? 0 : parseInt(selectedWeek.replace('week_', ''), 10);
+    // Get the date range for the currently selected week
+    const { start: currentStart, end: currentEnd } = getPayrollWeekDateRange(weeksAgo);
     const dispatcherNamesInView = new Set(dispatchers.map(d => d.name)); // Get names of dispatchers currently shown
+
     const totalOverdueDays = appState.profiles.overdueLoadsData
-        .filter(ol => dispatcherNamesInView.has(ol.dispatcher)) // Filter for currently viewed dispatchers
+        .filter(ol => {
+            // Check dispatcher AND date range
+            if (!dispatcherNamesInView.has(ol.dispatcher) || !ol.deliveryDate) return false;
+            const deliveryDate = new Date(ol.deliveryDate);
+            return deliveryDate >= currentStart && deliveryDate <= currentEnd;
+        })
         .reduce((sum, ol) => sum + (ol.daysPastDO || 0), 0);
-    flagCounts['Overdue Days'] = { count: totalOverdueDays, color: 'yellow' }; // Add to counts
-    // --- END: New Calculation ---
+    flagCounts['Overdue Days'] = { count: totalOverdueDays, color: 'yellow' };
+    // --- End FIX 2 ---
 
     const displayOrder = [
         'Balance', 'Low Net', 'Low Gross', 'Low RPM', 'Veteran', 'New Hire',
         'Heavy Loads', 'High Tolls', 'Hopper',
-        'Overdue Days', // <-- ADDED HERE
+        'Overdue Days', // Keep added position
         'Good Moves', 'Bad Moves'
     ];
 
-    // Filter and sort the flags based on the predefined order
     const sortedFlags = Object.entries(flagCounts)
         .filter(([label]) => displayOrder.includes(label))
         .sort(([labelA], [labelB]) => displayOrder.indexOf(labelA) - displayOrder.indexOf(labelB));
@@ -1982,12 +1999,9 @@ function renderFlagSummary(drivers) { // Keep 'drivers' parameter for other flag
         return;
     }
 
+    // Tooltip generation remains the same
     container.innerHTML = sortedFlags.map(([label, data]) => {
-        // Generate tooltip text using the function created in Step 2
-        // Escape quotes within the tooltip text to make it a valid HTML attribute
         const tooltipText = generateFlagTooltipText(label).replace(/"/g, '&quot;');
-
-        // Store text in data-tooltip-text instead of data-tooltip
         return `
         <div class="flag-summary-item summary-tooltip-trigger" data-tooltip-text="${tooltipText}">
             <span class="flag-summary-count" style="color: var(--flag-color-${data.color}, '#e5e7eb');">${data.count}</span>
@@ -1995,6 +2009,64 @@ function renderFlagSummary(drivers) { // Keep 'drivers' parameter for other flag
         </div>
         `;
     }).join('');
+
+    // Re-initialize tooltip listeners for the summary bar if necessary
+    // (Assuming initializeProfileEventListeners handles this or you call a specific function here)
+    initializeSummaryTooltipListeners(); // Example: You might need a dedicated function
+}
+
+// You might need to extract the tooltip listener setup into its own function
+// if it's not already handled within initializeProfileEventListeners
+function initializeSummaryTooltipListeners() {
+    const summaryBar = document.getElementById('fleet-health-flag-summary');
+    const summaryTooltip = document.getElementById('summary-tooltip');
+
+    if (summaryBar && summaryTooltip && !summaryBar._tooltipListenersAttached) {
+        summaryBar.addEventListener('mouseover', (e) => {
+            const trigger = e.target.closest('.summary-tooltip-trigger');
+            if (trigger && trigger.dataset.tooltipText) {
+                summaryTooltip.innerHTML = trigger.dataset.tooltipText;
+                summaryTooltip.classList.remove('hidden');
+                summaryTooltip.classList.add('visible');
+                positionTooltip(e, summaryTooltip); // Use existing position function
+            }
+        });
+
+        summaryBar.addEventListener('mousemove', (e) => {
+            if (summaryTooltip.classList.contains('visible')) {
+                positionTooltip(e, summaryTooltip);
+            }
+        });
+
+        summaryBar.addEventListener('mouseout', (e) => {
+            const trigger = e.target.closest('.summary-tooltip-trigger');
+            if (trigger || !summaryBar.contains(e.relatedTarget)) {
+                summaryTooltip.classList.remove('visible');
+                summaryTooltip.classList.add('hidden');
+            }
+        });
+        summaryBar._tooltipListenersAttached = true;
+    }
+}
+
+// Ensure the positionTooltip function is accessible here (it might be in initializeProfileEventListeners already)
+function positionTooltip(event, tooltipElement) {
+    const offset = 15;
+    const tooltipRect = tooltipElement.getBoundingClientRect();
+    let left = event.pageX + offset;
+    let top = event.pageY + offset;
+
+    if (left + tooltipRect.width > window.innerWidth - offset) {
+        left = event.pageX - tooltipRect.width - offset;
+    }
+    if (top + tooltipRect.height > window.innerHeight - offset) {
+        top = event.pageY - tooltipRect.height - offset;
+    }
+    if (left < offset) left = offset;
+    if (top < offset) top = offset;
+
+    tooltipElement.style.left = `${left}px`;
+    tooltipElement.style.top = `${top}px`;
 }
 
 function renderFranchiseFilterDropdown() {
@@ -2354,9 +2426,16 @@ export const renderTeamProfileUI = async () => {
             goodMoves, badMoves: movedLoads.length - goodMoves,
             hiddenMiles: loadsForStats.filter(d => d.hidden_miles === 'Hidden Miles Found!').length,
             lowRpm: loadsForStats.filter(d => d.rpm_all < getLowRpmThreshold(d.contract_type)).length,
+            // --- FIX START: Filter overdue loads by the selected week ---
             overdueLoads: appState.profiles.overdueLoadsData
-            .filter(ol => ol.dispatcher === name) // Filter loads for the current dispatcher
-            .reduce((sum, ol) => sum + (ol.daysPastDO || 0), 0), // Sum the overdue days 
+                .filter(ol => {
+                    if (ol.dispatcher !== name || !ol.deliveryDate) return false;
+                    const deliveryDate = new Date(ol.deliveryDate);
+                    // 'currentStart' and 'currentEnd' are available in this scope from getPayrollWeekDateRange
+                    return deliveryDate >= currentStart && deliveryDate <= currentEnd;
+                })
+                .reduce((sum, ol) => sum + (ol.daysPastDO || 0), 0), // Sum the overdue days for the filtered loads
+            // --- FIX END ---
             newStarts: new Set(loadsForStats.filter(d => d.new_start === 'NEW START').map(l => l.driver)).size,
             canceled: loadsForStats.filter(d => d.status === 'Canceled').length,
             rank1w: ranks.rank1w, rank4w: ranks.rank4w,
@@ -4218,8 +4297,21 @@ function generateDispatchTooltipHTML(dispatcher, metricId, allLoadsForSearch) {
         case 'newStarts':
             filteredLoads = allLoadsForDispatcher.filter(l => l.new_start === 'NEW START');
             break;
-        case 'overdueLoads': // <-- ADDED CASE
-            filteredLoads = appState.profiles.overdueLoadsData.filter(ol => ol.dispatcher === dispatcher.name);
+            case 'overdueLoads': // <-- ADDED CASE
+            // --- FIX START: Filter tooltip data by the selected week ---
+            const { selectedWeek } = appState.profiles;
+            const weeksAgoTooltip = selectedWeek === 'live' ? 0 : parseInt(selectedWeek.replace('week_', ''), 10);
+            // Get the date range for the currently selected week in the UI
+            const { start: currentStartTooltip, end: currentEndTooltip } = getPayrollWeekDateRange(weeksAgoTooltip);
+
+            filteredLoads = appState.profiles.overdueLoadsData
+                .filter(ol => {
+                    // Filter by dispatcher AND check if the deliveryDate falls within the selected week
+                    if (ol.dispatcher !== dispatcher.name || !ol.deliveryDate) return false;
+                    const deliveryDate = new Date(ol.deliveryDate);
+                    return deliveryDate >= currentStartTooltip && deliveryDate <= currentEndTooltip;
+                });
+            // --- FIX END ---
             break; // <-- Don't forget the break
         case 'wellness':
             const goodLoads = allLoadsForDispatcher.filter(d => d.wellness_fail === 'GOOD');
