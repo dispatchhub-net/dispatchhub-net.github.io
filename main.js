@@ -6,6 +6,7 @@ import { generateAllColumns } from './config.js';
 import { renderTeamProfileUI } from './profiles/profiles_ui.js';
 import { fetchProfileData } from './profiles/profiles_api.js';
 import { hasPermission, PERMISSIONS } from './permissions.js';
+import { OVERDUE_LOADS_URL } from './config.js';
 import {
     fetchAllHistoricalData,
     processDataForMode,
@@ -98,7 +99,7 @@ const refreshData = async (isInitialLoad = false) => {
         const dataFetchTimer = startTimer('All Data Fetching (Parallel)');
         
         let loadedCount = 0;
-        const totalFetches = 5; // Updated from 4 to 5
+        const totalFetches = 7; // Updated count
         const updateProgress = () => {
             loadedCount++;
             const percentage = 5 + (loadedCount / totalFetches) * 90;
@@ -109,17 +110,18 @@ const refreshData = async (isInitialLoad = false) => {
         const profileTimer = startTimer('fetchProfileData');
         const stubsTimer = startTimer('fetchHistoricalStubs');
         const countsTimer = startTimer('fetchLiveDriverCounts');
-        const statusTimer = startTimer('fetchContractStatus'); // New timer
+        const statusTimer = startTimer('fetchContractStatus');
+        const settingsTimer = startTimer('fetchFleetHealthSettings'); // Renamed for clarity
+        const overdueTimer = startTimer('fetchOverdueLoads');
 
-        // fetchProfileData is initiated first, then the rest are initiated right after.
-        // Promise.all waits for all of them to complete in parallel.
         const fetchPromises = [
             fetchProfileData().then(res => { profileTimer.stop(); updateProgress(); console.log('[REFRESH] ✅ fetchProfileData finished.'); return res; }),
             fetchAllHistoricalData().then(res => { historicalTimer.stop(); updateProgress(); console.log('[REFRESH] ✅ fetchAllHistoricalData finished.'); return res; }),
             fetchHistoricalStubs().then(res => { stubsTimer.stop(); updateProgress(); console.log('[REFRESH] ✅ fetchHistoricalStubs finished.'); return res; }),
             fetchLiveDriverCounts().then(res => { countsTimer.stop(); updateProgress(); console.log('[REFRESH] ✅ fetchLiveDriverCounts finished.'); return res; }),
             fetchContractStatus().then(res => { statusTimer.stop(); updateProgress(); console.log('[REFRESH] ✅ fetchContractStatus finished.'); return res; }),
-            fetchFleetHealthSettings().then(() => { updateProgress(); console.log('[REFRESH] ✅ fetchFleetHealthSettings finished.'); })
+            fetchFleetHealthSettings().then(() => { settingsTimer.stop(); updateProgress(); console.log('[REFRESH] ✅ fetchFleetHealthSettings finished.'); }),
+            fetchOverdueLoads().then(() => { overdueTimer.stop(); updateProgress(); console.log('[REFRESH] ✅ fetchOverdueLoads finished.'); }) // <-- Added fetchOverdueLoads call
         ];
 
         await Promise.all(fetchPromises);
@@ -910,6 +912,22 @@ const fetchLiveDriverCounts = async () => {
         console.error("Error fetching live driver counts:", e);
         appState.error = (appState.error || "") + " Failed to load Live Driver Counts. " + e.message;
         throw e; // Re-throw the error
+    }
+};
+
+const fetchOverdueLoads = async () => {
+    try {
+        // Use action=getOverdueLoads to match the doGet in your new script
+        const response = await fetchWithRetry(`${OVERDUE_LOADS_URL}?action=getOverdueLoads`);
+        const result = await response.json();
+        if (result.status === 'error') {
+            throw new Error(result.message);
+        }
+        appState.profiles.overdueLoadsData = result.overdueLoads || [];
+        console.log('[REFRESH] ✅ fetchOverdueLoads finished.');
+    } catch (e) {
+        console.error("Error fetching overdue loads:", e);
+        // Decide if this is critical. If not, don't throw, just log.
     }
 };
 
