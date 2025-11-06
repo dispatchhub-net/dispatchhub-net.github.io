@@ -4888,3 +4888,49 @@ body {
     opacity: 0;
     visibility: hidden;
 }
+
+/* --- Tooltip Tenure Table Styling --- */
+.tooltip-tenure-table {
+    width: 100%;
+    margin-top: 0.5rem; /* Add some space below the title */
+    border-collapse: collapse; /* Make borders clean */
+    font-size: 0.7rem; /* Slightly smaller text */
+}
+
+.tooltip-tenure-table th,
+.tooltip-tenure-table td {
+    padding: 3px 6px; /* Adjust padding */
+    text-align: left;
+    border-bottom: 1px solid #4b5563; /* gray-600 border */
+}
+
+.tooltip-tenure-table th {
+    font-weight: 600;
+    color: #9ca3af; /* gray-400 */
+    text-transform: uppercase;
+    background-color: rgba(75, 85, 99, 0.2); /* faint gray background for header */
+}
+
+.tooltip-tenure-table tbody tr:last-child td {
+    border-bottom: none; /* Remove border on last row */
+}
+
+.tooltip-tenure-table tbody tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02); /* Subtle zebra striping */
+}
+
+.tooltip-tenure-table td.text-center,
+.tooltip-tenure-table th.text-center { /* Allow headers to be centered too if needed */
+    text-align: center;
+}
+
+.tooltip-tenure-table td:nth-child(2) { /* Target the 'Wks' column */
+    font-weight: 600;
+    font-family: monospace;
+    color: #e5e7eb; /* gray-200 */
+}
+
+/* Adjust tooltip max-width if needed to fit the table */
+.dispatch-tooltip {
+    max-width: 450px; /* You might need to adjust this */
+}
