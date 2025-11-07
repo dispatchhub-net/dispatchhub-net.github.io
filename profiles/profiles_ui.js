@@ -119,10 +119,19 @@ function calculateKpiData(baseData, isLiveData, allDrivers, historicalStubs, con
     const riskScores = driversForKpi.map(d => d.risk).filter(r => typeof r === 'number');
     const medianDropRisk = riskScores.length > 0 ? Math.round(calculateMedian(riskScores)) : 0;
 
+    // This determines the correct list of stubs to search for balances.
+    // For 'Live' view, we search all historical stubs for the most recent balance.
+    // For a historical view, we ONLY search the stubs from that specific week (baseData).
+    const stubSourceForBalance = isLiveData ? historicalStubs : baseData;
+
     const totalBalance = driversForKpi.reduce((sum, driver) => {
-        const driverStubs = historicalStubs.filter(s => s.driver_name === driver.name).sort((a, b) => new Date(b.pay_date) - new Date(a.pay_date));
+        // Use the correct stub source (stubSourceForBalance) instead of historicalStubs
+        const driverStubs = stubSourceForBalance.filter(s => s.driver_name === driver.name).sort((a, b) => new Date(b.pay_date) - new Date(a.pay_date));
+        
         if (driverStubs.length > 0) {
-            const mostRecentStub = driverStubs[0];
+            // Because stubSourceForBalance is pre-filtered for historical weeks,
+            // driverStubs[0] will now be the correct stub for that selected week.
+            const mostRecentStub = driverStubs[0]; 
             const finalBalance = (mostRecentStub.balance || 0) + (mostRecentStub.balance_settle || 0);
             const finalPo = (mostRecentStub.po_deductions || 0) - (mostRecentStub.po_settle || 0);
             return sum + Math.abs(finalBalance) + finalPo;
@@ -629,10 +638,11 @@ const dispatchTableColumns = [
     { id: 'hiddenMiles', label: 'Hidden Miles', type: 'number' },
     { id: 'lowRpm', label: 'Low RPM', type: 'number' },
     { id: 'newStarts', label: 'New Starts', type: 'number' },
-    { id: 'overdueLoads', label: 'Overdue', type: 'number' }, // <-- ADDED HERE
+    { id: 'overdueLoads', label: 'Overdue', type: 'number' },
     { id: 'wellness', label: 'Wellness %', type: 'percentage' },
     { id: 'canceled', label: 'Canceled', type: 'number' },
     { id: 'complianceScore', label: '% Compliance', type: 'percentage' },
+    { id: 'medianTenure', label: 'Median Tenure (Wks)', type: 'number' }, 
 ];
 
 // --- FIX: Updated the driver table configuration ---
@@ -1335,8 +1345,9 @@ function calculateComplianceScores(dispatchers, allDispatchers) {
         { id: 'badMoves', higherIsBetter: false },
         { id: 'hiddenMiles', higherIsBetter: false },
         { id: 'lowRpm', higherIsBetter: false },
-        { id: 'overdueLoads', higherIsBetter: false }, // <-- ADDED HERE
-        { id: 'wellness', higherIsBetter: true }
+        { id: 'overdueLoads', higherIsBetter: false },
+        { id: 'wellness', higherIsBetter: true },
+        { id: 'medianTenure', higherIsBetter: true }
     ];
 
     const proportionalScores = {};
@@ -1395,8 +1406,9 @@ function renderComplianceSettingsModal(allDispatchers) {
         { id: 'badMoves', label: 'Bad Moves' },
         { id: 'hiddenMiles', label: 'Hidden Miles' },
         { id: 'lowRpm', label: 'Low RPM Loads' },
-        { id: 'overdueLoads', label: 'Overdue Loads' }, // <-- ADDED HERE
+        { id: 'overdueLoads', label: 'Overdue Loads' },
         { id: 'wellness', label: 'Wellness %' },
+        { id: 'medianTenure', label: 'Median Tenure (Wks)' }, 
     ];
 
     container.innerHTML = metrics.map(metric => `
@@ -2443,6 +2455,8 @@ export const renderTeamProfileUI = async () => {
         };
     });
 
+    
+
     const allProcessedDispatchersForCompliance = calculateComplianceScores(masterDispatcherList, masterDispatcherList);
     appState.profiles.allProcessedDispatchers = allProcessedDispatchersForCompliance;
     
@@ -2566,6 +2580,40 @@ export const renderTeamProfileUI = async () => {
         drivers: processedDrivers
     };
     appState.profiles.currentTeamData = teamData;
+
+    // --- START: Calculate Median Driver Tenure (All-Time for Active Drivers) ---
+const historicalStubsData = appState.loads.historicalStubsData || [];
+
+// Pre-calculate ALL-TIME tenure for ALL drivers (excluding 0 miles) and store in appState
+appState.profiles.allTimeDriverTenureMap = historicalStubsData.reduce((acc, stub) => { // <-- Store in appState
+    // Only count stubs with miles > 0 for tenure
+    if (stub.driver_name && stub.total_miles && parseFloat(stub.total_miles) > 0) {
+        if (!acc[stub.driver_name]) {
+            acc[stub.driver_name] = new Set();
+        }
+        // Add pay date to count unique pay periods as tenure proxy across all time
+        acc[stub.driver_name].add(stub.pay_date);
+    }
+    return acc;
+}, {});
+const allTimeDriverTenureMap = appState.profiles.allTimeDriverTenureMap; // <-- Local reference for convenience
+
+// Calculate median tenure for each dispatcher using drivers active in the *selected* week
+teamData.dispatchers.forEach(dispatcher => {
+    // Get drivers associated with this dispatcher *in the currently selected week/view*
+    const dispatcherDriversInView = teamData.drivers
+        .filter(driver => driver.dispatcher === dispatcher.name)
+        .map(driver => driver.name);
+
+    // Get the calculated ALL-TIME tenure for *only those drivers* (using the local reference)
+    const tenures = dispatcherDriversInView
+        .map(driverName => allTimeDriverTenureMap[driverName] ? allTimeDriverTenureMap[driverName].size : 0) // Get all-time tenure count
+        .filter(tenure => tenure > 0); // Only consider drivers with tenure data
+
+    // Calculate and assign the median of those all-time tenures
+    dispatcher.medianTenure = tenures.length > 0 ? calculateMedian(tenures) : 0;
+});
+// --- END: Calculate Median Driver Tenure (All-Time for Active Drivers) ---
     
     const prevWeeksAgo = weeksAgo + 1;
     const { start: prevStartForFunc, end: prevEndForFunc } = getPayrollWeekDateRange(prevWeeksAgo);
@@ -2755,6 +2803,8 @@ function renderKpiSettingsDropdown() {
 }
 
 
+
+
 function renderDispatchTable(dispatchersToDisplay, allDispatchers) {
     const componentContainer = document.getElementById('profiles-dispatch-breakdown');
     if (!componentContainer) return;
@@ -2862,15 +2912,75 @@ function renderDispatchTable(dispatchersToDisplay, allDispatchers) {
                                 if (col.id === 'badMoves') cellClass += ' text-red-400 font-semibold';
                                 
                                 switch(col.type) {
-                                    case 'percentage': 
+                                    case 'percentage':
                                         if (col.id === 'complianceScore') {
                                             content = `<span class="font-bold text-teal-300">${(d[col.id] ?? 0).toFixed(1)}%</span>`;
                                         } else {
-                                            content = `${(d[col.id] ?? 0).toFixed(0)}%`; 
+                                            content = `${(d[col.id] ?? 0).toFixed(0)}%`;
+                                        }
+                                        break;
+                                    // ADD or MODIFY the medianTenure handling
+                                    default:
+                                        if (col.id === 'medianTenure') {
+                                            // --- Tooltip Generation START (Table Redesign) ---
+                                            const dispatcherName = d.name;
+                                            // Find drivers associated with this dispatcher in the current view's data
+                                            const driversForDispatcher = teamData.drivers
+                                                .filter(driver => driver.dispatcher === dispatcherName);
+    
+                                            // Access the tenure map from appState
+                                            const allTimeDriverTenureMap = appState.profiles.allTimeDriverTenureMap || {}; // Ensure it exists
+    
+                                            const tenureData = driversForDispatcher.map(driver => {
+                                                const tenureWeeks = allTimeDriverTenureMap[driver.name] ? allTimeDriverTenureMap[driver.name].size : 0;
+                                                return {
+                                                    name: driver.name,
+                                                    contract: driver.contract,
+                                                    status: driver.status,
+                                                    weeks: tenureWeeks
+                                                };
+                                            }).sort((a, b) => b.weeks - a.weeks); // Sort by tenure descending
+    
+                                            // Build tooltip HTML using a table
+                                            const tooltipTitle = `<strong class='tooltip-title'>Driver Tenure Details for ${dispatcherName}</strong>`;
+                                            let tooltipTableHTML = `<table class='tooltip-tenure-table'>
+                                                                        <thead>
+                                                                            <tr>
+                                                                                <th>Driver</th>
+                                                                                <th>Wks</th>
+                                                                                <th>Contract</th>
+                                                                                <th>Status</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody>`;
+    
+                                            if (tenureData.length > 0) {
+                                                tooltipTableHTML += tenureData.map(driver =>
+                                                    `<tr>
+                                                        <td>${driver.name}</td>
+                                                        <td class='text-center'>${driver.weeks}</td>
+                                                        <td class='text-center'>${driver.contract}</td>
+                                                        <td class='text-center'>${driver.status}</td>
+                                                    </tr>`
+                                                ).join('');
+                                            } else {
+                                                tooltipTableHTML += `<tr><td colspan='4' class='text-center text-gray-500 py-2'>No driver data</td></tr>`;
+                                            }
+    
+                                            tooltipTableHTML += `</tbody></table>`;
+    
+                                            const tooltipHtml = `${tooltipTitle}${tooltipTableHTML}`;
+                                            const cleanedTooltipHtml = tooltipHtml.replace(/"/g, '&quot;').replace(/\n/g, '').trim();
+                                            tooltipAttr = `data-tooltip-html="${cleanedTooltipHtml}"`; // Assign tooltip data attribute
+                                            cellClass += ' dispatch-tooltip-trigger cursor-help'; // Add trigger class and cursor
+                                            content = `<span class="text-gray-300">${(d[col.id] ?? 0).toFixed(0)}</span>`; // Keep original cell content
+                                            // --- Tooltip Generation END ---
+                                        } else {
+                                             content = d[col.id] ?? '-';
                                         }
                                         break;
                                 }
-                                return `<td class="py-2 px-3 whitespace-nowrap ${stickyClasses} ${cellClass}" ${tooltipAttr}>${content ?? '-'}</td>`;
+                                return `<td class="py-2 px-3 whitespace-nowrap ${stickyClasses} ${cellClass}" ${tooltipAttr}>${content ?? '-'}</td>`; // Ensure tooltipAttr is included
                             }).join('')}
                         </tr>
                     `).join('')}
@@ -2892,12 +3002,43 @@ function renderThresholdSettingsModal() {
     modal.classList.toggle('hidden', !appState.profiles.thresholdSettings.isModalOpen);
     if (!appState.profiles.thresholdSettings.isModalOpen) return;
 
-    const { goodMove, lowRpm } = appState.profiles.thresholdSettings;
-    const allContractTypes = [...new Set((appState.profiles.liveData || []).map(d => d.contract_type).filter(Boolean))].sort();
+    // Ensure settings exist before destructuring, provide defaults
+    const lowRpm = appState.profiles.thresholdSettings.lowRpm || { default: 1.5, by_contract: {} };
+    const goodMove = appState.profiles.thresholdSettings.goodMove || { default: 6000, by_contract: {} };
+    // Get tenure settings with default
+    const tenureSettings = appState.profiles.tenureSettings || { lookback: { type: 'weeks', value: 12 } };
 
-    const createThresholdSection = (config) => {
+    // Ensure liveData is populated before accessing contract types
+    const allContractTypes = [...new Set((appState.profiles.liveData || []).map(d => d.contract_type).filter(Boolean))].sort();
+    const modalContent = document.getElementById('threshold-modal-content');
+    if (!modalContent) return;
+
+    // Use 'lowRpm' as default tab if none is set, or fallback if previous tab no longer exists
+    const validTabIds = ['lowRpm', 'goodMove', 'driverTenure'];
+    let activeSettingTab = appState.profiles.thresholdSettings.activeSettingTab || 'lowRpm';
+    if (!validTabIds.includes(activeSettingTab)) {
+        activeSettingTab = 'lowRpm';
+    }
+
+    // --- Define Helper Functions ---
+    // Lookback Helper (Only used for Tenure now)
+    const createLookbackInputHTML = (type, lookbackConfig) => `
+        <div class="input-group compact">
+             <label class="setting-label">Lookback Period</label>
+             <div class="lookback-group flex w-48">
+                 <select data-type="${type}" data-lookback-setting="type" class="settings-select lookback-type-select !flex-basis-auto !flex-grow">
+                     <option value="allTime" ${lookbackConfig?.type === 'allTime' ? 'selected' : ''}>All Time</option>
+                     <option value="weeks" ${lookbackConfig?.type === 'weeks' ? 'selected' : ''}>Weeks</option>
+                 </select>
+                 <input type="number" data-type="${type}" data-lookback-setting="value" value="${lookbackConfig?.value || 0}" class="settings-input lookback-value-input !flex-basis-1/3 !w-auto" ${lookbackConfig?.type === 'allTime' ? 'disabled' : ''}>
+             </div>
+        </div>
+    `;
+
+    // Threshold + Overrides Helper
+    const createThresholdsWithOverridesHTML = (config) => {
         let overridesHTML = '';
-        for (const [contract, value] of Object.entries(config.settings.by_contract)) {
+        for (const [contract, value] of Object.entries(config.settings.by_contract || {})) {
             overridesHTML += `
                 <div class="threshold-row">
                     <select class="contract-type-select settings-select" data-type="${config.type}" data-old-contract="${contract}">
@@ -2911,96 +3052,209 @@ function renderThresholdSettingsModal() {
                 </div>
             `;
         }
-
         return `
-            <div class="flex-1 flex flex-col">
-                <h4 class="settings-section-title">${config.title}</h4>
-                <p class="text-xs text-gray-400 mb-4">${config.description}</p>
-                <div class="setting-item">
-                    <label class="setting-label">Default Threshold</label>
-                    <div class="input-dollar-sign-wrapper">
-                        <span>$</span>
-                        <input id="${config.type}-default-threshold" data-type="${config.type}" type="number" step="${config.step}" value="${config.settings.default}" class="settings-input default-threshold-input">
-                    </div>
+            <div class="setting-item">
+                <label class="setting-label">Default Threshold</label>
+                <div class="input-dollar-sign-wrapper">
+                    <span>$</span>
+                    <input id="${config.type}-default-threshold" data-type="${config.type}" type="number" step="${config.step}" value="${config.settings.default || 0}" class="settings-input default-threshold-input">
                 </div>
-                <div class="border-t border-gray-700 my-4"></div>
-                <p class="text-gray-400 text-xs mb-3">Contract-Specific Overrides</p>
-                <div class="good-move-overrides-list flex-grow">${overridesHTML}</div>
-                <button class="add-criteria-btn mt-2 add-override-btn" data-type="${config.type}">+ Add Override</button>
             </div>
+            <div class="border-t border-gray-700 my-4"></div>
+            <p class="text-gray-400 text-xs mb-3">Contract-Specific Overrides</p>
+            <div class="good-move-overrides-list flex-grow">${overridesHTML}</div>
+            <button class="add-criteria-btn mt-2 add-override-btn" data-type="${config.type}">+ Add Override</button>
         `;
     };
+    // --- End Helper Functions ---
 
-    const modalContent = document.getElementById('threshold-modal-content');
-    modalContent.innerHTML = `
-        <div class="flex gap-x-6">
-            ${createThresholdSection({
-                type: 'lowRpm',
-                title: 'Low RPM Thresholds',
-                description: 'Loads with an RPM below this value will be flagged as "Low RPM".',
-                settings: lowRpm,
-                step: 0.01
-            })}
-            <div class="w-px bg-gray-700"></div>
-            ${createThresholdSection({
-                type: 'goodMove',
-                title: '"Good Move" Thresholds',
-                description: 'A "Moved Load" is a <span class="font-bold text-green-400">Good Move</span> if the driver\'s gross pay for that week (excluding the moved load) is below this threshold.',
-                settings: goodMove,
-                step: 100
-            })}
-        </div>
-    `;
-    
-    // --- NEW EVENT LISTENER LOGIC ---
+    // --- Accordion Item Definitions ---
+    const accordionItems = [
+        {
+            id: 'lowRpm',
+            title: 'Low RPM Thresholds',
+            icon: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6L9 12.75l4.286-4.286a11.948 11.948 0 014.306 6.43l.776 2.898m0 0l3.182-5.511m-3.182 5.51l-5.511-3.181" /></svg>',
+            description: 'Loads with an RPM below this value will be flagged as "Low RPM" for the selected week.',
+            content: createThresholdsWithOverridesHTML({ type: 'lowRpm', settings: lowRpm, step: 0.01 })
+        },
+        {
+            id: 'goodMove',
+            title: '"Good Move" Thresholds',
+            icon: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>',
+            description: 'A "Moved Load" is a <span class="font-bold text-green-400">Good Move</span> if the driver\'s gross pay for that week (excluding the moved load) is below this threshold.',
+            content: createThresholdsWithOverridesHTML({ type: 'goodMove', settings: goodMove, step: 100 })
+        },
+        {
+            id: 'medianTenure', // <-- Use the key from thresholdSettings
+        title: 'Median Tenure Thresholds',
+        icon: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>', // Re-use tenure icon
+        description: 'Set thresholds for flagging based on Median Tenure (in weeks). Lower values might indicate higher turnover risk.',
+        content: createThresholdsWithOverridesHTML({
+            type: 'medianTenure', // <-- Match the key
+            settings: appState.profiles.thresholdSettings.medianTenure || { default: 4, by_contract: {} }, // Use state or defaults
+            step: 1 // Tenure is usually whole weeks
+        })}
+    ];
+    // --- End Accordion Item Definitions ---
+
+    // --- Build Accordion HTML ---
+    let accordionHTML = '';
+    accordionItems.forEach(item => {
+        accordionHTML += `
+            <div class="accordion-item ${activeSettingTab === item.id ? 'open' : ''}" data-tab-id="${item.id}">
+                <button class="accordion-header">
+                    <span class="accordion-title">
+                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">${item.icon}</svg>
+                        ${item.title}
+                    </span>
+                    <svg class="accordion-arrow w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+                <div class="accordion-panel">
+                    <div class="accordion-panel-content">
+                        <div class="description">${item.description}</div>
+                        <div class="setting-controls">${item.content}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    modalContent.innerHTML = accordionHTML;
+    // --- End Build Accordion HTML ---
+
+    // --- Accordion Height Animation ---
+    const openPanel = modalContent.querySelector('.accordion-item.open .accordion-panel');
+    if (openPanel) {
+        requestAnimationFrame(() => {
+            openPanel.style.maxHeight = openPanel.scrollHeight + 'px';
+        });
+    }
+    // --- End Accordion Height Animation ---
+
+    // --- Event Listener Logic (Ensure it's attached only once) ---
     if (!modalContent._listenersAttached) {
-        modalContent.addEventListener('change', e => {
-            const type = e.target.dataset.type;
-            const settings = appState.profiles.thresholdSettings[type];
-            if (!settings) return;
-
-            if (e.target.classList.contains('default-threshold-input')) {
-                const isFloat = e.target.step === '0.01';
-                settings.default = isFloat ? parseFloat(e.target.value) : parseInt(e.target.value, 10);
-            } else if (e.target.classList.contains('contract-value-input')) {
-                const isFloat = e.target.step === '0.01';
-                settings.by_contract[e.target.dataset.contract] = isFloat ? parseFloat(e.target.value) : parseInt(e.target.value, 10);
-            } else if (e.target.classList.contains('contract-type-select')) {
-                const oldContract = e.target.dataset.oldContract;
-                const newContract = e.target.value;
-                if (oldContract !== newContract) {
-                    const value = settings.by_contract[oldContract];
-                    delete settings.by_contract[oldContract];
-                    settings.by_contract[newContract] = value;
-                    renderThresholdSettingsModal(); // Re-render to update attributes
-                }
-            }
-        });
-
+        // Click listener for accordion headers, add/remove overrides
         modalContent.addEventListener('click', e => {
-            if (e.target.classList.contains('add-override-btn')) {
-                e.preventDefault();
-                const type = e.target.dataset.type;
-                const settings = appState.profiles.thresholdSettings[type];
-                const usedContracts = Object.keys(settings.by_contract);
-                const availableContract = allContractTypes.find(c => !usedContracts.includes(c));
-                
-                if (availableContract) {
-                    settings.by_contract[availableContract] = settings.default;
-                    renderThresholdSettingsModal();
-                } else {
-                    alert('All contract types already have a specific threshold.');
-                }
-            } else if (e.target.classList.contains('remove-threshold-btn')) {
-                e.preventDefault();
-                const type = e.target.dataset.type;
-                const contract = e.target.dataset.contract;
-                delete appState.profiles.thresholdSettings[type].by_contract[contract];
-                renderThresholdSettingsModal();
+            const header = e.target.closest('.accordion-header');
+            const removeBtn = e.target.closest('.remove-threshold-btn');
+            const addOverrideBtn = e.target.closest('.add-override-btn');
+
+            if (header) {
+                 const item = header.closest('.accordion-item');
+                 if (!item) return;
+                 const panel = item.querySelector('.accordion-panel');
+                 const isOpen = item.classList.contains('open');
+                 const tabId = item.dataset.tabId;
+
+                 modalContent.querySelectorAll('.accordion-item.open').forEach(openItem => {
+                     if (openItem !== item) {
+                         openItem.classList.remove('open');
+                         openItem.querySelector('.accordion-panel').style.maxHeight = null;
+                     }
+                 });
+
+                 if (isOpen) {
+                     item.classList.remove('open');
+                     panel.style.maxHeight = null;
+                     appState.profiles.thresholdSettings.activeSettingTab = null;
+                 } else {
+                     item.classList.add('open');
+                     panel.style.maxHeight = panel.scrollHeight + 'px';
+                     appState.profiles.thresholdSettings.activeSettingTab = tabId;
+                 }
+                 return; // Prevent further actions if header clicked
+            }
+
+            if (removeBtn) {
+                 e.preventDefault();
+                 const type = removeBtn.dataset.type;
+                 // Ensure type is valid before proceeding
+                 if (!appState.profiles.thresholdSettings[type] || !appState.profiles.thresholdSettings[type].by_contract) return;
+                 const contract = removeBtn.dataset.contract;
+                 delete appState.profiles.thresholdSettings[type].by_contract[contract];
+                 renderThresholdSettingsModal(); // Re-render to update UI
+                 return;
+            }
+
+            if (addOverrideBtn) {
+                 e.preventDefault();
+                 const type = addOverrideBtn.dataset.type;
+                  // Ensure type is valid before proceeding
+                 if (!appState.profiles.thresholdSettings[type]) return;
+                 const settings = appState.profiles.thresholdSettings[type];
+                 if (!settings.by_contract) settings.by_contract = {};
+
+                 const usedContracts = Object.keys(settings.by_contract);
+                 const availableContract = allContractTypes.find(c => !usedContracts.includes(c));
+
+                 if (availableContract) {
+                     settings.by_contract[availableContract] = settings.default || 0;
+                     renderThresholdSettingsModal(); // Re-render to show new override row
+                 } else {
+                     alert('All contract types already have a specific threshold.');
+                 }
+                 return;
             }
         });
+
+        // Change listener for inputs/selects
+        modalContent.addEventListener('change', e => {
+            const type = e.target.dataset.type; // This will be 'lowRpm', 'goodMove', or 'driverTenure'
+
+            // --- Handle Tenure Lookback ---
+            if (type === 'driverTenure') {
+                 // Ensure tenureSettings and its lookback property exist
+                if (!appState.profiles.tenureSettings) appState.profiles.tenureSettings = { lookback: { type: 'weeks', value: 12 } };
+                if (!appState.profiles.tenureSettings.lookback) appState.profiles.tenureSettings.lookback = { type: 'weeks', value: 12 };
+                const tenureLookback = appState.profiles.tenureSettings.lookback;
+
+                if (e.target.classList.contains('lookback-type-select')) {
+                    tenureLookback.type = e.target.value;
+                    const valueInput = e.target.closest('.lookback-group')?.querySelector('.lookback-value-input');
+                    if (valueInput) valueInput.disabled = (e.target.value === 'allTime');
+                } else if (e.target.classList.contains('lookback-value-input')) {
+                    tenureLookback.value = parseInt(e.target.value, 10) || 0;
+                }
+            }
+            // --- Handle Threshold Settings ---
+            else if (appState.profiles.thresholdSettings && appState.profiles.thresholdSettings[type]) {
+                const settings = appState.profiles.thresholdSettings[type];
+                if (e.target.classList.contains('default-threshold-input')) {
+                    const isFloat = e.target.step === '0.01';
+                    settings.default = isFloat ? (parseFloat(e.target.value) || 0) : (parseInt(e.target.value, 10) || 0);
+                } else if (e.target.classList.contains('contract-value-input')) {
+                    const isFloat = e.target.step === '0.01';
+                    // Ensure by_contract exists
+                    if (!settings.by_contract) settings.by_contract = {};
+                    settings.by_contract[e.target.dataset.contract] = isFloat ? (parseFloat(e.target.value) || 0) : (parseInt(e.target.value, 10) || 0);
+                } else if (e.target.classList.contains('contract-type-select')) {
+                     // Ensure by_contract exists
+                    if (!settings.by_contract) settings.by_contract = {};
+                    const oldContract = e.target.dataset.oldContract;
+                    const newContract = e.target.value;
+                    if (oldContract !== newContract && !(settings.by_contract && settings.by_contract[newContract])) {
+                        const value = settings.by_contract[oldContract];
+                        delete settings.by_contract[oldContract];
+                        settings.by_contract[newContract] = value;
+                        renderThresholdSettingsModal(); // Re-render needed
+                    } else if (oldContract !== newContract) {
+                         alert(`An override already exists for ${newContract}. Please remove it first or edit the existing one.`);
+                         e.target.value = oldContract; // Revert selection
+                    }
+                }
+            }
+
+            // Recalculate open accordion height
+            const openPanel = modalContent.querySelector('.accordion-item.open .accordion-panel');
+            if (openPanel) {
+                requestAnimationFrame(() => {
+                    openPanel.style.maxHeight = openPanel.scrollHeight + 'px';
+                });
+            }
+        });
+
         modalContent._listenersAttached = true;
     }
+    // --- End Event Listener Logic ---
 }
 
 function renderDispatchTableSettings(allDispatchers) {
