@@ -144,7 +144,8 @@ function calculateKpiData(baseData, isLiveData, allDrivers, historicalStubs, con
     const wellnessScores = dispatchersWithScores.map(d => parseFloat(d.wellness)).filter(w => !isNaN(w));
     const medianWellness = wellnessScores.length > 0 ? calculateMedian(wellnessScores) : 0;
     
-    const complianceScores = dispatchersWithScores.map(d => d.complianceScore).filter(c => !isNaN(c));
+    // This filter explicitly checks for a finite number, filtering out null, undefined, NaN, and Infinity
+    const complianceScores = dispatchersWithScores.map(d => d.complianceScore).filter(c => isFinite(c) && c !== null);
     const medianCompliance = complianceScores.length > 0 ? calculateMedian(complianceScores) : 0;
     
 
@@ -642,7 +643,8 @@ const dispatchTableColumns = [
     { id: 'wellness', label: 'Wellness %', type: 'percentage' },
     { id: 'canceled', label: 'Canceled', type: 'number' },
     { id: 'complianceScore', label: '% Compliance', type: 'percentage' },
-    { id: 'medianTenure', label: 'Median Tenure (Wks)', type: 'number' }, 
+    { id: 'medianTenureOO', label: 'Tenure (OO)', type: 'number' },
+    { id: 'medianTenureLOO', label: 'Tenure (LOO)', type: 'number' }, 
 ];
 
 // --- FIX: Updated the driver table configuration ---
@@ -1340,6 +1342,7 @@ function calculateComplianceScores(dispatchers, allDispatchers) {
         d.wellness = wellnessLoads.length > 0 ? (successfulLoads / wellnessLoads.length) * 100 : 0;
     });
 
+    // --- FIX 2: Define metrics for calculation. Note 'medianTenure' is back as one item. ---
     const allMetrics = [
         { id: 'goodMoves', higherIsBetter: true },
         { id: 'badMoves', higherIsBetter: false },
@@ -1347,18 +1350,30 @@ function calculateComplianceScores(dispatchers, allDispatchers) {
         { id: 'lowRpm', higherIsBetter: false },
         { id: 'overdueLoads', higherIsBetter: false },
         { id: 'wellness', higherIsBetter: true },
-        { id: 'medianTenure', higherIsBetter: true }
+        { id: 'medianTenureOO', higherIsBetter: true }, // Keep separate for proportional scoring
+        { id: 'medianTenureLOO', higherIsBetter: true } // Keep separate for proportional scoring
     ];
 
     const proportionalScores = {};
 
     allMetrics.forEach(metric => {
-        const allValues = comparisonPool.map(d => d[metric.id] ?? 0);
+        // --- FIX 3A: Use null for missing values, not 0 ---
+        const allValues = comparisonPool.map(d => d[metric.id] === null ? null : (d[metric.id] ?? null)).filter(v => v !== null);
+        if (allValues.length === 0) {
+            proportionalScores[metric.id] = {}; // No data for this metric
+            return;
+        }
+        
         const maxValue = Math.max(...allValues, 1);
         
         const scores = {};
         comparisonPool.forEach(dispatcher => {
-            const value = dispatcher[metric.id] ?? 0;
+            const value = dispatcher[metric.id]; // This can be null
+            if (value === null || value === undefined) {
+                scores[dispatcher.name] = null; // Store null if no data
+                return;
+            }
+            
             let score = 0;
             if (metric.id === 'wellness') {
                 score = value;
@@ -1378,14 +1393,41 @@ function calculateComplianceScores(dispatchers, allDispatchers) {
 
     return dispatchers.map(dispatcher => {
         let weightedScore = 0;
-        for (const metricId in weights) {
-            const weight = weights[metricId];
-            if (proportionalScores[metricId] && proportionalScores[metricId][dispatcher.name] !== undefined) {
-                const score = proportionalScores[metricId][dispatcher.name];
-                weightedScore += (score * weight);
+        // --- FIX 2: List of metrics for the *modal* (uses medianTenure, not OO/LOO) ---
+        const settingMetrics = ['goodMoves', 'badMoves', 'hiddenMiles', 'lowRpm', 'overdueLoads', 'wellness', 'medianTenure'];
+
+        for (const metricId of settingMetrics) {
+            const weight = weights[metricId] || 0;
+            if (weight === 0) continue;
+
+            let finalScore = null;
+
+            // --- FIX 3B: Special averaging logic for medianTenure ---
+            if (metricId === 'medianTenure') {
+                const scoreOO = proportionalScores['medianTenureOO'] ? proportionalScores['medianTenureOO'][dispatcher.name] : null;
+                const scoreLOO = proportionalScores['medianTenureLOO'] ? proportionalScores['medianTenureLOO'][dispatcher.name] : null;
+
+                if (scoreOO !== null && scoreLOO !== null) {
+                    finalScore = (scoreOO + scoreLOO) / 2; // Average if both exist
+                } else if (scoreOO !== null) {
+                    finalScore = scoreOO; // Use OO if only it exists
+                } else if (scoreLOO !== null) {
+                    finalScore = scoreLOO; // Use LOO if only it exists
+                }
+            } else {
+                // Standard logic for all other metrics
+                if (proportionalScores[metricId] && proportionalScores[metricId][dispatcher.name] !== undefined) {
+                    finalScore = proportionalScores[metricId][dispatcher.name];
+                }
+            }
+            
+            // Only add to weighted score if a valid score was calculated
+            if (finalScore !== null) {
+                weightedScore += (finalScore * weight);
             }
         }
-        const finalScore = weightedScore / totalWeight;
+        // Failsafe: If totalWeight is 0 (or NaN), the final score is 0.
+        const finalScore = totalWeight > 0 ? (weightedScore / totalWeight) : 0;
         return { ...dispatcher, complianceScore: finalScore };
     });
 }
@@ -1408,7 +1450,7 @@ function renderComplianceSettingsModal(allDispatchers) {
         { id: 'lowRpm', label: 'Low RPM Loads' },
         { id: 'overdueLoads', label: 'Overdue Loads' },
         { id: 'wellness', label: 'Wellness %' },
-        { id: 'medianTenure', label: 'Median Tenure (Wks)' }, 
+        { id: 'medianTenure', label: 'Median Tenure (Wks)' }, // <-- Reverted to one line
     ];
 
     container.innerHTML = metrics.map(metric => `
@@ -1888,13 +1930,9 @@ function generateFlagTooltipText(label) {
         const looThresh = goodMove.by_contract?.['LOO'] ?? defaultThresh;
         return `Counts moved Monday loads where driver's weekly gross (excl. load) was < $${ooThresh.toLocaleString()} (OO) or < $${looThresh.toLocaleString()} (LOO). 'Bad Moves' are >= threshold.`;
     }
-    if (label === 'Overdue Days') {
-         if (flags.overdueDays && flags.overdueDays.thresholds) {
-             const defaultThresh = flags.overdueDays.thresholds.default;
-             return `Total days past D.O. for dispatchers' loads. Drivers flagged if total > ${defaultThresh} days.`;
-        } else {
-             return `Total days past D.O. for dispatchers' loads.`;
-        }
+    // MODIFIED a special case for the new Median Overdue metric
+    if (label === 'Median Overdue') {
+        return `The median number of days past D.O. for all overdue loads delivered in this period by the dispatchers currently in view.`;
     }
 
     if (!flagKey || !flags[flagKey]) return `Definition for ${label} not found.`;
@@ -1977,28 +2015,30 @@ function renderFlagSummary(drivers) { // 'drivers' is the already filtered list 
     flagCounts['Good Moves'] = { count: dispatchers.reduce((sum, d) => sum + d.goodMoves, 0), color: 'green' };
     flagCounts['Bad Moves'] = { count: dispatchers.reduce((sum, d) => sum + d.badMoves, 0), color: 'red' };
 
-    // --- FIX 2: Filter Overdue Days by selected week and displayed dispatchers ---
+    // --- MODIFIED: Calculate Median Overdue Days ---
     const { selectedWeek } = appState.profiles;
     const weeksAgo = selectedWeek === 'live' ? 0 : parseInt(selectedWeek.replace('week_', ''), 10);
-    // Get the date range for the currently selected week
     const { start: currentStart, end: currentEnd } = getPayrollWeekDateRange(weeksAgo);
-    const dispatcherNamesInView = new Set(dispatchers.map(d => d.name)); // Get names of dispatchers currently shown
+    const dispatcherNamesInView = new Set(dispatchers.map(d => d.name));
 
-    const totalOverdueDays = appState.profiles.overdueLoadsData
+    const overdueDaysArray = appState.profiles.overdueLoadsData
         .filter(ol => {
-            // Check dispatcher AND date range
             if (!dispatcherNamesInView.has(ol.dispatcher) || !ol.deliveryDate) return false;
             const deliveryDate = new Date(ol.deliveryDate);
             return deliveryDate >= currentStart && deliveryDate <= currentEnd;
         })
-        .reduce((sum, ol) => sum + (ol.daysPastDO || 0), 0);
-    flagCounts['Overdue Days'] = { count: totalOverdueDays, color: 'yellow' };
-    // --- End FIX 2 ---
+        .map(ol => ol.daysPastDO || 0); // Get an array of all overdue days
+
+    const medianOverdueDays = overdueDaysArray.length > 0 ? calculateMedian(overdueDaysArray) : 0;
+    
+    // Use 'Median Overdue' as the key
+    flagCounts['Median Overdue'] = { count: medianOverdueDays.toFixed(1), color: 'yellow' };
+    // --- End MODIFIED Block ---
 
     const displayOrder = [
         'Balance', 'Low Net', 'Low Gross', 'Low RPM', 'Veteran', 'New Hire',
         'Heavy Loads', 'High Tolls', 'Hopper',
-        'Overdue Days', // Keep added position
+        'Median Overdue',
         'Good Moves', 'Bad Moves'
     ];
 
@@ -2145,6 +2185,8 @@ function renderFranchiseFilterDropdown() {
 
 
 
+// REPLACE the entire renderTeamProfileUI function in 1.DispatchHub/profiles/profiles_ui.js with this:
+
 export const renderTeamProfileUI = async () => {
     const snapshotTrigger = document.getElementById('snapshot-trigger');
     if (snapshotTrigger) {
@@ -2273,7 +2315,7 @@ export const renderTeamProfileUI = async () => {
         // Now call all the render functions for the different parts of the UI
         renderProfileHeader(teamData, allAvailableTeams, currentKpis, prevWeekKpis);
         renderFlagSummary(teamData.drivers); // <-- Use teamData.drivers from cache
-        renderDispatchTable(teamData.dispatchers, allProcessedDispatchersForCompliance);
+        renderDispatchTable(teamData.dispatchers, allProcessedDispatchersForCompliance, appState.profiles.selectedWeek);
         renderDriverToolbar(teamData);
         renderDriverTable(teamData.drivers);
         renderDriverSettingsModal(); // Renders the Flag Settings modal structure
@@ -2412,6 +2454,58 @@ export const renderTeamProfileUI = async () => {
         return dateFilteredSource;
     };
     
+    let currentFilteredData = filterDataByDateAndTeam(useLiveData ? liveData : historicalStubs, currentStart, currentEnd, useLiveData);
+    if (dispatcherNameFromAccess) {
+        currentFilteredData = currentFilteredData.filter(d => (useLiveData ? d.dispatcher : d.stub_dispatcher)?.toLowerCase() === dispatcherNameFromAccess.toLowerCase());
+    }
+
+    const allDriversInViewUnfiltered = [...new Set(currentFilteredData.map(d => useLiveData ? d.driver : d.driver_name).filter(Boolean))];
+    const driverEquipmentMap = historicalStubs.reduce((acc, stub) => {
+        if (stub.driver_name && stub.trailer_type) {
+            if (!acc[stub.driver_name] || new Date(stub.pay_date) > new Date(acc[stub.driver_name].pay_date)) {
+                acc[stub.driver_name] = { trailer_type: stub.trailer_type, pay_date: stub.pay_date };
+            }
+        }
+        return acc;
+    }, {});
+
+    let processedDrivers = allDriversInViewUnfiltered.map((name, index) => {
+        let driverData = currentFilteredData.filter(d => (useLiveData ? d.driver : d.driver_name) === name && d.status !== 'Canceled');
+        const firstEntry = driverData[0] || {};
+        let equipment = '-';
+        const equipmentInfo = driverEquipmentMap[name];
+        if (equipmentInfo) {
+            const trailerType = equipmentInfo.trailer_type.toUpperCase();
+            if (trailerType === 'REEFER') equipment = 'R'; else if (trailerType === 'FLATBED') equipment = 'F'; else if (trailerType === 'VAN') equipment = 'V';
+        }
+        const liveFlags = calculateLiveFlagsForDriver(name, historicalStubs, allDriversInViewUnfiltered);
+        const contractType = firstEntry.contract_type ? firstEntry.contract_type.toUpperCase() : 'LOO';
+        const contract = contractType === 'OO' ? 'OO' : 'LOO';
+        const statusInfo = appState.profiles.contractStatusData.find(s => s.driver_name === name);
+        const driver = {
+            id: 1000 + index, name, company: firstEntry.company_name || '-',
+            dispatcher: useLiveData ? firstEntry.dispatcher : firstEntry.stub_dispatcher || '-',
+            team: useLiveData ? firstEntry.team : firstEntry.stub_team || '-',
+            franchise: firstEntry.franchise_name || '-',
+            contract, equipment, 
+            status: statusInfo ? statusInfo.contract_status : 'Unknown',
+            flags: liveFlags,
+            gross: useLiveData ? driverData.reduce((s, l) => s + ((l.price || 0) - (l.cut || 0)), 0) : driverData.reduce((s, l) => s + (l.driver_gross || 0), 0),
+            margin: useLiveData ? driverData.reduce((s, l) => s + (l.cut || 0), 0) : driverData.reduce((s, l) => s + (l.margin || 0), 0),
+            miles: useLiveData ? driverData.reduce((s, l) => s + (l.trip_miles || 0), 0) : driverData.reduce((s, l) => s + (l.total_miles || 0), 0),
+            rpm: useLiveData ? (driverData.reduce((s, l) => s + (l.trip_miles || 0), 0) > 0 ? driverData.reduce((s, l) => s + (l.price || 0), 0) / driverData.reduce((s, l) => s + (l.trip_miles || 0), 0) : 0) : firstEntry.rpm_all || 0,
+        };
+        driver.risk = calculateDropRisk(driver);
+        return driver;
+    });
+    
+    if (dispatcherNameFromAccess) {
+        processedDrivers = processedDrivers.filter(driver => driver.dispatcher.toLowerCase() === dispatcherNameFromAccess.toLowerCase());
+    }
+    if (contractTypeFilter !== 'all') {
+        processedDrivers = processedDrivers.filter(d => (contractTypeFilter === 'oo' ? d.contract === 'OO' : d.contract !== 'OO'));
+    }
+
     const weekFilteredLiveDataForDispatch = liveData.filter(d => d.do_date && new Date(d.do_date) >= currentStart && new Date(d.do_date) <= currentEnd);
     const currentSourceForNames = useLiveData ? appState.profiles.liveDriverCountData : filterDataByDateAndTeam(historicalStubs, currentStart, currentEnd, false, true);
     const currentNameKey = useLiveData ? 'dispatcher_name' : 'stub_dispatcher';
@@ -2455,6 +2549,94 @@ export const renderTeamProfileUI = async () => {
         };
     });
 
+    // --- START: NEW POINT-IN-TIME MEDIAN TENURE LOGIC ---
+    // Pre-calculate DISPATCHER-SPECIFIC tenure for ALL drivers (excluding 0 miles)
+    const historicalStubsData = appState.loads.historicalStubsData || [];
+    const dispatcherSpecificTenureMap = historicalStubsData.reduce((acc, stub) => {
+        if (stub.driver_name && stub.stub_dispatcher && stub.total_miles && parseFloat(stub.total_miles) > 0 && stub.pay_date) {
+            const driverName = stub.driver_name;
+            const dispatcherName = stub.stub_dispatcher;
+            
+            if (!acc[driverName]) {
+                acc[driverName] = {};
+            }
+            if (!acc[driverName][dispatcherName]) {
+                acc[driverName][dispatcherName] = [];
+            }
+            acc[driverName][dispatcherName].push(new Date(stub.pay_date));
+        }
+        return acc;
+    }, {});
+
+    // Now, sort all the date arrays once
+    Object.values(dispatcherSpecificTenureMap).forEach(driverMap => {
+        Object.values(driverMap).forEach(dateArray => {
+            dateArray.sort((a, b) => a - b); // Sort dates chronologically
+        });
+    });
+
+    appState.profiles.dispatcherSpecificTenureMap = dispatcherSpecificTenureMap;
+
+    // Get the end date for the *selected* week. This is our "point-in-time".
+    const { end: periodEnd } = getPayrollWeekDateRange(weeksAgo);
+    const pointInTimeDate = new Date(periodEnd);
+    pointInTimeDate.setUTCDate(pointInTimeDate.getUTCDate() + 3); // Get the Thursday pay date for comparison
+    if (selectedWeek === 'live') {
+        pointInTimeDate.setFullYear(pointInTimeDate.getFullYear() + 10);
+    }
+
+    // --- START: New +1 Live Week Tenure Logic ---
+    let activeDriverSet = new Set();
+    if (selectedWeek === 'live') {
+        const { start: currentWeekStart, end: currentWeekEnd } = getPayrollWeekDateRange(0);
+        appState.profiles.liveData.forEach(load => {
+            if (load.driver && load.do_date && load.status !== 'Canceled') {
+                const doDate = new Date(load.do_date);
+                if (doDate >= currentWeekStart && doDate <= currentWeekEnd) {
+                    activeDriverSet.add(load.driver);
+                }
+            }
+        });
+    }
+
+    // Calculate median tenure for each dispatcher and ADD it to the master list
+    masterDispatcherList.forEach(dispatcher => {
+        const dispatcherName = dispatcher.name;
+        const dispatcherDriversInView = processedDrivers
+            .filter(driver => driver.dispatcher === dispatcherName);
+
+        const getTenureList = (contractType) => {
+            const drivers = (contractType === 'OO')
+                ? dispatcherDriversInView.filter(d => d.contract === 'OO')
+                : dispatcherDriversInView.filter(d => d.contract !== 'OO');
+                
+            return drivers.map(driver => {
+                    const driverName = driver.name;
+                    const driverTenuresMap = dispatcherSpecificTenureMap[driverName];
+                    const allStubDates = (driverTenuresMap && driverTenuresMap[dispatcherName]) ? driverTenuresMap[dispatcherName] : [];
+                    
+                    const pointInTimeStubs = allStubDates.filter(stubDate => stubDate <= pointInTimeDate);
+                    let tenureWeeks = pointInTimeStubs.length;
+
+                    if (selectedWeek === 'live' && activeDriverSet.has(driverName)) {
+                        const lastStubDate = allStubDates.length > 0 ? allStubDates[allStubDates.length - 1] : null;
+                        if (!lastStubDate || lastStubDate < pointInTimeDate) {
+                            tenureWeeks += 1;
+                        }
+                    }
+                    
+                    return tenureWeeks;
+                })
+                .filter(tenure => tenure > 0);
+        };
+
+        const ooTenures = getTenureList('OO');
+        const looTenures = getTenureList('LOO');
+
+        dispatcher.medianTenureOO = ooTenures.length > 0 ? calculateMedian(ooTenures) : null;
+        dispatcher.medianTenureLOO = looTenures.length > 0 ? calculateMedian(looTenures) : null;
+    });
+    // --- END: NEW POINT-IN-TIME MEDIAN TENURE LOGIC ---
     
 
     const allProcessedDispatchersForCompliance = calculateComplianceScores(masterDispatcherList, masterDispatcherList);
@@ -2520,58 +2702,6 @@ export const renderTeamProfileUI = async () => {
     }
     // --- END: CORRECTED FILTERING LOGIC ---
 
-    let currentFilteredData = filterDataByDateAndTeam(useLiveData ? liveData : historicalStubs, currentStart, currentEnd, useLiveData);
-    if (dispatcherNameFromAccess) {
-        currentFilteredData = currentFilteredData.filter(d => (useLiveData ? d.dispatcher : d.stub_dispatcher)?.toLowerCase() === dispatcherNameFromAccess.toLowerCase());
-    }
-
-    const allDriversInViewUnfiltered = [...new Set(currentFilteredData.map(d => useLiveData ? d.driver : d.driver_name).filter(Boolean))];
-    const driverEquipmentMap = historicalStubs.reduce((acc, stub) => {
-        if (stub.driver_name && stub.trailer_type) {
-            if (!acc[stub.driver_name] || new Date(stub.pay_date) > new Date(acc[stub.driver_name].pay_date)) {
-                acc[stub.driver_name] = { trailer_type: stub.trailer_type, pay_date: stub.pay_date };
-            }
-        }
-        return acc;
-    }, {});
-
-    let processedDrivers = allDriversInViewUnfiltered.map((name, index) => {
-        let driverData = currentFilteredData.filter(d => (useLiveData ? d.driver : d.driver_name) === name && d.status !== 'Canceled');
-        const firstEntry = driverData[0] || {};
-        let equipment = '-';
-        const equipmentInfo = driverEquipmentMap[name];
-        if (equipmentInfo) {
-            const trailerType = equipmentInfo.trailer_type.toUpperCase();
-            if (trailerType === 'REEFER') equipment = 'R'; else if (trailerType === 'FLATBED') equipment = 'F'; else if (trailerType === 'VAN') equipment = 'V';
-        }
-        const liveFlags = calculateLiveFlagsForDriver(name, historicalStubs, allDriversInViewUnfiltered);
-        const contractType = firstEntry.contract_type ? firstEntry.contract_type.toUpperCase() : 'LOO';
-        const contract = contractType === 'OO' ? 'OO' : 'LOO';
-        const statusInfo = appState.profiles.contractStatusData.find(s => s.driver_name === name);
-        const driver = {
-            id: 1000 + index, name, company: firstEntry.company_name || '-',
-            dispatcher: useLiveData ? firstEntry.dispatcher : firstEntry.stub_dispatcher || '-',
-            team: useLiveData ? firstEntry.team : firstEntry.stub_team || '-',
-            franchise: firstEntry.franchise_name || '-',
-            contract, equipment, 
-            status: statusInfo ? statusInfo.contract_status : 'Unknown',
-            flags: liveFlags,
-            gross: useLiveData ? driverData.reduce((s, l) => s + ((l.price || 0) - (l.cut || 0)), 0) : driverData.reduce((s, l) => s + (l.driver_gross || 0), 0),
-            margin: useLiveData ? driverData.reduce((s, l) => s + (l.cut || 0), 0) : driverData.reduce((s, l) => s + (l.margin || 0), 0),
-            miles: useLiveData ? driverData.reduce((s, l) => s + (l.trip_miles || 0), 0) : driverData.reduce((s, l) => s + (l.total_miles || 0), 0),
-            rpm: useLiveData ? (driverData.reduce((s, l) => s + (l.trip_miles || 0), 0) > 0 ? driverData.reduce((s, l) => s + (l.price || 0), 0) / driverData.reduce((s, l) => s + (l.trip_miles || 0), 0) : 0) : firstEntry.rpm_all || 0,
-        };
-        driver.risk = calculateDropRisk(driver);
-        return driver;
-    });
-    
-    if (dispatcherNameFromAccess) {
-        processedDrivers = processedDrivers.filter(driver => driver.dispatcher.toLowerCase() === dispatcherNameFromAccess.toLowerCase());
-    }
-    if (contractTypeFilter !== 'all') {
-        processedDrivers = processedDrivers.filter(d => (contractTypeFilter === 'oo' ? d.contract === 'OO' : d.contract !== 'OO'));
-    }
-
     const teamData = {
         teamName: selectedTeam === 'ALL_TEAMS' ? 'All Teams' : selectedTeam,
         weekLabel: getProfilePayrollWeek(weeksAgo).label,
@@ -2580,40 +2710,6 @@ export const renderTeamProfileUI = async () => {
         drivers: processedDrivers
     };
     appState.profiles.currentTeamData = teamData;
-
-    // --- START: Calculate Median Driver Tenure (All-Time for Active Drivers) ---
-const historicalStubsData = appState.loads.historicalStubsData || [];
-
-// Pre-calculate ALL-TIME tenure for ALL drivers (excluding 0 miles) and store in appState
-appState.profiles.allTimeDriverTenureMap = historicalStubsData.reduce((acc, stub) => { // <-- Store in appState
-    // Only count stubs with miles > 0 for tenure
-    if (stub.driver_name && stub.total_miles && parseFloat(stub.total_miles) > 0) {
-        if (!acc[stub.driver_name]) {
-            acc[stub.driver_name] = new Set();
-        }
-        // Add pay date to count unique pay periods as tenure proxy across all time
-        acc[stub.driver_name].add(stub.pay_date);
-    }
-    return acc;
-}, {});
-const allTimeDriverTenureMap = appState.profiles.allTimeDriverTenureMap; // <-- Local reference for convenience
-
-// Calculate median tenure for each dispatcher using drivers active in the *selected* week
-teamData.dispatchers.forEach(dispatcher => {
-    // Get drivers associated with this dispatcher *in the currently selected week/view*
-    const dispatcherDriversInView = teamData.drivers
-        .filter(driver => driver.dispatcher === dispatcher.name)
-        .map(driver => driver.name);
-
-    // Get the calculated ALL-TIME tenure for *only those drivers* (using the local reference)
-    const tenures = dispatcherDriversInView
-        .map(driverName => allTimeDriverTenureMap[driverName] ? allTimeDriverTenureMap[driverName].size : 0) // Get all-time tenure count
-        .filter(tenure => tenure > 0); // Only consider drivers with tenure data
-
-    // Calculate and assign the median of those all-time tenures
-    dispatcher.medianTenure = tenures.length > 0 ? calculateMedian(tenures) : 0;
-});
-// --- END: Calculate Median Driver Tenure (All-Time for Active Drivers) ---
     
     const prevWeeksAgo = weeksAgo + 1;
     const { start: prevStartForFunc, end: prevEndForFunc } = getPayrollWeekDateRange(prevWeeksAgo);
@@ -2697,7 +2793,7 @@ teamData.dispatchers.forEach(dispatcher => {
 
     renderProfileHeader(teamData, allAvailableTeams, currentKpis, prevWeekKpis);
     renderFlagSummary(processedDrivers);
-    renderDispatchTable(dispatchersToDisplay, allProcessedDispatchersForCompliance);
+    renderDispatchTable(dispatchersToDisplay, allProcessedDispatchersForCompliance, selectedWeek);
     renderDriverToolbar(teamData);
     renderDriverTable(teamData.drivers); // Pass processedDrivers here too
     renderDriverSettingsModal();
@@ -2805,7 +2901,7 @@ function renderKpiSettingsDropdown() {
 
 
 
-function renderDispatchTable(dispatchersToDisplay, allDispatchers) {
+function renderDispatchTable(dispatchersToDisplay, allDispatchers, selectedWeek) {
     const componentContainer = document.getElementById('profiles-dispatch-breakdown');
     if (!componentContainer) return;
 
@@ -2921,28 +3017,69 @@ function renderDispatchTable(dispatchersToDisplay, allDispatchers) {
                                         break;
                                     // ADD or MODIFY the medianTenure handling
                                     default:
-                                        if (col.id === 'medianTenure') {
+                                        if (col.id === 'medianTenureOO' || col.id === 'medianTenureLOO') {
                                             // --- Tooltip Generation START (Table Redesign) ---
                                             const dispatcherName = d.name;
                                             // Find drivers associated with this dispatcher in the current view's data
                                             const driversForDispatcher = teamData.drivers
                                                 .filter(driver => driver.dispatcher === dispatcherName);
     
-                                            // Access the tenure map from appState
-                                            const allTimeDriverTenureMap = appState.profiles.allTimeDriverTenureMap || {}; // Ensure it exists
+                                            // Access the NEW tenure map from appState
+                                            const dispatcherSpecificTenureMap = appState.profiles.dispatcherSpecificTenureMap || {}; // Ensure it exists
+
+                                            // Get the end date for the *selected* week (same as in the main calculation)
+                                            const weeksAgo = (selectedWeek === 'live' || !selectedWeek) ? 0 : parseInt(selectedWeek.replace('week_', ''), 10);
+                                            const { start: currentWeekStart, end: periodEnd } = getPayrollWeekDateRange(weeksAgo);
+                                            const pointInTimeDate = new Date(periodEnd);
+                                            pointInTimeDate.setUTCDate(pointInTimeDate.getUTCDate() + 3); // Get the Thursday pay date
+                                            if (selectedWeek === 'live') {
+                                                // For "live" view, we want the max tenure, so set the date to the future
+                                                pointInTimeDate.setFullYear(pointInTimeDate.getFullYear() + 10);
+                                            }
+                                            
+                                            // --- START: New +1 Live Week Tenure Logic for TOOLTIP ---
+                                            let activeDriverSet = new Set();
+                                            if (selectedWeek === 'live') {
+                                                appState.profiles.liveData.forEach(load => {
+                                                    if (load.driver && load.do_date && load.status !== 'Canceled') {
+                                                        const doDate = new Date(load.do_date);
+                                                        if (doDate >= currentWeekStart && doDate <= periodEnd) {
+                                                            activeDriverSet.add(load.driver);
+                                                        }
+                                                    }
+                                                });
+                                            }
+                                            // --- END: New +1 Live Week Tenure Logic for TOOLTIP ---
     
-                                            const tenureData = driversForDispatcher.map(driver => {
-                                                const tenureWeeks = allTimeDriverTenureMap[driver.name] ? allTimeDriverTenureMap[driver.name].size : 0;
-                                                return {
-                                                    name: driver.name,
-                                                    contract: driver.contract,
-                                                    status: driver.status,
-                                                    weeks: tenureWeeks
-                                                };
-                                            }).sort((a, b) => b.weeks - a.weeks); // Sort by tenure descending
+                                            const tenureData = driversForDispatcher
+                                                // FILTER FOR OO or LOO based on the column ID
+                                                .filter(driver => col.id === 'medianTenureOO' ? driver.contract === 'OO' : driver.contract !== 'OO')
+                                                .map(driver => {
+                                                    const driverTenuresMap = dispatcherSpecificTenureMap[driver.name];
+                                                    const allStubDates = (driverTenuresMap && driverTenuresMap[dispatcherName]) ? driverTenuresMap[dispatcherName] : [];
+                                                    
+                                                    // Filter stubs for point-in-time count
+                                                    const pointInTimeStubs = allStubDates.filter(stubDate => stubDate <= pointInTimeDate);
+                                                    let tenureWeeks = pointInTimeStubs.length;
+
+                                                    // --- Add +1 for "Live" week ---
+                                                    if (selectedWeek === 'live' && activeDriverSet.has(driver.name)) {
+                                                        const lastStubDate = allStubDates.length > 0 ? allStubDates[allStubDates.length - 1] : null;
+                                                        if (!lastStubDate || lastStubDate < pointInTimeDate) {
+                                                            tenureWeeks += 1;
+                                                        }
+                                                    }
+                                                    
+                                                    return {
+                                                        name: driver.name,
+                                                        contract: driver.contract,
+                                                        status: driver.status,
+                                                        weeks: tenureWeeks
+                                                    };
+                                                }).sort((a, b) => b.weeks - a.weeks); // Sort by tenure descending
     
                                             // Build tooltip HTML using a table
-                                            const tooltipTitle = `<strong class='tooltip-title'>Driver Tenure Details for ${dispatcherName}</strong>`;
+                                            const tooltipTitle = `<strong class='tooltip-title'>Driver Tenure Details for ${dispatcherName} (${col.id === 'medianTenureOO' ? 'OO' : 'LOO'})</strong>`;
                                             let tooltipTableHTML = `<table class='tooltip-tenure-table'>
                                                                         <thead>
                                                                             <tr>
@@ -2973,7 +3110,10 @@ function renderDispatchTable(dispatchersToDisplay, allDispatchers) {
                                             const cleanedTooltipHtml = tooltipHtml.replace(/"/g, '&quot;').replace(/\n/g, '').trim();
                                             tooltipAttr = `data-tooltip-html="${cleanedTooltipHtml}"`; // Assign tooltip data attribute
                                             cellClass += ' dispatch-tooltip-trigger cursor-help'; // Add trigger class and cursor
-                                            content = `<span class="text-gray-300">${(d[col.id] ?? 0).toFixed(0)}</span>`; // Keep original cell content
+                                            
+                                            // This is the fix for 0 vs -
+                                            const tenureValue = d[col.id];
+                                            content = `<span class="text-gray-300">${(tenureValue === null || tenureValue === 0) ? '-' : tenureValue.toFixed(0)}</span>`;
                                             // --- Tooltip Generation END ---
                                         } else {
                                              content = d[col.id] ?? '-';
@@ -3083,17 +3223,7 @@ function renderThresholdSettingsModal() {
             icon: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>',
             description: 'A "Moved Load" is a <span class="font-bold text-green-400">Good Move</span> if the driver\'s gross pay for that week (excluding the moved load) is below this threshold.',
             content: createThresholdsWithOverridesHTML({ type: 'goodMove', settings: goodMove, step: 100 })
-        },
-        {
-            id: 'medianTenure', // <-- Use the key from thresholdSettings
-        title: 'Median Tenure Thresholds',
-        icon: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>', // Re-use tenure icon
-        description: 'Set thresholds for flagging based on Median Tenure (in weeks). Lower values might indicate higher turnover risk.',
-        content: createThresholdsWithOverridesHTML({
-            type: 'medianTenure', // <-- Match the key
-            settings: appState.profiles.thresholdSettings.medianTenure || { default: 4, by_contract: {} }, // Use state or defaults
-            step: 1 // Tenure is usually whole weeks
-        })}
+        }
     ];
     // --- End Accordion Item Definitions ---
 
@@ -4664,7 +4794,7 @@ if (metricId === 'newStarts') {
 
         // Common HTML structure for all tooltip rows
         return `<div class="tooltip-load-row-flex">
-            <span class="font-bold text-gray-400">#${loadId}</span>
+        <span class="font-bold text-gray-400" style="flex-shrink: 0;">#${loadId}</span>
             <span class="tooltip-driver-name">${driverName || 'N/A'}</span>
             ${metricId !== 'overdueLoads' ? `<span class="tooltip-route-flex">${puLocation || 'N/A'} → ${doLocation || 'N/A'}</span>` : ''}
             <span class="tooltip-details-flex ml-auto">${details}</span>
@@ -5322,9 +5452,35 @@ export function renderSnapshotChart(containerId) {
             focus.select(".x-hover-line").attr("transform", `translate(${x(closestDateForLine)},0)`);
         }
 
-        tooltip.html(tooltipHtml)
-            .style("left", `${pointerX + 15}px`)
-            .style("top", `${pointerY}px`);
+        tooltip.html(tooltipHtml);
+        
+        // Get container dimensions, which are available in this scope
+        const tooltipNode = tooltip.node();
+        if (!tooltipNode) return; // Safety check
+        
+        const tooltipWidth = tooltipNode.offsetWidth;
+        const tooltipHeight = tooltipNode.offsetHeight;
+        let tooltipLeft = pointerX + 15;
+        let tooltipTop = pointerY - 28; // Position above cursor
+
+        // Check right edge (relative to container)
+        if (tooltipLeft + tooltipWidth > containerWidth) {
+            tooltipLeft = pointerX - tooltipWidth - 15;
+        }
+        // Check left edge (relative to container)
+        if (tooltipLeft < 0) {
+            tooltipLeft = 5; // Small buffer
+        }
+        // Check top edge (relative to container)
+        if (tooltipTop < 0) {
+            tooltipTop = pointerY + 15; // Flip below
+        }
+        // Check bottom edge (relative to container)
+        if (tooltipTop + tooltipHeight > containerHeight) {
+            tooltipTop = containerHeight - tooltipHeight - 5; // Nudge up
+        }
+
+        tooltip.style("left", `${tooltipLeft}px`).style("top", `${tooltipTop}px`);
     }
 }
 
