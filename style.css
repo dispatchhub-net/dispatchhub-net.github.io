@@ -2516,7 +2516,7 @@
     padding: 0.75rem;
     font-size: 0.75rem; /* 12px */
     color: #d1d5db; /* gray-300 */
-    max-width: 700px; /* Increased width for full locations */
+    max-width: 1000px; /* Increased width for full locations */
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -2615,7 +2615,8 @@
 }
 
 .tooltip-details-flex {
-    white-space: nowrap;
+    white-space: nowrap;  /* Keep it on one line */
+    flex-shrink: 0;     /* ⭐ This is the key: Tell this element NOT to shrink */
 }
 /* 1. DISPEČ TEST/style.css */
 
@@ -4934,3 +4935,40 @@ body {
 .dispatch-tooltip {
     max-width: 450px; /* You might need to adjust this */
 }
+
+/* --- START: Tooltip Width & Flexbox Fix --- */
+
+/* 1. Make the tooltip box wider */
+.dispatch-tooltip {
+    max-width: 900px !important; /* Force it to be wide */
+}
+
+/* 2. Make the flex row fill the box */
+.tooltip-load-row-flex {
+    width: 100%;
+    overflow: hidden; /* Prevent children from overflowing */
+}
+
+/* 3. Tell Load ID, Driver Name, and Details NOT to shrink */
+.tooltip-load-row-flex > .font-bold, /* This targets the Load ID */
+.tooltip-driver-name,
+.tooltip-details-flex {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* 4. Tell the Route (Origin -> Dest) to shrink and truncate */
+.tooltip-route-flex {
+    flex-shrink: 1; /* ALLOW this to shrink */
+    min-width: 0;   /* REQUIRED for truncation to work */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 5. Keep the "Prev DO:..." details aligned to the right */
+.tooltip-details-flex {
+    margin-left: auto;
+}
+
+/* --- END: Tooltip Width & Flexbox Fix --- */
