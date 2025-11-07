@@ -164,12 +164,16 @@ export let appState = {
                 'name', 'company', 'team', 'allTrucks', 'ooTrucks', 'looTrucks',
                 'dryvan', 'reefer', 'flatbed',
                 'rank1w', 'rank4w', 'goodMoves',
-                'badMoves', 'hiddenMiles', 'lowRpm', 'newStarts', 'overdueLoads','wellness', 'canceled', 'complianceScore'
+                'badMoves', 'hiddenMiles', 'lowRpm', 'newStarts',
+                'medianTenure', 
+                'overdueLoads','wellness', 'canceled', 'complianceScore'
             ],
             visibleColumnIds: [
                 'name', 'company', 'allTrucks', 'ooTrucks', 'looTrucks',
                 'rank1w', 'rank4w', 'goodMoves', 'badMoves', 'hiddenMiles',
-                'lowRpm', 'newStarts', 'overdueLoads', 'wellness', 'complianceScore'
+                'lowRpm', 'newStarts',
+                'medianTenure',
+                'overdueLoads', 'wellness', 'complianceScore'
             ],
             pinnedLeftColumns: ['name'],
             pinnedRightColumns: ['complianceScore'],
@@ -183,7 +187,11 @@ export let appState = {
         thresholdSettings: {
             isModalOpen: false,
             lowRpm: { default: 1.5, by_contract: {} },
-            goodMove: { default: 6000, by_contract: {} }
+            goodMove: { default: 6000, by_contract: {} },
+            medianTenure: { default: 4, by_contract: {} }
+        },
+        tenureSettings: {
+            lookback: { type: 'weeks', value: 12 }
         },
         complianceSettings: {
             isModalOpen: false,
