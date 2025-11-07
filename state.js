@@ -165,14 +165,14 @@ export let appState = {
                 'dryvan', 'reefer', 'flatbed',
                 'rank1w', 'rank4w', 'goodMoves',
                 'badMoves', 'hiddenMiles', 'lowRpm', 'newStarts',
-                'medianTenure', 
+                'medianTenureOO', 'medianTenureLOO', 
                 'overdueLoads','wellness', 'canceled', 'complianceScore'
             ],
             visibleColumnIds: [
-                'name', 'company', 'allTrucks', 'ooTrucks', 'looTrucks',
+                'name', 'company', 'ooTrucks', 'looTrucks',
                 'rank1w', 'rank4w', 'goodMoves', 'badMoves', 'hiddenMiles',
                 'lowRpm', 'newStarts',
-                'medianTenure',
+                'medianTenureOO', 'medianTenureLOO',
                 'overdueLoads', 'wellness', 'complianceScore'
             ],
             pinnedLeftColumns: ['name'],
