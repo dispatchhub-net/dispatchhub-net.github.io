@@ -1332,15 +1332,37 @@ function renderModalChart_Profiles(historicalStubs) {
 }
 
 function calculateComplianceScores(dispatchers, allDispatchers) {
+    // --- START: Debugging console logs ---
+    console.log(`[ComplianceDebug] calculateComplianceScores called.`);
+    const dispatcherNames = dispatchers.map(d => d.name);
+    console.log(`[ComplianceDebug]   - dispatchers (to score): ${dispatchers.length} items. ${dispatcherNames.length < 10 ? `Names: ${dispatcherNames.join(', ')}` : ''}`);
+    console.log(`[ComplianceDebug]   - allDispatchers (pool): ${allDispatchers ? allDispatchers.length : 'N/A'} items.`);
+    
     const { weights } = appState.profiles.complianceSettings;
     const comparisonPool = allDispatchers && allDispatchers.length > 0 ? allDispatchers : dispatchers;
+    console.log(`[ComplianceDebug]   - Final comparisonPool size: ${comparisonPool.length}`);
+    
+    const wellnessBefore = comparisonPool.map(d => ({ name: d.name, wellness: d.wellness }));
+    // --- END: Debugging console logs ---
 
     // Recalculate wellness based on the new logic before scoring
-    dispatchers.forEach(d => {
+    // --- THIS IS THE FIX ---
+    // The loop must run on the entire `comparisonPool`, not just the `dispatchers` list.
+    comparisonPool.forEach(d => {
+    // --- END OF FIX ---
         const wellnessLoads = d.loads.filter(l => ['GOOD', 'FAIL', '-'].includes(l.wellness_fail));
         const successfulLoads = wellnessLoads.filter(l => l.wellness_fail === 'GOOD' || l.wellness_fail === '-').length;
         d.wellness = wellnessLoads.length > 0 ? (successfulLoads / wellnessLoads.length) * 100 : 0;
     });
+
+    // --- START: Debugging console logs ---
+    const wellnessAfter = comparisonPool.map(d => ({ name: d.name, wellness: d.wellness }));
+    console.log('[ComplianceDebug] Wellness scores BEFORE recalculation (from comparisonPool):', wellnessBefore);
+    console.log('[ComplianceDebug] Wellness scores AFTER recalculation (from comparisonPool):', wellnessAfter);
+    if (dispatchers.length !== comparisonPool.length) {
+        console.log('[ComplianceDebug] Note: Recalculation loop ran on the full comparison pool (as intended).');
+    }
+    // --- END: Debugging console logs ---
 
     // --- FIX 2: Define metrics for calculation. Note 'medianTenure' is back as one item. ---
     const allMetrics = [
@@ -1407,13 +1429,18 @@ function calculateComplianceScores(dispatchers, allDispatchers) {
                 const scoreOO = proportionalScores['medianTenureOO'] ? proportionalScores['medianTenureOO'][dispatcher.name] : null;
                 const scoreLOO = proportionalScores['medianTenureLOO'] ? proportionalScores['medianTenureLOO'][dispatcher.name] : null;
 
-                if (scoreOO !== null && scoreLOO !== null) {
+                // Check if scores are valid numbers (not null, not undefined)
+                const isScoreOOValid = typeof scoreOO === 'number';
+                const isScoreLOOValid = typeof scoreLOO === 'number';
+
+                if (isScoreOOValid && isScoreLOOValid) {
                     finalScore = (scoreOO + scoreLOO) / 2; // Average if both exist
-                } else if (scoreOO !== null) {
+                } else if (isScoreOOValid) {
                     finalScore = scoreOO; // Use OO if only it exists
-                } else if (scoreLOO !== null) {
+                } else if (isScoreLOOValid) {
                     finalScore = scoreLOO; // Use LOO if only it exists
                 }
+                // If neither is valid, finalScore remains null, which is correct.
             } else {
                 // Standard logic for all other metrics
                 if (proportionalScores[metricId] && proportionalScores[metricId][dispatcher.name] !== undefined) {
@@ -4181,12 +4208,22 @@ export function initializeProfileEventListeners() {
             } else if (row) {
                 const dispatcherId = parseInt(row.dataset.dispatcherId, 10);
                 appState.profiles.selectedDispatcherId = appState.profiles.selectedDispatcherId === dispatcherId ? null : dispatcherId;
-                renderDispatchTable(teamData.dispatchers, appState.profiles.allProcessedDispatchers);
-                renderDriverToolbar(teamData);
-                renderDriverTable(teamData.drivers);
+
+                // Clear the driver search term when selecting a dispatcher
+                appState.profiles.driverSearchTerm = '';
+                
+                // --- THIS IS THE FIX ---
+                // Call the main UI render function to rebuild everything
+                // and correctly re-attach all event listeners.
+                renderTeamProfileUI(); 
+                // --- END OF FIX ---
+                
+                // We re-run the scroll-to-view *after* renderTeamProfileUI has
+                // had a chance to (asynchronously) render.
                 requestAnimationFrame(() => {
+                    // Find the row again *after* the re-render
                     const newRow = document.querySelector(`.dispatch-table-row[data-dispatcher-id='${dispatcherId}']`);
-                    if (newRow) {
+                    if (newRow && appState.profiles.selectedDispatcherId === dispatcherId) { // Only scroll if it's selected
                         newRow.scrollIntoView({ behavior: 'auto', block: 'nearest' });
                     }
                 });
