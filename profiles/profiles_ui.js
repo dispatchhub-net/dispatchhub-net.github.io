@@ -148,12 +148,94 @@ function calculateKpiData(baseData, isLiveData, allDrivers, historicalStubs, con
     const complianceScores = dispatchersWithScores.map(d => d.complianceScore).filter(c => isFinite(c) && c !== null);
     const medianCompliance = complianceScores.length > 0 ? calculateMedian(complianceScores) : 0;
     
+    // NEW: Calculate Optimistic 4W Retention (Transfers = Active, Only Terminated = Loss) purely for the KPI card
+    // Determine the anchor date based on the data being processed (current or previous week)
+    let anchorDate = new Date();
+    if (baseData.length > 0) {
+        const firstItem = baseData[0];
+        const dateVal = isLiveData ? firstItem.do_date : firstItem.pay_date;
+        if (dateVal) anchorDate = new Date(dateVal);
+    }
+    
+    const targetPayDate = new Date(anchorDate);
+    if (isLiveData || targetPayDate.getDay() !== 4) { // Align to nearest Thursday if live or not matched
+         const day = targetPayDate.getUTCDay();
+         const diff = (1 - day + 7) % 7; // days to Monday
+         targetPayDate.setUTCDate(targetPayDate.getUTCDate() + diff + 3); // Monday + 3 days = Thursday
+    }
+    targetPayDate.setUTCHours(0,0,0,0);
+    
+    const fourWeeksAgoStart = new Date(targetPayDate);
+    fourWeeksAgoStart.setDate(fourWeeksAgoStart.getDate() - 28);
 
+    // --- AGGREGATE 4W RETENTION CALCULATION ---
+    // Identify all dispatchers currently in the view (respects Team/Company/Franchise filters)
+    const relevantDispatcherNames = new Set(dispatchersWithScores.map(d => d.name));
+
+    const historicalPoolStubs = historicalStubs.filter(s => {
+         const pDate = new Date(s.pay_date);
+         // 1. Check Date Window
+         const matchesDate = pDate >= fourWeeksAgoStart && pDate < targetPayDate;
+         if (!matchesDate) return false;
+
+         // 2. Check Dispatcher Scope
+         const matchesDispatcher = relevantDispatcherNames.has(s.stub_dispatcher);
+         if (!matchesDispatcher) return false;
+         
+         // 3. Apply Contract Filter
+         if (contractFilter !== 'all') {
+             const rawContract = String(s.contract_type || '').trim().toUpperCase();
+             const normalizedContract = rawContract === 'OO' ? 'OO' : 'LOO';
+             if (contractFilter === 'loo') {
+                 if (normalizedContract === 'OO') return false;
+             } else {
+                 if (normalizedContract !== contractFilter.toUpperCase()) return false;
+             }
+         }
+         return true;
+    });
+
+    const historicalDriverPool = new Set(historicalPoolStubs.map(s => s.driver_name));
+    
+    let retainedCountAggregate = 0;
+    if (historicalDriverPool.size > 0) {
+        historicalDriverPool.forEach(driverName => {
+            if (isLiveData) {
+                // --- LIVE VIEW: Use Current Status List ---
+                // We check if they are currently employed (NOT Terminated)
+                const statusInfo = appState.profiles.contractStatusData.find(c => c.driver_name === driverName);
+                if (!statusInfo || statusInfo.contract_status !== 'Terminated') {
+                    retainedCountAggregate++;
+                }
+            } else {
+                // --- HISTORICAL VIEW: Use Past Status from Stub ---
+                // Find the driver's stubs within this historical window
+                const driverStubs = historicalPoolStubs.filter(s => s.driver_name === driverName);
+                
+                if (driverStubs.length > 0) {
+                    // Sort to find the latest stub for this driver in that window
+                    driverStubs.sort((a, b) => new Date(b.pay_date) - new Date(a.pay_date));
+                    const latestStub = driverStubs[0];
+
+                    // Check the status field recorded on that stub
+                    // We look for "Active" or ":active" as requested
+                    const status = String(latestStub.driver_status || latestStub.status || '').trim().toLowerCase();
+                    if (status === 'active' || status === ':active') {
+                        retainedCountAggregate++;
+                    }
+                }
+            }
+        });
+    }
+
+    // This variable now holds the aggregate retention % for the entire filtered scope
+    const medianRetentionOptimistic = historicalDriverPool.size > 0 ? (retainedCountAggregate / historicalDriverPool.size) * 100 : 0;
 
     return {
         totalGross, teamRpm: totalMiles > 0 ? totalGross / totalMiles : 0, teamMargin: totalMargin,
         activeTrucks, dispatchers: dispatchersWithScores.length, medianDropRisk,
-        balance: totalBalance, canceledLoads, medianWellness, medianCompliance
+        balance: totalBalance, canceledLoads, medianWellness, medianCompliance, medianRetentionOptimistic,
+        retentionCounts: { active: retainedCountAggregate, total: historicalDriverPool.size }
     };
 }
 
@@ -542,6 +624,15 @@ function renderProfileHeader(teamData, allTeams, kpis, prevWeekKpis) {
     const isFranchiseFilterActive = appState.profiles.selectedFranchise !== 'All Franchises';
     // --- END: Active filter check logic ---
 
+    // Ensure the new metric is available in settings
+    if (!appState.profiles.kpiSettings.allKpis.find(k => k.id === 'medianRetentionOptimistic')) {
+        appState.profiles.kpiSettings.allKpis.push({ id: 'medianRetentionOptimistic', label: '4W Retention' });
+        // Automatically show it if not present in visible list
+        if (!appState.profiles.kpiSettings.visibleKpiIds.includes('medianRetentionOptimistic')) {
+            appState.profiles.kpiSettings.visibleKpiIds.push('medianRetentionOptimistic');
+        }
+    }
+
     const { visibleKpiIds } = appState.profiles.kpiSettings;
     
     const allKpiCards = [
@@ -555,6 +646,13 @@ function renderProfileHeader(teamData, allTeams, kpis, prevWeekKpis) {
         { id: 'canceledLoads', label: 'Canceled', value: kpis.canceledLoads.toLocaleString(), trend: getChangeDisplay_Profiles(kpis.canceledLoads, prevWeekKpis.canceledLoads, false, false, false, true) },
         { id: 'medianWellness', label: 'Median Wellness %', value: `${kpis.medianWellness.toFixed(1)}%`, trend: getChangeDisplay_Profiles(kpis.medianWellness, prevWeekKpis.medianWellness, false, false, true) },
         { id: 'medianCompliance', label: 'Median Compliance %', value: `${kpis.medianCompliance.toFixed(1)}%`, trend: getChangeDisplay_Profiles(kpis.medianCompliance, prevWeekKpis.medianCompliance, false, false, true) },
+        { 
+            id: 'medianRetentionOptimistic', 
+            label: '4W Retention', 
+            value: `${kpis.medianRetentionOptimistic.toFixed(1)}%`, 
+            trend: getChangeDisplay_Profiles(kpis.medianRetentionOptimistic, prevWeekKpis.medianRetentionOptimistic, false, false, true),
+            tooltip: kpis.retentionCounts ? `Active: ${kpis.retentionCounts.active} | Terminated: ${kpis.retentionCounts.total - kpis.retentionCounts.active}` : ''
+        },
     ];
     
     const visibleKpiCards = allKpiCards.filter(card => visibleKpiIds.includes(card.id));
@@ -583,7 +681,7 @@ function renderProfileHeader(teamData, allTeams, kpis, prevWeekKpis) {
     headerContainer.innerHTML = `
         <div class="grid grid-flow-col auto-cols-fr gap-3">
             ${visibleKpiCards.map(kpi => `
-                <div class="profile-kpi-card-ranking">
+                <div class="profile-kpi-card-ranking" ${kpi.tooltip ? `title="${kpi.tooltip}"` : ''}>
                     <h4 class="kpi-title-ranking">${kpi.label}</h4>
                     <p class="kpi-value-ranking">${kpi.value}</p>
                     ${kpi.trend}
@@ -645,6 +743,7 @@ const dispatchTableColumns = [
     { id: 'complianceScore', label: '% Compliance', type: 'percentage' },
     { id: 'medianTenureOO', label: 'Tenure (OO)', type: 'number' },
     { id: 'medianTenureLOO', label: 'Tenure (LOO)', type: 'number' }, 
+    { id: 'retention4w', label: '4W Retention', type: 'percentage' },
 ];
 
 // --- FIX: Updated the driver table configuration ---
@@ -1372,6 +1471,7 @@ function calculateComplianceScores(dispatchers, allDispatchers) {
         { id: 'lowRpm', higherIsBetter: false },
         { id: 'overdueLoads', higherIsBetter: false },
         { id: 'wellness', higherIsBetter: true },
+        { id: 'retention4w', higherIsBetter: true }, // Added
         { id: 'medianTenureOO', higherIsBetter: true }, // Keep separate for proportional scoring
         { id: 'medianTenureLOO', higherIsBetter: true } // Keep separate for proportional scoring
     ];
@@ -1415,8 +1515,10 @@ function calculateComplianceScores(dispatchers, allDispatchers) {
 
     return dispatchers.map(dispatcher => {
         let weightedScore = 0;
+        let dynamicTotalWeight = 0; // <--- NEW: Track weight specific to this dispatcher
+
         // --- FIX 2: List of metrics for the *modal* (uses medianTenure, not OO/LOO) ---
-        const settingMetrics = ['goodMoves', 'badMoves', 'hiddenMiles', 'lowRpm', 'overdueLoads', 'wellness', 'medianTenure'];
+        const settingMetrics = ['goodMoves', 'badMoves', 'hiddenMiles', 'lowRpm', 'overdueLoads', 'wellness', 'retention4w', 'medianTenure'];
 
         for (const metricId of settingMetrics) {
             const weight = weights[metricId] || 0;
@@ -1440,7 +1542,7 @@ function calculateComplianceScores(dispatchers, allDispatchers) {
                 } else if (isScoreLOOValid) {
                     finalScore = scoreLOO; // Use LOO if only it exists
                 }
-                // If neither is valid, finalScore remains null, which is correct.
+                // If neither is valid, finalScore remains null
             } else {
                 // Standard logic for all other metrics
                 if (proportionalScores[metricId] && proportionalScores[metricId][dispatcher.name] !== undefined) {
@@ -1451,10 +1553,12 @@ function calculateComplianceScores(dispatchers, allDispatchers) {
             // Only add to weighted score if a valid score was calculated
             if (finalScore !== null) {
                 weightedScore += (finalScore * weight);
+                dynamicTotalWeight += weight; // <--- NEW: Only add weight if data exists
             }
         }
-        // Failsafe: If totalWeight is 0 (or NaN), the final score is 0.
-        const finalScore = totalWeight > 0 ? (weightedScore / totalWeight) : 0;
+        
+        // NEW: Divide by the dynamic weight instead of the global totalWeight
+        const finalScore = dynamicTotalWeight > 0 ? (weightedScore / dynamicTotalWeight) : 0;
         return { ...dispatcher, complianceScore: finalScore };
     });
 }
@@ -1477,6 +1581,7 @@ function renderComplianceSettingsModal(allDispatchers) {
         { id: 'lowRpm', label: 'Low RPM Loads' },
         { id: 'overdueLoads', label: 'Overdue Loads' },
         { id: 'wellness', label: 'Wellness %' },
+        { id: 'retention4w', label: '4W Retention %' },
         { id: 'medianTenure', label: 'Median Tenure (Wks)' }, // <-- Reverted to one line
     ];
 
@@ -2538,6 +2643,17 @@ export const renderTeamProfileUI = async () => {
     const currentNameKey = useLiveData ? 'dispatcher_name' : 'stub_dispatcher';
     const allDispatcherNamesForCurrentWeek = [...new Set(currentSourceForNames.map(d => d[currentNameKey]).filter(Boolean))];
 
+    // --- PRE-CALCULATION FOR RETENTION ---
+    // Map every active driver in the current week to their current dispatcher.
+    // This helps us check if a historical driver has moved to *any* dispatcher this week.
+    const allCurrentWeekLoads = liveData.filter(d => d.do_date && new Date(d.do_date) >= currentStart && new Date(d.do_date) <= currentEnd && d.status !== 'Canceled');
+    const currentDriverDispatcherMap = allCurrentWeekLoads.reduce((acc, load) => {
+        if (load.driver && load.dispatcher) {
+            acc[load.driver] = load.dispatcher;
+        }
+        return acc;
+    }, {});
+
     const masterDispatcherList = allDispatcherNamesForCurrentWeek.map((name, index) => {
         const wellnessLoads = weekFilteredLiveDataForDispatch.filter(d => d.dispatcher === name && ['GOOD', 'FAIL', '-'].includes(d.wellness_fail));
         const successfulLoads = wellnessLoads.filter(l => l.wellness_fail === 'GOOD' || l.wellness_fail === '-').length;
@@ -2552,6 +2668,51 @@ export const renderTeamProfileUI = async () => {
         const goodMoves = movedLoads.filter(load => (load.driver_gross_without_moved || 0) < (goodMoveThresholds.by_contract[load.contract_type] ?? goodMoveThresholds.default)).length;
         const firstLiveDriverRecord = appState.profiles.liveDriverCountData.find(d => d.dispatcher_name && d.dispatcher_name.trim().toLowerCase() === name.trim().toLowerCase());
         const ranks = dispatcherRanks.get(name) || { rank1w: null, rank4w: null };
+
+        // --- 4W RETENTION CALCULATION ---
+        // Calculate the Thursday Pay Date for this week (Monday + 3 days)
+        const targetPayDate = new Date(currentEnd);
+        targetPayDate.setUTCDate(currentEnd.getUTCDate() + 3);
+        targetPayDate.setUTCHours(0, 0, 0, 0);
+
+        // Go back 28 days from the THURSDAY pay date
+        const fourWeeksAgoStart = new Date(targetPayDate);
+        fourWeeksAgoStart.setDate(fourWeeksAgoStart.getDate() - 28);
+
+        // 1. Denominator: Historical Pool
+        // We look for stubs strictly BEFORE the target Thursday, but within the 4-week window
+        const historicalPool = new Set(historicalStubs
+            .filter(s => {
+                const pDate = new Date(s.pay_date);
+                return s.stub_dispatcher === name && pDate >= fourWeeksAgoStart && pDate < targetPayDate;
+            })
+            .map(s => s.driver_name)
+        );
+
+        // 2. Numerator: Check status & categorize
+        let retainedCount = 0;
+        const retentionDetails = { retained: [], terminated: [], transferred: [] };
+
+        historicalPool.forEach(driverName => {
+            const statusInfo = appState.profiles.contractStatusData.find(c => c.driver_name === driverName);
+            const isTerminated = statusInfo && statusInfo.contract_status === 'Terminated';
+            
+            const currentDispatcherForDriver = currentDriverDispatcherMap[driverName];
+            const hasMovedToOther = currentDispatcherForDriver && currentDispatcherForDriver !== name;
+
+            if (isTerminated) {
+                retentionDetails.terminated.push(driverName);
+            } else if (hasMovedToOther) {
+                retentionDetails.transferred.push({ name: driverName, to: currentDispatcherForDriver });
+            } else {
+                // Retained (Active + Still with dispatcher OR No loads)
+                retainedCount++;
+                retentionDetails.retained.push(driverName);
+            }
+        });
+
+        const retention4w = historicalPool.size > 0 ? (retainedCount / historicalPool.size) * 100 : null;
+
         return {
             id: index + 1, name, loads: loadsForStats,
             company: firstLiveDriverRecord?.company_name || '-', team: firstLiveDriverRecord?.dispatcher_team || '-',
@@ -2559,24 +2720,36 @@ export const renderTeamProfileUI = async () => {
             goodMoves, badMoves: movedLoads.length - goodMoves,
             hiddenMiles: loadsForStats.filter(d => d.hidden_miles === 'Hidden Miles Found!').length,
             lowRpm: loadsForStats.filter(d => d.rpm_all < getLowRpmThreshold(d.contract_type)).length,
-            // --- FIX START: Filter overdue loads by the selected week ---
             overdueLoads: appState.profiles.overdueLoadsData
                 .filter(ol => {
                     if (ol.dispatcher !== name || !ol.deliveryDate) return false;
                     const deliveryDate = new Date(ol.deliveryDate);
-                    // 'currentStart' and 'currentEnd' are available in this scope from getPayrollWeekDateRange
                     return deliveryDate >= currentStart && deliveryDate <= currentEnd;
                 })
-                .reduce((sum, ol) => sum + (ol.daysPastDO || 0), 0), // Sum the overdue days for the filtered loads
-            // --- FIX END ---
+                .reduce((sum, ol) => sum + (ol.daysPastDO || 0), 0),
             newStarts: new Set(loadsForStats.filter(d => d.new_start === 'NEW START').map(l => l.driver)).size,
             canceled: loadsForStats.filter(d => d.status === 'Canceled').length,
             rank1w: ranks.rank1w, rank4w: ranks.rank4w,
+            retention4w: retention4w, 
+            retentionDetails: retentionDetails, // Store details for tooltip
             wellness: wellness.toFixed(0)
         };
     });
 
-    // --- START: NEW POINT-IN-TIME MEDIAN TENURE LOGIC ---
+   // --- START: NEW POINT-IN-TIME MEDIAN TENURE LOGIC ---
+    
+    // FIX: Create a GLOBAL list of drivers for the current period to ensure tenure is calculated for ALL dispatchers,
+    // regardless of the current view filters. This ensures Compliance Scores remain consistent.
+    const globalDataForTenure = filterDataByDateAndTeam(useLiveData ? liveData : historicalStubs, currentStart, currentEnd, useLiveData, true);
+    const globalDriversForTenure = [...new Set(globalDataForTenure.map(d => useLiveData ? d.driver : d.driver_name).filter(Boolean))].map(name => {
+        const entry = globalDataForTenure.find(d => (useLiveData ? d.driver : d.driver_name) === name);
+        return {
+            name: name,
+            dispatcher: useLiveData ? entry.dispatcher : entry.stub_dispatcher,
+            contract: (entry.contract_type || 'LOO').toUpperCase() === 'OO' ? 'OO' : 'LOO'
+        };
+    });
+
     // Pre-calculate DISPATCHER-SPECIFIC tenure for ALL drivers (excluding 0 miles)
     const historicalStubsData = appState.loads.historicalStubsData || [];
     const dispatcherSpecificTenureMap = historicalStubsData.reduce((acc, stub) => {
@@ -2629,7 +2802,8 @@ export const renderTeamProfileUI = async () => {
     // Calculate median tenure for each dispatcher and ADD it to the master list
     masterDispatcherList.forEach(dispatcher => {
         const dispatcherName = dispatcher.name;
-        const dispatcherDriversInView = processedDrivers
+        // FIX: Use the global driver list here instead of processedDrivers
+        const dispatcherDriversInView = globalDriversForTenure
             .filter(driver => driver.dispatcher === dispatcherName);
 
         const getTenureList = (contractType) => {
@@ -2937,8 +3111,11 @@ function renderDispatchTable(dispatchersToDisplay, allDispatchers, selectedWeek)
     const title = teamData ? `Dispatch Breakdown for ${teamData.teamName}${franchiseText}` : 'Dispatch Breakdown';
 
     // --- START: Search Filtering Logic ---
+    // Note: dispatchersToDisplay already has complianceScore calculated from renderTeamProfileUI.
+    // We do NOT recalculate it here to ensure consistency across views.
     const searchTerm = appState.profiles.dispatcherSearchTerm.toLowerCase();
-    let dispatchersWithScores = calculateComplianceScores(dispatchersToDisplay, allDispatchers);
+    let dispatchersWithScores = dispatchersToDisplay;
+    
     if (searchTerm) {
         dispatchersWithScores = dispatchersWithScores.filter(d => 
             d.name.toLowerCase().includes(searchTerm)
@@ -3038,6 +3215,41 @@ function renderDispatchTable(dispatchersToDisplay, allDispatchers, selectedWeek)
                                     case 'percentage':
                                         if (col.id === 'complianceScore') {
                                             content = `<span class="font-bold text-teal-300">${(d[col.id] ?? 0).toFixed(1)}%</span>`;
+                                        } else if (col.id === 'retention4w') {
+                                            const rVal = d[col.id];
+                                            if (rVal === null) {
+                                                content = '-';
+                                            } else {
+                                                // Generate Tooltip HTML
+                                                const rData = d.retentionDetails || { retained: [], terminated: [], transferred: [] };
+                                                let tooltipHTML = `<div class='text-left min-w-[200px]'>`;
+                                                
+                                                if (rData.retained.length > 0) {
+                                                    tooltipHTML += `<div class='mb-2'><strong class='text-green-400 block border-b border-gray-600 mb-1'>Retained (${rData.retained.length})</strong><div class='text-xs text-gray-300 leading-relaxed'>${rData.retained.join(', ')}</div></div>`;
+                                                }
+                                                if (rData.terminated.length > 0) {
+                                                    tooltipHTML += `<div class='mb-2'><strong class='text-red-400 block border-b border-gray-600 mb-1'>Terminated (${rData.terminated.length})</strong><div class='text-xs text-gray-300 leading-relaxed'>${rData.terminated.join(', ')}</div></div>`;
+                                                }
+                                                if (rData.transferred.length > 0) {
+                                                    tooltipHTML += `<div><strong class='text-yellow-400 block border-b border-gray-600 mb-1'>Transferred (${rData.transferred.length})</strong><ul class='text-xs text-gray-300 list-none pl-0 leading-relaxed'>`;
+                                                    rData.transferred.forEach(t => {
+                                                        tooltipHTML += `<li>${t.name} <span class='text-gray-500'>→ ${t.to}</span></li>`;
+                                                    });
+                                                    tooltipHTML += `</ul></div>`;
+                                                }
+                                                if (rData.retained.length === 0 && rData.terminated.length === 0 && rData.transferred.length === 0) {
+                                                    tooltipHTML += `<span class='text-gray-500 italic'>No historical drivers found in 4W window.</span>`;
+                                                }
+                                                tooltipHTML += `</div>`;
+
+                                                // Color code the percentage (0-40 Red, 40-70 Orange, 70+ Green)
+                                                const textColor = rVal >= 70 ? 'text-green-400' : rVal >= 40 ? 'text-orange-400' : 'text-red-400';
+                                                content = `<span class="font-bold ${textColor}">${rVal.toFixed(0)}%</span>`;
+                                                
+                                                // Attach Tooltip Attributes
+                                                cellClass += ' dispatch-tooltip-trigger cursor-help';
+                                                tooltipAttr = `data-tooltip-html="${tooltipHTML.replace(/"/g, '&quot;')}"`;
+                                            }
                                         } else {
                                             content = `${(d[col.id] ?? 0).toFixed(0)}%`;
                                         }
@@ -3794,7 +4006,8 @@ function renderDispatchColumnSettingsDropdown() {
             const visibleSet = new Set(appState.profiles.dispatchTable.visibleColumnIds);
             visibleSet.has(colId) ? visibleSet.delete(colId) : visibleSet.add(colId);
             appState.profiles.dispatchTable.visibleColumnIds = Array.from(visibleSet);
-            renderDispatchTable(teamData.dispatchers, teamData.dispatchers);
+            // FIX: Use appState.profiles.allProcessedDispatchers as the second argument
+            renderDispatchTable(teamData.dispatchers, appState.profiles.allProcessedDispatchers);
         });
         const controls = document.createElement('div');
         controls.className = 'flex items-center space-x-2';
@@ -3855,33 +4068,19 @@ function handlePinColumn(columnId, side) {
     const isPinnedLeft = pinnedLeftColumns.includes(columnId);
     const isPinnedRight = pinnedRightColumns.includes(columnId);
     
-    // Create a new set of unpinned columns by removing all currently pinned ones
     let unpinned = columnOrder.filter(id => !pinnedLeftColumns.includes(id) && !pinnedRightColumns.includes(id));
     
-    // Always remove the column from its current state first
-    if (isPinnedLeft) {
-        pinnedLeftColumns.splice(pinnedLeftColumns.indexOf(columnId), 1);
-    }
-    if (isPinnedRight) {
-        pinnedRightColumns.splice(pinnedRightColumns.indexOf(columnId), 1);
-    }
-    if (!isPinnedLeft && !isPinnedRight) {
-        unpinned.splice(unpinned.indexOf(columnId), 1);
-    }
+    if (isPinnedLeft) pinnedLeftColumns.splice(pinnedLeftColumns.indexOf(columnId), 1);
+    if (isPinnedRight) pinnedRightColumns.splice(pinnedRightColumns.indexOf(columnId), 1);
+    if (!isPinnedLeft && !isPinnedRight) unpinned.splice(unpinned.indexOf(columnId), 1);
 
-    // Now, add the column to its new state (or leave it unpinned)
-    if (side === 'left' && !isPinnedLeft) {
-        pinnedLeftColumns.push(columnId); 
-    } else if (side === 'right' && !isPinnedRight) {
-        pinnedRightColumns.unshift(columnId); 
-    } else {
-        // If the side is null (unpinning) or it's already pinned to that side, add it to unpinned
-        unpinned.unshift(columnId);
-    }
+    if (side === 'left' && !isPinnedLeft) pinnedLeftColumns.push(columnId); 
+    else if (side === 'right' && !isPinnedRight) pinnedRightColumns.unshift(columnId); 
+    else unpinned.unshift(columnId);
 
-    // Reconstruct the column order and re-render
     appState.profiles.dispatchTable.columnOrder = [...pinnedLeftColumns, ...unpinned, ...pinnedRightColumns];
-    renderDispatchTable(teamData.dispatchers, teamData.dispatchers);
+    // FIX: Use appState.profiles.allProcessedDispatchers as the second argument
+    renderDispatchTable(teamData.dispatchers, appState.profiles.allProcessedDispatchers);
 }
 
 function applyStickyStyles_DispatchTable() {
@@ -4184,6 +4383,12 @@ export function initializeProfileEventListeners() {
         };
         containerElement.addEventListener('mouseout', containerElement._mouseoutHandler);
     };
+
+    // Attach tooltips to the header KPIs
+    const profilesHeader = document.getElementById('profiles-header');
+    if (profilesHeader) {
+        attachTooltipListeners(profilesHeader);
+    }
 
     const dispatchTable = document.getElementById('profiles-dispatch-table-container');
     if (dispatchTable) {
@@ -4659,7 +4864,8 @@ window.requestDispatchSort = (key) => {
         direction = 'ascending';
     }
     appState.profiles.dispatchTable.sortConfig = { key, direction };
-    renderDispatchTable(teamData.dispatchers, teamData.dispatchers);
+    // FIX: Use appState.profiles.allProcessedDispatchers as the second argument
+    renderDispatchTable(teamData.dispatchers, appState.profiles.allProcessedDispatchers);
 };
 
 
