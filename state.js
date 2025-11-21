@@ -155,7 +155,7 @@ export let appState = {
                 { id: 'canceledLoads', label: 'Canceled Loads' },
             ],
             visibleKpiIds: [
-                'totalGross', 'teamMargin', 'teamRpm', 'activeTrucks', 'medianDropRisk', 'balance', 'medianCompliance'
+                'totalGross', 'teamMargin', 'teamRpm', 'activeTrucks', 'balance', 'medianCompliance'
             ]
         },
         dispatchTable: {
@@ -163,14 +163,14 @@ export let appState = {
             columnOrder: [
                 'name', 'company', 'team', 'allTrucks', 'ooTrucks', 'looTrucks',
                 'dryvan', 'reefer', 'flatbed',
-                'rank1w', 'rank4w', 'goodMoves',
-                'badMoves', 'hiddenMiles', 'lowRpm', 'newStarts',
+                'rank1w', 'rank4w', 'retention4w',
+                'goodMoves', 'badMoves', 'hiddenMiles', 'lowRpm', 'newStarts',
                 'medianTenureOO', 'medianTenureLOO', 
                 'overdueLoads','wellness', 'canceled', 'complianceScore'
             ],
             visibleColumnIds: [
                 'name', 'company', 'ooTrucks', 'looTrucks',
-                'rank1w', 'rank4w', 'goodMoves', 'badMoves', 'hiddenMiles',
+                'rank1w', 'rank4w', 'retention4w', 'goodMoves', 'badMoves', 'hiddenMiles',
                 'lowRpm', 'newStarts',
                 'medianTenureOO', 'medianTenureLOO',
                 'overdueLoads', 'wellness', 'complianceScore'
