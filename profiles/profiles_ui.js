@@ -925,7 +925,7 @@ const driverTablePinnedRight = ['risk', 'flags'];
 
 
 
-function renderDriverDeepDiveModal_Profiles() {
+export function renderDriverDeepDiveModal_Profiles() {
     const modal = document.getElementById('profiles-driver-deep-dive-modal');
     if (!modal) return;
 
@@ -947,7 +947,13 @@ function renderDriverDeepDiveModal_Profiles() {
         }
 
         const historicalStubs = getHistoricalStubsForDriver(selectedDriver, appState.loads.historicalStubsData);
-        const driverData = appState.profiles.currentTeamData?.drivers.find(d => d.name === selectedDriver);
+        
+        // Try to find driver in current view, fallback to global precomputed stats
+        let driverData = appState.profiles.currentTeamData?.drivers.find(d => d.name === selectedDriver);
+        if (!driverData && appState.profiles.globalDriverStats) {
+            driverData = appState.profiles.globalDriverStats.get(selectedDriver);
+        }
+        
         const contractType = driverData?.contract || null;
 
         // --- Determine Full Contract Type ---
@@ -1075,7 +1081,12 @@ function renderModalHeader_Profiles(driverName, historicalStubs, contractType, t
     centerEl.className = 'absolute left-1/2 -translate-x-1/2';
     // --- END OF FIX ---
 
-    const driverData = appState.profiles.currentTeamData?.drivers.find(d => d.name === driverName);
+    // Try to find driver in current view, fallback to global precomputed stats
+    let driverData = appState.profiles.currentTeamData?.drivers.find(d => d.name === driverName);
+    if (!driverData && appState.profiles.globalDriverStats) {
+        driverData = appState.profiles.globalDriverStats.get(driverName);
+    }
+
     const riskPercent = driverData ? Math.round(driverData.risk) : 50;
     const mostRecentStub = historicalStubs.length > 0 ? historicalStubs[0] : null;
     const currentCompany = mostRecentStub?.company_name || driverData?.company || '-';
@@ -6737,4 +6748,43 @@ function renderRetentionHistoryChart(datasets) {
                 tooltip.html(tooltipHtml).style("left", (event.pageX + 15) + "px").style("top", (event.pageY - 28) + "px");
             }
         });
+}
+export function precomputeGlobalDriverStats() {
+    const liveData = appState.profiles.liveData || [];
+    const historicalStubs = appState.loads.historicalStubsData || [];
+    
+    const allDriverNames = new Set();
+    liveData.forEach(d => { if(d.driver) allDriverNames.add(d.driver); });
+    historicalStubs.forEach(d => { if(d.driver_name) allDriverNames.add(d.driver_name); });
+
+    const globalStats = new Map();
+
+    allDriverNames.forEach(name => {
+        // Calculate Flags
+        const flags = calculateLiveFlagsForDriver(name, historicalStubs, []);
+        
+        // Calculate Risk (calculateDropRisk expects an object with a 'flags' array)
+        const risk = calculateDropRisk({ name, flags });
+
+        // Determine Contract
+        let contract = 'LOO'; 
+        const liveEntry = liveData.find(d => d.driver === name);
+        if (liveEntry && liveEntry.contract_type === 'OO') contract = 'OO';
+        else {
+            const recentStub = historicalStubs.filter(s => s.driver_name === name && s.contract_type).sort((a,b) => new Date(b.pay_date) - new Date(a.pay_date))[0];
+            if (recentStub && recentStub.contract_type === 'OO') contract = 'OO';
+        }
+        
+        // Determine Company
+        let company = '-';
+        if (liveEntry && liveEntry.company_name) company = liveEntry.company_name;
+        else {
+             const recentStub = historicalStubs.filter(s => s.driver_name === name && s.company_name).sort((a,b) => new Date(b.pay_date) - new Date(a.pay_date))[0];
+             if (recentStub) company = recentStub.company_name;
+        }
+
+        globalStats.set(name, { name, risk, contract, company, flags });
+    });
+
+    appState.profiles.globalDriverStats = globalStats;
 }
