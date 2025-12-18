@@ -3,7 +3,7 @@ import { HISTORICAL_STUBS_URLS, DRIVER_COUNT_LIVE_URL, CONTRACT_STATUS_URL, SETT
 import { renderLoadsAnalyticsUI, initializeAnalyticsEventListeners } from './loads/loads_ui.js';
 import { appState, allColumns, setDraggedColumnId, setDraggedViewName } from './state.js';
 import { generateAllColumns } from './config.js';
-import { renderTeamProfileUI } from './profiles/profiles_ui.js';
+import { renderTeamProfileUI, precomputeGlobalDriverStats } from './profiles/profiles_ui.js';
 import { fetchProfileData } from './profiles/profiles_api.js';
 import { hasPermission, PERMISSIONS } from './permissions.js';
 import {
@@ -145,6 +145,9 @@ const refreshData = async (isInitialLoad = false) => {
         
         processDataForMode();
         getOrComputeHistoricalMetrics();
+        
+        // Precompute driver stats (Risk, Contract) for global access
+        precomputeGlobalDriverStats();
 
         const excludedNames = [
             'cletus spuckler',
