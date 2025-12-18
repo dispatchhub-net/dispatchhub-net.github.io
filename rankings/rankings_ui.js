@@ -1,5 +1,6 @@
 import { hasPermission, PERMISSIONS } from '../permissions.js';
 import { renderClusterMap, renderDriverRouteMap } from '../loads/loads_maps.js';
+import { renderDriverDeepDiveModal_Profiles, initializeProfileEventListeners } from '../profiles/profiles_ui.js';
 import { canViewTeam, isAdmin, canViewDispatcher } from '../auth.js';
 import { appState, allColumns, stubsSortConfig, setStubsSortConfig } from '../state.js';
 import { coreMetrics, trophySvg, generateAllColumns } from '../config.js';
@@ -1720,7 +1721,7 @@ const renderStubsTable = () => {
             { label: 'Net %', key: 'netPercentage', type: 'number' },
             { label: 'Gross %', key: 'driverGross', type: 'number' },
             { label: 'Margin %', key: 'margin', type: 'number' },
-            { label: 'Gross', key: 'driver_gross', type: 'number' },
+            { label: 'Driver Gross', key: 'driver_gross', type: 'number' },
             { label: 'Margin', key: 'margin_dollar', type: 'number' },
             { label: 'Miles', key: 'all_miles', type: 'number' },
             { label: 'RPM', key: 'rpm', type: 'number' },
@@ -1800,7 +1801,10 @@ const renderStubsTable = () => {
                                     }
                                 }
                             }
-                        
+                            
+                            if (key === 'driverName') {
+                                return `<td class="px-4 py-2 whitespace-nowrap text-sm text-blue-300 font-semibold hover:text-teal-400 cursor-pointer driver-link" data-driver-name="${value}" data-dispatcher-name="${stub.__source}">${displayValue}</td>`;
+                            }
                             return `<td class="px-4 py-2 whitespace-nowrap text-sm text-gray-200">${displayValue}</td>`;
                         }).join('')}
                         </tr>`;
@@ -1809,20 +1813,66 @@ const renderStubsTable = () => {
             </table>`;
         container.innerHTML = tableHTML;
 
+        // Add event listener for driver links in Paystub Details
+        const tbody = container.querySelector('tbody');
+        if (tbody && !tbody._listenerAttached) {
+            tbody.addEventListener('click', (e) => {
+                const driverLink = e.target.closest('.driver-link');
+                if (driverLink) {
+                    e.stopPropagation();
+                    const driverName = driverLink.dataset.driverName;
+                    const dispatcherName = driverLink.dataset.dispatcherName;
+
+                    // Security Check - Fail Silently
+                    if (!isAdmin() && !canViewDispatcher(dispatcherName)) {
+                        return;
+                    }
+                    
+                    initializeProfileEventListeners();
+                    
+                    appState.profiles.driverDeepDive.selectedDriver = driverName;
+                    appState.profiles.driverDeepDive.isModalOpen = true;
+                    renderDriverDeepDiveModal_Profiles();
+                }
+            });
+            tbody._listenerAttached = true;
+        }
+
     } else if (appState.rankingMode === 'team') {
         const filteredData = getFilteredDataByDriverType(appState.allHistoricalData);
-        const teamDispatchers = [...new Set(filteredData
+        
+        // 1. Get Primary Team Dispatchers
+        const primaryDispatchers = [...new Set(filteredData
             .filter(row => row.date.toISOString().split('T')[0] === date && row.dispatcherTeam === primaryEntity.entityName)
             .map(row => row.dispatcherName)
         )];
 
-        let dispatcherDetails = teamDispatchers.map(dispatcherName => {
+        // 2. Get Comparison Team Dispatchers (if applicable)
+        const comparisonDispatchers = comparisonEntity ? [...new Set(filteredData
+            .filter(row => row.date.toISOString().split('T')[0] === date && row.dispatcherTeam === comparisonEntity.entityName)
+            .map(row => row.dispatcherName)
+        )] : [];
+
+        // 3. Combine unique dispatchers from both teams
+        const allDispatcherNames = [...new Set([...primaryDispatchers, ...comparisonDispatchers])];
+
+        let dispatcherDetails = allDispatcherNames.map(dispatcherName => {
             const tempDispatcherData = processDataForMode(true, dispatcherName);
-            return tempDispatcherData.find(d => d.entityName === dispatcherName);
+            const dData = tempDispatcherData.find(d => d.entityName === dispatcherName);
+            
+            if (dData) {
+                // Determine row color: Red tint if it belongs ONLY to the comparison team
+                if (comparisonEntity && comparisonDispatchers.includes(dispatcherName) && !primaryDispatchers.includes(dispatcherName)) {
+                    dData.__rowColor = 'rgba(239, 68, 68, 0.15)'; 
+                } else {
+                    dData.__rowColor = 'transparent';
+                }
+            }
+            return dData;
         }).filter(Boolean);
 
         if (dispatcherDetails.length === 0) {
-            container.innerHTML = `<p class="text-center text-gray-400 p-8">No dispatcher data found for this team with the selected driver type.</p>`;
+            container.innerHTML = `<p class="text-center text-gray-400 p-8">No dispatcher data found for the selected teams with the selected driver type.</p>`;
             return;
         }
 
@@ -1832,7 +1882,7 @@ const renderStubsTable = () => {
             { label: 'Net %', key: 'pNet_current', type: 'number' },
             { label: 'Gross %', key: 'pDriverGross_current', type: 'number' },
             { label: 'Margin %', key: 'pMargin_current', type: 'number' },
-            { label: 'Gross', key: 'pDriver_gross_current', type: 'number' },
+            { label: 'Driver Gross', key: 'pDriver_gross_current', type: 'number' },
             { label: 'Margin', key: 'pMargin_dollar_current', type: 'number' },
             { label: 'Miles', key: 'pAll_miles_current', type: 'number' },
             { label: 'RPM', key: 'rpmAll_current', type: 'number' },
@@ -1876,15 +1926,16 @@ const renderStubsTable = () => {
                 <tbody class="divide-y divide-gray-700" id="team-dispatchers-tbody">
                     ${dispatcherDetails.map(d => {
                         const isExpanded = appState.expandedDispatcher === d.entityName;
-                        // THIS IS THE FIX: Check permissions for each dispatcher row individually.
                         const shouldRedactThisRow = !canViewDispatcher(d.entityName);
+                        
+                        // Apply tint only if not expanded
+                        const rowStyle = (!isExpanded && d.__rowColor) ? `style="background-color: ${d.__rowColor};"` : '';
 
-                        let rowHTML = `<tr class="dispatcher-row ${isExpanded ? 'is-expanded' : ''}" data-dispatcher-name="${d.entityName}">`;
+                        let rowHTML = `<tr class="dispatcher-row ${isExpanded ? 'is-expanded' : ''}" data-dispatcher-name="${d.entityName}" ${rowStyle}>`;
                         rowHTML += headers.map(h => {
                             let value = d[h.key];
                             let displayValue;
 
-                            // Use the row-specific redaction flag.
                             if (shouldRedactThisRow && teamColumnsToRedact.has(h.key)) {
                                 displayValue = '<span class="text-gray-500">-</span>';
                             } else {
@@ -1918,6 +1969,28 @@ const renderStubsTable = () => {
         const tbody = document.getElementById('team-dispatchers-tbody');
         if (tbody && !tbody._listenerAttached) {
             tbody.addEventListener('click', (e) => {
+                // Check if a driver link was clicked first
+                const driverLink = e.target.closest('.driver-link');
+                if (driverLink) {
+                    e.stopPropagation();
+                    const driverName = driverLink.dataset.driverName;
+                    const dispatcherName = driverLink.dataset.dispatcherName;
+
+                    // Security Check - Fail Silently
+                    if (!isAdmin() && !canViewDispatcher(dispatcherName)) {
+                        return;
+                    }
+                    
+                    // Initialize listeners if needed (in case user came straight to Rankings)
+                    initializeProfileEventListeners();
+                    
+                    appState.profiles.driverDeepDive.selectedDriver = driverName;
+                    appState.profiles.driverDeepDive.isModalOpen = true;
+                    renderDriverDeepDiveModal_Profiles();
+                    return;
+                }
+
+                // Otherwise handle row expansion
                 const row = e.target.closest('.dispatcher-row');
                 if (row) {
                     const dispatcherName = row.dataset.dispatcherName;
@@ -1947,7 +2020,7 @@ const renderDispatcherDriverDetails = (dispatcher) => {
         { label: 'Net %', key: 'netPercentage', type: 'number' },
         { label: 'Gross %', key: 'driverGross', type: 'number' },
         { label: 'Margin %', key: 'margin', type: 'number' },
-        { label: 'Gross', key: 'driver_gross', type: 'number' },
+        { label: 'Driver Gross', key: 'driver_gross', type: 'number' },
         { label: 'Margin', key: 'margin_dollar', type: 'number' },
         { label: 'Miles', key: 'all_miles', type: 'number' },
         { label: 'RPM', key: 'rpm', type: 'number' },
@@ -2016,7 +2089,10 @@ const renderDispatcherDriverDetails = (dispatcher) => {
                                         }
                                     }
                                 }
-                            
+                                
+                                if (key === 'driverName') {
+                                    return `<td class="px-3 py-1.5 whitespace-nowrap text-xs text-blue-300 font-semibold hover:text-teal-400 cursor-pointer driver-link" data-driver-name="${value}" data-dispatcher-name="${dispatcher.entityName}">${displayValue}</td>`;
+                                }
                                 return `<td class="px-3 py-1.5 whitespace-nowrap text-xs text-gray-300">${displayValue}</td>`;
                             }).join('')}
                         </tr>
