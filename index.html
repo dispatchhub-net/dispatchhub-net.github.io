@@ -553,7 +553,13 @@
                                                 <p class="text-xs text-gray-300 mb-3">Flags entities whose current performance has dropped significantly compared to their own historical average for a selected metric.</p>
                                             
                                                 <h4 class="font-bold text-blue-400 text-sm mb-1">Trending</h4>
-                                                <p class="text-xs text-gray-300">Compares performance from a "recent" period to an "older" period to find dispatchers with significant upward or downward momentum.</p>
+                                                <p class="text-xs text-gray-300 mb-3">Compares performance from a "recent" period to an "older" period to find dispatchers with significant upward or downward momentum.</p>
+
+                                                <h4 class="font-bold text-red-400 text-sm mb-1">Alerts</h4>
+                                                <p class="text-xs text-gray-300 mb-3">Real-time feed of critical issues like Bad Moves, Overdue Loads, and Retention risks requiring immediate attention.</p>
+
+                                                <h4 class="font-bold text-yellow-400 text-sm mb-1">Historical Movement</h4>
+                                                <p class="text-xs text-gray-300">Select up to 3 dispatchers to view and compare their detailed weekly performance metrics over time.</p>
                                             </div>
                                         </div>
                                         <button id="performance-tracker-settings-btn" class="text-gray-400 hover:text-gray-200 transition-colors duration-200 p-1 rounded-full hover:bg-gray-700" title="Performance Settings">
@@ -563,6 +569,9 @@
                                 </h2>
                                 
                                 <div id="performance-tracker-switcher" class="flex mb-2 rounded-lg overflow-hidden border border-gray-600">
+                                    <button id="show-alerts" class="flex-1 px-3 py-1.5 text-sm font-medium transition duration-200 ease-in-out">
+                                        Alerts
+                                    </button>
                                     <button id="show-low-performers" class="flex-1 px-3 py-1.5 text-sm font-medium transition duration-200 ease-in-out">
                                         Low Performers
                                     </button>
@@ -585,6 +594,8 @@
                                 <div id="trending-table-container">
                                 </div>
                                 <div id="historical-movement-container">
+                                </div>
+                                <div id="wth-loads-table-container" class="hidden">
                                 </div>
                             </section>
                         </div>
