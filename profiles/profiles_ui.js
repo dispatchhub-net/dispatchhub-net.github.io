@@ -2771,7 +2771,8 @@ export const renderTeamProfileUI = async () => {
     
     let currentFilteredData = filterDataByDateAndTeam(useLiveData ? liveData : historicalStubs, currentStart, currentEnd, useLiveData);
     if (dispatcherNameFromAccess) {
-        currentFilteredData = currentFilteredData.filter(d => (useLiveData ? d.dispatcher : d.stub_dispatcher)?.toLowerCase() === dispatcherNameFromAccess.toLowerCase());
+        // FIX: Added String(...) wrap for safety
+        currentFilteredData = currentFilteredData.filter(d => String((useLiveData ? d.dispatcher : d.stub_dispatcher) || "").toLowerCase() === String(dispatcherNameFromAccess).toLowerCase());
     }
 
     const allDriversInViewUnfiltered = [...new Set(currentFilteredData.map(d => useLiveData ? d.driver : d.driver_name).filter(Boolean))];
@@ -2815,7 +2816,8 @@ export const renderTeamProfileUI = async () => {
     });
     
     if (dispatcherNameFromAccess) {
-        processedDrivers = processedDrivers.filter(driver => driver.dispatcher.toLowerCase() === dispatcherNameFromAccess.toLowerCase());
+        // FIX: Added String(...) wrap to prevent crash if driver.dispatcher is undefined
+        processedDrivers = processedDrivers.filter(driver => String(driver.dispatcher || "").toLowerCase() === String(dispatcherNameFromAccess).toLowerCase());
     }
     if (contractTypeFilter !== 'all') {
         processedDrivers = processedDrivers.filter(d => (contractTypeFilter === 'oo' ? d.contract === 'OO' : d.contract !== 'OO'));
@@ -3309,7 +3311,10 @@ export const renderTeamProfileUI = async () => {
 
     const prevWeekTeamDataObject = { ...teamData, dispatchers: dispatchersToDisplay_PREV };
     let prevWeekFilteredData = filterDataByDateAndTeam(useLiveDataForPrev ? liveData : historicalStubs, prevStartForFunc, prevEndForFunc, useLiveDataForPrev);
-    if (dispatcherNameFromAccess) { prevWeekFilteredData = prevWeekFilteredData.filter(d => (useLiveDataForPrev ? d.dispatcher : d.stub_dispatcher)?.toLowerCase() === dispatcherNameFromAccess.toLowerCase()); }
+    if (dispatcherNameFromAccess) { 
+        // FIX: Added String(...) wrap for safety
+        prevWeekFilteredData = prevWeekFilteredData.filter(d => String((useLiveDataForPrev ? d.dispatcher : d.stub_dispatcher) || "").toLowerCase() === String(dispatcherNameFromAccess).toLowerCase()); 
+    }
     const prevWeekDrivers = [...new Set(prevWeekFilteredData.map(d => useLiveDataForPrev ? d.driver : d.driver_name).filter(Boolean))].map(name => ({ name }));
 
     const currentKpis = calculateKpiData(currentFilteredData, useLiveData, processedDrivers, historicalStubs, contractTypeFilter, teamData, weeksAgo);
