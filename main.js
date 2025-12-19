@@ -678,6 +678,11 @@ const addEventListeners = () => {
         renderUI();
     });
 
+    document.getElementById('show-alerts')?.addEventListener('click', () => {
+        appState.performanceTrackerView = 'alerts';
+        renderUI();
+    });
+
     document.getElementById('min-drivers-filter-type')?.addEventListener('change', (e) => {
         appState.minDriverSetting.type = e.target.value;
         renderUI();
