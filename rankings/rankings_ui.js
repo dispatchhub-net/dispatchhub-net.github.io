@@ -1212,7 +1212,9 @@ export const renderPerformanceTrackerSections = () => {
     const performanceDropsTableContainer = document.getElementById('performance-drops-table-container');
     const trendingTableContainer = document.getElementById('trending-table-container');
     const historicalMovementContainer = document.getElementById('historical-movement-container');
+    const wthLoadsTableContainer = document.getElementById('wth-loads-table-container');
 
+    const showAlertsBtn = document.getElementById('show-alerts');
     const showLowPerformersBtn = document.getElementById('show-low-performers');
     const showPerformanceDropsBtn = document.getElementById('show-performance-drops');
     const showTrendingBtn = document.getElementById('show-trending');
@@ -1222,7 +1224,7 @@ export const renderPerformanceTrackerSections = () => {
     if (appState.rankingMode === 'team') {
         if (showHistoricalMovementBtn) showHistoricalMovementBtn.style.display = 'none';
         if (appState.performanceTrackerView === 'historicalMovement') {
-            appState.performanceTrackerView = 'lowPerformers';
+            appState.performanceTrackerView = 'alerts';
         }
     } else {
         if (showHistoricalMovementBtn) showHistoricalMovementBtn.style.display = 'block';
@@ -1231,15 +1233,16 @@ export const renderPerformanceTrackerSections = () => {
     // --- START: ROBUST VISIBILITY FIX ---
 
     // 1. First, hide and CLEAR all containers, and deactivate all buttons.
-    const allContainers = [lowPerformersTableContainer, performanceDropsTableContainer, trendingTableContainer, historicalMovementContainer];
+    // Note: reusing wthLoadsTableContainer for Alerts to save DOM elements
+    const allContainers = [lowPerformersTableContainer, performanceDropsTableContainer, trendingTableContainer, historicalMovementContainer, wthLoadsTableContainer];
     allContainers.forEach(container => {
         if (container) {
             container.classList.add('hidden');
-            container.innerHTML = ''; // Forcefully clear content
+            container.innerHTML = ''; 
         }
     });
 
-    const allButtons = [showLowPerformersBtn, showPerformanceDropsBtn, showTrendingBtn, showHistoricalMovementBtn];
+    const allButtons = [showAlertsBtn, showLowPerformersBtn, showPerformanceDropsBtn, showTrendingBtn, showHistoricalMovementBtn];
     allButtons.forEach(btn => {
         if (btn) {
             btn.classList.remove('bg-teal-600', 'text-white');
@@ -1249,6 +1252,14 @@ export const renderPerformanceTrackerSections = () => {
 
     // 2. Now, based on the current state, activate only the correct view and render its content.
     switch (appState.performanceTrackerView) {
+        case 'alerts':
+            if (showAlertsBtn) {
+                showAlertsBtn.classList.remove('bg-gray-700', 'text-gray-300', 'hover:bg-gray-600');
+                showAlertsBtn.classList.add('bg-teal-600', 'text-white');
+            }
+            if (wthLoadsTableContainer) wthLoadsTableContainer.classList.remove('hidden'); // Reusing this container
+            renderAlertsFeed();
+            break;
         case 'lowPerformers':
             if (showLowPerformersBtn) {
                 showLowPerformersBtn.classList.remove('bg-gray-700', 'text-gray-300', 'hover:bg-gray-600');
@@ -1282,6 +1293,7 @@ export const renderPerformanceTrackerSections = () => {
             renderHistoricalMovement();
             break;
     }
+    // --- END: ROBUST VISIBILITY FIX ---
     // --- END: ROBUST VISIBILITY FIX ---
 };
 
@@ -3876,3 +3888,394 @@ function renderClusterLoadsTable(loads, clusterName, isComparing) {
         });
     });
 }
+const renderAlertsFeed = () => {
+    const container = document.getElementById('wth-loads-table-container');
+    if (!container) return;
+
+    // --- 1. Gather Data & Context ---
+    const allLoads = appState.profiles.liveData || [];
+    const historicalStubs = appState.loads.historicalStubsData || [];
+    const overdueLoads = appState.profiles.overdueLoadsData || [];
+    const globalDriverStats = appState.profiles.globalDriverStats || new Map();
+    const lowRpmThreshold = appState.loads.lowRpmThreshold || 1.65;
+    const goodMoveThresholds = appState.loads.goodMoveThresholds;
+
+    const payDateStr = appState.selectedDate;
+    if (!payDateStr) {
+        container.innerHTML = `<p class="text-gray-400 text-xs p-4 text-center">No date selected.</p>`;
+        return;
+    }
+    const payDate = new Date(payDateStr);
+    const workEnd = new Date(payDate);
+    workEnd.setUTCDate(payDate.getUTCDate() - 3); 
+    workEnd.setUTCHours(23, 59, 59, 999);
+    const workStart = new Date(workEnd);
+    workStart.setUTCDate(workEnd.getUTCDate() - 6); 
+    workStart.setUTCHours(0, 0, 0, 0);
+
+    // --- 2. Permission Helper ---
+    const hasAccess = (entityName, entityType = 'dispatcher') => {
+        if (!entityName) return false;
+        if (isAdmin() || hasPermission(appState.auth.user, PERMISSIONS.VIEW_ALL_TEAMS)) return true;
+        if (entityType === 'dispatcher') return canViewDispatcher(entityName);
+        if (entityType === 'team') return canViewTeam(entityName);
+        return false;
+    };
+
+    // --- 3. Build Alerts Array ---
+    let alerts = [];
+    const hiddenMilesCounts = {}; // Track hidden miles per dispatcher
+    const dispatcherTeamMap = {}; // Map dispatcher to team for display
+
+    // > LOADS Logic
+    const weeklyLoads = allLoads.filter(l => {
+        if (!l.do_date) return false;
+        const doDate = new Date(l.do_date);
+        return doDate >= workStart && doDate <= workEnd && l.status !== 'Canceled' && l.status !== 'TONU';
+    });
+    
+    const calculateWeeklyGrossLocal = (driverName) => {
+        return weeklyLoads.filter(l => l.driver === driverName)
+            .reduce((sum, l) => sum + ((parseFloat(l.price) || 0) - (parseFloat(l.cut) || 0)), 0);
+    };
+
+    weeklyLoads.forEach(load => {
+        if (!hasAccess(load.dispatcher)) return;
+
+        // Capture Team Map
+        if (load.dispatcher && load.team) {
+            dispatcherTeamMap[load.dispatcher] = load.team;
+        }
+
+        // Low RPM
+        const rpm = (load.trip_miles > 0) ? (load.price / load.trip_miles) : 0;
+        if (rpm > 0 && rpm < lowRpmThreshold) {
+            alerts.push({
+                priority: 'medium', title: 'Low RPM', type: 'Load', 
+                entity: load.driver, dispatcher: load.dispatcher,
+                details: `Load #${load.id} (${load.pu_location.split(',')[1]?.trim() || '?'} ➝ ${load.do_location.split(',')[1]?.trim() || '?'})`,
+                value: `$${rpm.toFixed(2)}`
+            });
+        }
+        // Bad Moves
+        if (load.moved_monday === 'Moved Monday Load') {
+            const contract = load.contract_type || 'LOO';
+            const threshold = goodMoveThresholds.by_contract[contract] ?? goodMoveThresholds.default;
+            const grossWithout = calculateWeeklyGrossLocal(load.driver) - ((parseFloat(load.price) || 0) - (parseFloat(load.cut) || 0));
+            
+            // Show only if they were ALREADY $1000 over the threshold
+            if (grossWithout >= (threshold + 1000)) {
+                const overAmount = grossWithout - threshold;
+                alerts.push({
+                    priority: 'high', title: 'Bad Move', type: 'Load', 
+                    entity: load.driver, dispatcher: load.dispatcher,
+                    details: `Load #${load.id} (Gross w/o: $${Math.round(grossWithout)}, Over: $${Math.round(overAmount)})`,
+                    value: `$${Math.round(grossWithout)}`
+                });
+            }
+        }
+        // Hidden Miles Collection
+        if (load.hidden_miles === 'Hidden Miles Found!') {
+            if (!hiddenMilesCounts[load.dispatcher]) hiddenMilesCounts[load.dispatcher] = 0;
+            hiddenMilesCounts[load.dispatcher]++;
+        }
+    });
+
+    // Process Hidden Miles Aggregation
+    Object.entries(hiddenMilesCounts).forEach(([dispatcherName, count]) => {
+        if (count > 3) {
+            alerts.push({
+                priority: 'medium', title: 'Hidden Miles', type: 'Dispatcher',
+                entity: dispatcherName, 
+                dispatcher: dispatcherTeamMap[dispatcherName] || 'Unknown', // Show Team Name
+                details: `Multiple start locations changed in this week.`,
+                value: `${count} Loads`
+            });
+        }
+    });
+
+    // > OVERDUE Logic (Global)
+    // defined based on the backend script provided
+    const openStatuses = ['Assigned', 'At Receiver', 'At Shipper', 'Booked', 'En Route to Receiver', 'Missing Paperwork', 'En Route to Shipper'];
+
+    overdueLoads.forEach(ol => {
+        if (!hasAccess(ol.dispatcher)) return;
+
+        // Filter: Only show loads with an "Open" status
+        if (!openStatuses.includes(ol.status)) return;
+
+        if (ol.daysPastDO > 3) { 
+            const dueDate = ol.deliveryDate ? new Date(ol.deliveryDate).toLocaleDateString('en-US', {month:'numeric', day:'numeric'}) : 'N/A';
+            
+            // Try to find full load details from live loads just for the location string
+            const fullLoad = allLoads.find(l => l.id == ol.loadId); 
+            let locString = '';
+            if (fullLoad && fullLoad.pu_location && fullLoad.do_location) {
+                locString = ` (${fullLoad.pu_location.split(',')[1]?.trim() || '?'} ➝ ${fullLoad.do_location.split(',')[1]?.trim() || '?'})`;
+            }
+
+            alerts.push({
+                priority: 'high', title: 'Overdue', type: 'Load', 
+                entity: ol.driver, dispatcher: ol.dispatcher,
+                details: `Load #${ol.loadId}${locString} (Due ${dueDate})`, 
+                value: `${ol.daysPastDO} Days`
+            });
+        }
+    });
+
+    // > RETENTION (Dispatcher)
+    const stubsThisWeek = historicalStubs.filter(s => s.pay_date && new Date(s.pay_date).toISOString().split('T')[0] === payDateStr);
+    const dispStubMap = {};
+    stubsThisWeek.forEach(s => {
+        if(!dispStubMap[s.stub_dispatcher]) dispStubMap[s.stub_dispatcher] = { active: 0, terminated: 0 };
+        const status = (s.retention_status || '').trim();
+        if(status === 'Active') dispStubMap[s.stub_dispatcher].active++;
+        if(status === 'Terminated') dispStubMap[s.stub_dispatcher].terminated++;
+    });
+    Object.entries(dispStubMap).forEach(([dispName, counts]) => {
+        if (!hasAccess(dispName)) return;
+        const total = counts.active + counts.terminated;
+        if (total >= 3) {
+            const retention = (counts.active / total) * 100;
+            if (retention < 45) {
+                alerts.push({
+                    priority: 'high', title: '4W Retention', type: 'Dispatcher', 
+                    entity: dispName, dispatcher: dispName,
+                    details: `Retention Critical`, value: `${retention.toFixed(0)}%`
+                });
+            }
+        }
+    });
+
+    // > DRIVER STATS (Stubs)
+    stubsThisWeek.forEach(stub => {
+        const dispName = stub.stub_dispatcher;
+        if (!hasAccess(dispName)) return;
+        
+        if (Math.abs(stub.balance || 0) > 5000) {
+            alerts.push({
+                priority: 'high', title: 'Balance', type: 'Driver', 
+                entity: stub.driver_name, dispatcher: dispName,
+                details: `High Negative Balance`, value: `$${Math.abs(stub.balance).toLocaleString()}`
+            });
+        }
+        if (Math.abs(stub.po_deductions || 0) > 2750) {
+            alerts.push({
+                priority: 'medium', title: 'High PO', type: 'Driver', 
+                entity: stub.driver_name, dispatcher: dispName,
+                details: `High Deduction`, value: `$${Math.abs(stub.po_deductions).toLocaleString()}`
+            });
+        }
+        // Low Pay History
+        const driverHistory = historicalStubs
+            .filter(s => s.driver_name === stub.driver_name && new Date(s.pay_date) <= payDate)
+            .sort((a,b) => new Date(b.pay_date) - new Date(a.pay_date));
+        if (driverHistory.length >= 4) {
+            const last4 = driverHistory.slice(0, 4);
+            
+            // UPDATED: Dynamic threshold based on contract type
+            const contract = (stub.contract_type || 'LOO').toUpperCase();
+            const threshold = contract === 'OO' ? 1000 : 700;
+
+            if (last4.every(s => (s.net_pay || 0) < threshold)) {
+                // Calculate Average
+                const avgNet = last4.reduce((sum, s) => sum + (s.net_pay || 0), 0) / 4;
+                alerts.push({
+                    priority: 'high', title: 'Low Pay', type: 'Driver', 
+                    entity: stub.driver_name, dispatcher: dispName,
+                    details: `4 Weeks < $${threshold}`, 
+                    value: `$${Math.round(avgNet)}` // Show Average
+                });
+            }
+        }
+    });
+
+    // > DROP RISK
+    if (globalDriverStats.size > 0) {
+        globalDriverStats.forEach((stats, driverName) => {
+            const relevantStub = stubsThisWeek.find(s => s.driver_name === driverName);
+            const relevantLoad = weeklyLoads.find(l => l.driver === driverName);
+            const dispName = relevantStub?.stub_dispatcher || relevantLoad?.dispatcher || stats.dispatcher;
+            if (dispName && hasAccess(dispName) && stats.risk >= 70) { 
+                alerts.push({
+                    priority: 'high', title: 'Drop Risk', type: 'Driver', 
+                    entity: driverName, dispatcher: dispName,
+                    details: `High Probability`, value: `${Math.round(stats.risk)}%`
+                });
+            }
+        });
+    }
+
+    // --- 4. Filtering Logic (Title Based) ---
+    const filter = appState.alertsFilter || 'all';
+    
+    // Dynamic Filter Options
+    const uniqueTitles = [...new Set(alerts.map(a => a.title))].sort();
+    const filterOptions = [{val: 'all', lbl: 'All Alerts'}, ...uniqueTitles.map(t => ({val: t, lbl: t}))];
+
+    const filteredAlerts = alerts.filter(a => {
+        if (filter === 'all') return true;
+        return a.title === filter;
+    });
+
+    const pMap = { high: 3, medium: 2, low: 1 };
+    filteredAlerts.sort((a, b) => pMap[b.priority] - pMap[a.priority]);
+
+    // --- 5. Render HTML ---
+    
+    // Header Filter Logic
+    const headerActions = document.querySelector('#performance-tracker-title > div.flex.items-center.space-x-2');
+    let filterContainer = document.getElementById('header-alerts-filter-container');
+    
+    // Create filter container in header if it doesn't exist
+    if (!filterContainer && headerActions) {
+        filterContainer = document.createElement('div');
+        filterContainer.id = 'header-alerts-filter-container';
+        filterContainer.className = 'mr-2 flex items-center gap-2'; 
+        headerActions.insertBefore(filterContainer, headerActions.firstChild);
+    }
+
+    // Populate filter if container exists
+    if (filterContainer) {
+        filterContainer.classList.remove('hidden');
+        
+        // Tooltip Content - UPDATED DEFINITIONS
+        const infoTooltipContent = `
+            <div class='text-left min-w-[220px]'>
+                <div class='font-bold mb-2 text-white border-b border-gray-600 pb-1'>Alert Definitions</div>
+                <div class='mb-1'><span class='text-red-400 font-bold'>Bad Move:</span> Driver gross (w/o load) is ≥ $1,000 over threshold.</div>
+                <div class='mb-1'><span class='text-orange-400 font-bold'>Low Pay:</span> 4-week avg net < $700 (LOO) or < $1,000 (OO).</div>
+                <div class='mb-1'><span class='text-purple-400 font-bold'>Hidden Miles:</span> Dispatcher has > 3 loads with start location changes this week.</div>
+                <div class='mb-1'><span class='text-red-400 font-bold'>Overdue:</span> Load is > 3 days past delivery date (active only).</div>
+                <div class='mb-1'><span class='text-yellow-400 font-bold'>Low RPM:</span> Load RPM is below the set threshold.</div>
+                <div class='mb-1'><span class='text-orange-400 font-bold'>Drop Risk:</span> Driver has ≥ 70% risk score.</div>
+                <div class='mb-1'><span class='text-pink-400 font-bold'>Balance:</span> Driver negative balance > $5,000.</div>
+                <div class='mb-1'><span class='text-pink-400 font-bold'>High PO:</span> PO Deduction > $2,750.</div>
+            </div>
+        `.replace(/"/g, '&quot;');
+
+        filterContainer.innerHTML = `
+            <div class="dispatch-tooltip-trigger cursor-help text-gray-400 hover:text-white transition-colors" data-tooltip-html="${infoTooltipContent}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                </svg>
+            </div>
+            <select id="alerts-filter-select" class="bg-gray-700 text-gray-300 text-[10px] uppercase font-bold border border-gray-600 rounded px-2 py-1 outline-none focus:border-teal-500 cursor-pointer">
+                ${filterOptions.map(o => `<option value="${o.val}" ${filter === o.val ? 'selected' : ''}>${o.lbl}</option>`).join('')}
+            </select>
+        `;
+        
+        // Attach listener to new select
+        const select = document.getElementById('alerts-filter-select');
+        select.onchange = (e) => {
+            appState.alertsFilter = e.target.value;
+            renderAlertsFeed();
+        };
+
+        // Attach Tooltip Listeners (Important for the new icon)
+        const trigger = filterContainer.querySelector('.dispatch-tooltip-trigger');
+        const tooltip = document.getElementById('dispatch-tooltip');
+        if(trigger && tooltip) {
+            trigger.addEventListener('mouseover', () => {
+                tooltip.innerHTML = trigger.dataset.tooltipHtml;
+                tooltip.classList.add('visible');
+            });
+            trigger.addEventListener('mousemove', (e) => {
+                 const tooltipRect = tooltip.getBoundingClientRect();
+                 tooltip.style.left = `${e.pageX - tooltipRect.width - 15}px`;
+                 tooltip.style.top = `${e.pageY + 15}px`;
+            });
+            trigger.addEventListener('mouseout', () => {
+                tooltip.classList.remove('visible');
+            });
+        }
+    }
+
+    // Distinct Colors for Alert Titles
+    const alertColors = {
+        'Bad Move': 'bg-red-500',
+        'Overdue': 'bg-red-500',
+        'Low Pay': 'bg-orange-500',
+        'Drop Risk': 'bg-orange-500',
+        'Hidden Miles': 'bg-purple-500',
+        'Low RPM': 'bg-yellow-500',
+        '4W Retention': 'bg-blue-500',
+        'Balance': 'bg-pink-500',
+        'High PO': 'bg-pink-500'
+    };
+
+    // Table Content
+    let rowsHTML = '';
+    if (filteredAlerts.length === 0) {
+        rowsHTML = `<tr><td colspan="6" class="text-center py-4 text-gray-500 text-xs">No alerts found.</td></tr>`;
+    } else {
+        rowsHTML = filteredAlerts.map(alert => {
+            const barColor = alertColors[alert.title] || (alert.priority === 'high' ? 'bg-red-500' : 'bg-gray-500');
+            let typeColor = alert.type === 'Load' ? 'text-blue-300' : (alert.type === 'Driver' ? 'text-purple-300' : 'text-teal-300');
+            let entityHTML = `<span class="text-gray-200 font-semibold">${alert.entity}</span>`;
+            
+            // Driver Popup Logic
+            if (alert.type !== 'Dispatcher') {
+                entityHTML = `<span class="driver-link cursor-pointer text-blue-300 hover:text-white transition-colors" data-driver-name="${alert.entity}" data-dispatcher-name="${alert.dispatcher}">${alert.entity}</span>`;
+            }
+
+            return `
+            <tr class="hover:bg-gray-700/50 border-b border-gray-700/50 last:border-0 transition-colors">
+                <td class="w-1 p-0"><div class="h-full w-1 ${barColor}"></div></td>
+                <td class="px-2 py-1 whitespace-nowrap text-[10px] font-bold uppercase ${typeColor} w-16">${alert.type}</td>
+                <td class="px-2 py-1 whitespace-nowrap text-[11px] font-bold text-gray-200 w-24">${alert.title}</td>
+                <td class="px-2 py-1 text-[11px] text-gray-400 leading-tight">${alert.details}</td>
+                <td class="px-2 py-1 whitespace-nowrap text-[11px] w-32">
+                    ${entityHTML}
+                    <div class="text-[9px] text-gray-500 uppercase">${alert.dispatcher}</div>
+                </td>
+                <td class="px-2 py-1 whitespace-nowrap text-right text-[11px] font-mono text-gray-200 w-16">${alert.value}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    // Using scrollable-table-container which sets height max to 300px (consistent with other tables)
+    container.innerHTML = `
+        <div class="overflow-x-auto scrollable-table-container rounded-lg border border-gray-700 bg-gray-800">
+            <table class="min-w-full text-left border-collapse">
+                <thead class="bg-gray-900 text-gray-400 text-[9px] uppercase tracking-wider font-bold sticky top-0 z-10 shadow-sm">
+                    <tr>
+                        <th class="w-1 p-0"></th>
+                        <th class="px-2 py-2">Type</th>
+                        <th class="px-2 py-2">Alert</th>
+                        <th class="px-2 py-2">Details</th>
+                        <th class="px-2 py-2">Entity</th>
+                        <th class="px-2 py-2 text-right">Value</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700/50">
+                    ${rowsHTML}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    // --- 6. Event Listeners (Delegate to container for driver links) ---
+    if (!container._alertsListeners) {
+        // No local filter listener needed here anymore as it's moved to header
+        
+        container.addEventListener('click', (e) => {
+            const link = e.target.closest('.driver-link');
+            if(link) {
+                e.stopPropagation();
+                const driverName = link.dataset.driverName;
+                if(!driverName) return;
+                
+                import('../profiles/profiles_ui.js').then(module => {
+                    module.initializeProfileEventListeners();
+                    
+                    if (!appState.profiles.driverDeepDive) appState.profiles.driverDeepDive = {};
+                    appState.profiles.driverDeepDive.selectedDriver = driverName;
+                    appState.profiles.driverDeepDive.isModalOpen = true;
+                    module.renderDriverDeepDiveModal_Profiles();
+                });
+            }
+        });
+        container._alertsListeners = true;
+    }
+};
