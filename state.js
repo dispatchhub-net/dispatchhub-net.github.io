@@ -65,7 +65,7 @@ export let appState = {
     allTeamNames: [],
     entityColors: {},
     visibleColumns: new Map(),
-    performanceTrackerView: 'lowPerformers',
+    performanceTrackerView: 'alerts', // Default to Alerts
     filters: [],
     minDriverSetting: { type: 'numDrivers', value: 3 },
     precomputedDispatcher4WkAverages: {},
@@ -81,6 +81,7 @@ export let appState = {
         team: {}        // Cache for team mode (ALL, OO, LOO)
     },
     unfilteredRanks: new Map(), // For stable ranking in tracker
+    alertsFilter: 'all', // NEW: Stores the active alerts filter
     visibleKeyMetrics: [
        
     ],
