@@ -1784,7 +1784,13 @@ const renderStubsTable = () => {
 
                     const entityDispatcherName = entityForStub?.entityName;
                     const entityTeamName = entityForStub?.dispatcherTeam;
-                    const hasPermission = isAdmin() || canViewTeam(entityTeamName) || canViewDispatcher(entityDispatcherName);
+                    
+                    // Fix: Ensure Dispatchers only see their own data, not their peers' data even if in the same team.
+                    const userRole = appState.auth.user?.role;
+                    const hasPermission = isAdmin() || 
+                                          (userRole !== 'Dispatcher' && canViewTeam(entityTeamName)) || 
+                                          canViewDispatcher(entityDispatcherName);
+
                     const shouldRedactStub = !hasPermission;
 
                     return `<tr class="${rowClass}" ${rowStyle}>
