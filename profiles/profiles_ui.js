@@ -779,7 +779,13 @@ function renderProfileHeader(teamData, allTeams, kpis, prevWeekKpis) {
         { id: 'balance', label: 'Balance + PO', value: `$${Math.round(kpis.balance).toLocaleString()}`, trend: getChangeDisplay_Profiles(kpis.balance, prevWeekKpis.balance, true, false, false, true) },
         { id: 'canceledLoads', label: 'Canceled', value: kpis.canceledLoads.toLocaleString(), trend: getChangeDisplay_Profiles(kpis.canceledLoads, prevWeekKpis.canceledLoads, false, false, false, true) },
         { id: 'medianWellness', label: 'Median Wellness %', value: `${kpis.medianWellness.toFixed(1)}%`, trend: getChangeDisplay_Profiles(kpis.medianWellness, prevWeekKpis.medianWellness, false, false, true) },
-        { id: 'medianCompliance', label: 'Median Compliance %', value: `${kpis.medianCompliance.toFixed(1)}%`, trend: getChangeDisplay_Profiles(kpis.medianCompliance, prevWeekKpis.medianCompliance, false, false, true) },
+        { 
+            id: 'medianCompliance', 
+            label: 'Median Compliance %', 
+            value: `${kpis.medianCompliance.toFixed(1)}%`, 
+            trend: getChangeDisplay_Profiles(kpis.medianCompliance, prevWeekKpis.medianCompliance, false, false, true),
+            isComplianceCard: true // Mark for click handler
+        },
         { 
             id: 'medianRetentionOptimistic', 
             label: '1W Retention', 
@@ -817,13 +823,19 @@ function renderProfileHeader(teamData, allTeams, kpis, prevWeekKpis) {
 
     headerContainer.innerHTML = `
         <div class="grid grid-flow-col auto-cols-fr gap-3">
-            ${visibleKpiCards.map(kpi => `
-                <div ${kpi.isRetentionCard ? 'id="kpi-card-retention"' : ''} class="profile-kpi-card-ranking ${kpi.tooltipHtml ? 'dispatch-tooltip-trigger cursor-help' : ''} ${kpi.isRetentionCard ? '!cursor-pointer hover:bg-gray-700 transition-colors ring-1 ring-transparent hover:ring-teal-500' : ''}" ${kpi.tooltipHtml ? `data-tooltip-html="${kpi.tooltipHtml}"` : ''}>
+            ${visibleKpiCards.map(kpi => {
+                let idAttr = '';
+                let cursorClass = '';
+                if (kpi.isRetentionCard) { idAttr = 'id="kpi-card-retention"'; cursorClass = '!cursor-pointer hover:bg-gray-700 transition-colors ring-1 ring-transparent hover:ring-teal-500'; }
+                if (kpi.isComplianceCard) { idAttr = 'id="kpi-card-compliance"'; cursorClass = '!cursor-pointer hover:bg-gray-700 transition-colors ring-1 ring-transparent hover:ring-teal-500'; }
+                
+                return `
+                <div ${idAttr} class="profile-kpi-card-ranking ${kpi.tooltipHtml ? 'dispatch-tooltip-trigger cursor-help' : ''} ${cursorClass}" ${kpi.tooltipHtml ? `data-tooltip-html="${kpi.tooltipHtml}"` : ''}>
                     <h4 class="kpi-title-ranking">${kpi.label}</h4>
                     <p class="kpi-value-ranking">${kpi.value}</p>
                     ${kpi.trend}
                 </div>
-            `).join('')}
+            `}).join('')}
         </div>
         <div class="flex items-center gap-2 flex-shrink-0 ml-auto pl-6">
             <div id="kpi-settings-container" class="relative">
@@ -1172,9 +1184,23 @@ function renderModalHistoricalTable_Profiles(stubsData) {
         return;
     }
 
+    // --- Detect Duplicate Pay Dates ---
+    const payDateCounts = stubsData.reduce((acc, stub) => {
+        if (!stub.pay_date) return acc;
+        const dateKey = new Date(stub.pay_date).toISOString().split('T')[0];
+        acc[dateKey] = (acc[dateKey] || 0) + 1;
+        return acc;
+    }, {});
+
     // --- Define Table Headers ---
     const headers = [
         { label: 'Pay Date', key: 'pay_date', format: (d, stub) => {
+            // Check for duplicate count
+            const dateKey = new Date(d).toISOString().split('T')[0];
+            const isDuplicate = payDateCounts[dateKey] > 1;
+            const duplicateIndicator = isDuplicate ? 
+                `<span class="ml-1 text-red-500 font-bold cursor-help" title="Duplicate Pay Date Detected">!</span>` : '';
+
             // --- Pay Date Display Logic ---
             if (stub.is_predicted) {
                  const date = new Date(d); // Use the already calculated future pay date
@@ -1190,11 +1216,12 @@ function renderModalHistoricalTable_Profiles(stubsData) {
                     <div class="flex items-center justify-center gap-x-2">
                         <span class="font-bold text-teal-400">${label} - ${formattedDate}</span>
                         <svg title="This is a prediction based on unsettled loads from the corresponding work week." class="w-4 h-4 text-teal-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
+                        ${duplicateIndicator}
                     </div>
                 `;
             }
             // Historical stub: format normally
-            return new Date(d).toLocaleDateString('en-US', { timeZone: 'UTC' }); // Ensure UTC interpretation
+            return `${new Date(d).toLocaleDateString('en-US', { timeZone: 'UTC' })}${duplicateIndicator}`;
             // --- End Pay Date Display Logic ---
         }},
         { label: 'Flags', key: 'flags' }, // Flags might need adjustment if based on live loads for delayed stubs
@@ -4743,6 +4770,16 @@ export function initializeProfileEventListeners() {
             });
             retentionCard._clickListenerAttached = true;
         }
+
+        // New Listener for Compliance Chart
+        const complianceCard = document.getElementById('kpi-card-compliance');
+        if (complianceCard && !complianceCard._clickListenerAttached) {
+            complianceCard.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openComplianceHistoryModal();
+            });
+            complianceCard._clickListenerAttached = true;
+        }
     }
 
     const dispatchTable = document.getElementById('profiles-dispatch-table-container');
@@ -6754,6 +6791,513 @@ function renderRetentionHistoryChart(datasets) {
             }
         });
 }
+/**
+ * Opens a modal displaying the Compliance History.
+ */
+function openComplianceHistoryModal() {
+    let modal = document.getElementById('compliance-history-modal');
+    
+    // Initialize cache if it doesn't exist
+    if (!appState.profiles.complianceHistoryCache) {
+        appState.profiles.complianceHistoryCache = { key: null, data: null };
+    }
+
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'compliance-history-modal';
+        modal.className = 'fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4 hidden';
+        modal.innerHTML = `
+            <div class="bg-gray-800 border-2 border-gray-700 rounded-2xl shadow-2xl w-full max-w-5xl h-[600px] flex flex-col animate-fade-in-up">
+                <div class="flex items-center justify-between p-4 border-b border-gray-700">
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-200">Historical Metrics by Team (Last 12 Weeks)</h2>
+                        <p class="text-xs text-gray-400 mt-1">Compare performance across teams or against the company average.</p>
+                    </div>
+                    <div class="flex items-center gap-2" id="compliance-chart-switcher">
+                        <button data-metric="compliance" class="px-3 py-1 text-xs rounded-md font-semibold bg-teal-600 text-white transition-colors">Compliance</button>
+                        <button data-metric="overdue" class="px-3 py-1 text-xs rounded-md font-semibold bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors">Median Overdue (Sum)</button>
+                        <button data-metric="badMoves" class="px-3 py-1 text-xs rounded-md font-semibold bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors">Bad Moves (Count)</button>
+                        <button data-metric="wellness" class="px-3 py-1 text-xs rounded-md font-semibold bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors">Wellness %</button>
+                    </div>
+                    <button id="close-compliance-modal-btn" class="text-gray-400 hover:text-white text-2xl transition-colors ml-4">&times;</button>
+                </div>
+                <div class="p-4 flex-grow relative" id="compliance-chart-container">
+                    <div class="absolute inset-0 flex items-center justify-center text-gray-500">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-400 mr-3"></div> Calculating History...
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        const closeBtn = modal.querySelector('#close-compliance-modal-btn');
+        closeBtn.onclick = () => modal.classList.add('hidden');
+        modal.addEventListener('click', (e) => { if(e.target === modal) modal.classList.add('hidden'); });
+
+        const switcher = modal.querySelector('#compliance-chart-switcher');
+        switcher.addEventListener('click', (e) => {
+            const btn = e.target.closest('button');
+            if(btn) {
+                const metric = btn.dataset.metric;
+                switcher.querySelectorAll('button').forEach(b => b.className = 'px-3 py-1 text-xs rounded-md font-semibold bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors');
+                btn.className = 'px-3 py-1 text-xs rounded-md font-semibold bg-teal-600 text-white transition-colors';
+                if (window._complianceHistoryData) renderComplianceHistoryChart(window._complianceHistoryData, metric);
+            }
+        });
+    }
+    
+    modal.classList.remove('hidden');
+    
+    const { selectedTeam, contractTypeFilter, selectedCompany, selectedFranchise } = appState.profiles;
+    const currentKey = `${selectedTeam}|${contractTypeFilter}|${selectedCompany}|${selectedFranchise}|${appState.lastRefreshed}`;
+    
+    const chartContainer = document.getElementById('compliance-chart-container');
+
+    if (appState.profiles.complianceHistoryCache.key === currentKey) {
+        // Use CACHE
+        const data = appState.profiles.complianceHistoryCache.data;
+        window._complianceHistoryData = data;
+        renderComplianceHistoryChart(data, 'compliance');
+    } else {
+        // Show LOADING and calculate
+        if (chartContainer) {
+            chartContainer.innerHTML = `<div class="absolute inset-0 flex items-center justify-center text-gray-500"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-400 mr-3"></div> Calculating History...</div>`;
+        }
+        
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                const data = calculateComplianceHistoryData();
+                appState.profiles.complianceHistoryCache = { key: currentKey, data: data };
+                window._complianceHistoryData = data;
+                renderComplianceHistoryChart(data, 'compliance');
+            }, 50);
+        });
+    }
+}
+
+function calculateComplianceHistoryData() {
+    const weeksToCheck = 12;
+    const { contractTypeFilter, selectedCompany, selectedFranchise, selectedTeam } = appState.profiles;
+    const allLoadData = appState.profiles.liveData || [];
+    const overdueSource = appState.profiles.overdueLoadsData || [];
+    const goodMoveThresholds = appState.profiles.thresholdSettings.goodMove;
+    const lowRpmThresholds = appState.profiles.thresholdSettings.lowRpm;
+    const historicalStubs = appState.loads.historicalStubsData || [];
+
+    // 1. Prepare Data Helpers (Tenure & Enriched Stubs)
+    let tenureMap = appState.profiles.dispatcherSpecificTenureMap;
+    if (!tenureMap) {
+        tenureMap = historicalStubs.reduce((acc, stub) => {
+            if (stub.driver_name && stub.stub_dispatcher && parseFloat(stub.total_miles) > 0 && stub.pay_date) {
+                const dName = stub.driver_name;
+                const dispName = stub.stub_dispatcher;
+                if (!acc[dName]) acc[dName] = {};
+                if (!acc[dName][dispName]) acc[dName][dispName] = [];
+                acc[dName][dispName].push(new Date(stub.pay_date));
+            }
+            return acc;
+        }, {});
+        Object.values(tenureMap).forEach(dMap => Object.values(dMap).forEach(dates => dates.sort((a, b) => a - b)));
+    }
+
+    const enrichedHistoricalStubs = getEnrichedStubs(historicalStubs);
+
+    const allUniqueTeams = [...new Set(allLoadData.map(l => l.team).filter(Boolean))].sort();
+    const datasets = {}; 
+    datasets["All Teams"] = [];
+    allUniqueTeams.forEach(t => datasets[t] = []);
+
+    console.log(`[Compliance History] Starting calculation...`);
+
+    // 2. Loop through history (Current Week -> 12 Weeks Ago)
+    for (let i = 0; i <= weeksToCheck; i++) { 
+        const { start, end } = getPayrollWeekDateRange(i);
+        const payDate = new Date(end);
+        payDate.setUTCDate(end.getUTCDate() + 3);
+        const targetPayDateForTenure = new Date(payDate);
+        
+        const fourWeeksAgoStart = new Date(payDate);
+        fourWeeksAgoStart.setDate(fourWeeksAgoStart.getDate() - 21);
+        fourWeeksAgoStart.setUTCHours(0, 0, 0, 0);
+        const retentionEnd = new Date(payDate);
+        retentionEnd.setUTCHours(23, 59, 59, 999);
+
+        const dateLabel = `${start.toLocaleDateString('en-US', {month:'short', day:'numeric'})} - ${end.toLocaleDateString('en-US', {month:'short', day:'numeric'})}`;
+
+        // 3. Filter Loads
+        let weekLoads = allLoadData.filter(d => d.do_date && new Date(d.do_date) >= start && new Date(d.do_date) <= end && d.status !== 'Canceled');
+
+        // Apply Filters to Loads
+        if (contractTypeFilter !== 'all') {
+            weekLoads = weekLoads.filter(l => {
+                const raw = (l.contract_type || 'LOO').toUpperCase();
+                const norm = raw === 'OO' ? 'OO' : 'LOO';
+                return contractTypeFilter === 'oo' ? norm === 'OO' : norm !== 'OO';
+            });
+        }
+        if (selectedCompany !== 'All Companies') weekLoads = weekLoads.filter(l => l.company_name === selectedCompany);
+        if (selectedFranchise !== 'All Franchises') weekLoads = weekLoads.filter(l => l.franchise_name === selectedFranchise);
+
+        const weekOverdue = overdueSource.filter(ol => {
+            if (!ol.deliveryDate) return false;
+            const dDate = new Date(ol.deliveryDate);
+            return dDate >= start && dDate <= end;
+        });
+
+        // 4. FIND ACTIVE DISPATCHERS (Loads OR Stubs)
+        // This fixes the "Missing Dispatcher" issue causing median skew
+        const dispatchersFromLoads = weekLoads.map(l => l.dispatcher).filter(Boolean);
+        
+        const weekStubs = enrichedHistoricalStubs.filter(s => {
+             if (!s.pay_date) return false;
+             const sDate = new Date(s.pay_date);
+             const isSamePayDate = sDate.toISOString().split('T')[0] === payDate.toISOString().split('T')[0];
+             if (!isSamePayDate) return false;
+
+             if (selectedCompany !== 'All Companies' && s.company_name !== selectedCompany) return false;
+             if (selectedFranchise !== 'All Franchises' && s.franchise_name !== selectedFranchise) return false;
+             if (selectedTeam !== 'ALL_TEAMS') {
+                  const stubTeam = s.stub_team;
+                  const teamLower = selectedTeam.toLowerCase();
+                  const specialPrefixes = ['agnius', 'uros', 'miles'];
+                  if (specialPrefixes.includes(teamLower)) {
+                      if (!stubTeam || !stubTeam.toLowerCase().startsWith(teamLower)) return false;
+                  } else if (stubTeam !== selectedTeam) return false;
+             }
+             if (contractTypeFilter !== 'all') {
+                const raw = String(s.contract_type || '').toUpperCase();
+                const norm = raw === 'OO' ? 'OO' : 'LOO';
+                if (contractTypeFilter === 'loo' && norm === 'OO') return false;
+                if (contractTypeFilter !== 'loo' && norm !== contractTypeFilter.toUpperCase()) return false;
+             }
+             return true;
+        });
+        const dispatchersFromStubs = weekStubs.map(s => s.stub_dispatcher).filter(Boolean);
+
+        const activeDispatchers = [...new Set([...dispatchersFromLoads, ...dispatchersFromStubs])];
+
+        const dispatcherMetricsList = activeDispatchers.map(dispName => {
+            const dispLoads = weekLoads.filter(l => l.dispatcher === dispName);
+            
+            // Metrics Calculation (Same as Main View)
+            const passed = dispLoads.filter(l => l.wellness_fail === 'GOOD').length;
+            const good = dispLoads.filter(l => l.wellness_fail === '-').length;
+            const failed = dispLoads.filter(l => l.wellness_fail === 'FAIL').length;
+            const totalWellness = passed + good + failed;
+            const wellnessScore = totalWellness > 0 ? ((passed + good) / totalWellness) * 100 : 0;
+
+            const movedLoads = dispLoads.filter(d => d.moved_monday === 'Moved Monday Load');
+            const badMovesCount = movedLoads.filter(load => {
+                const rawContract = load.contract_type || 'LOO';
+                const contractKey = Object.keys(goodMoveThresholds.by_contract).find(k => k.toUpperCase() === (rawContract).toUpperCase()) || 'LOO';
+                const threshold = goodMoveThresholds.by_contract[contractKey] ?? goodMoveThresholds.default;
+                return (load.driver_gross_without_moved || 0) >= threshold;
+            }).length;
+            const goodMovesCount = movedLoads.length - badMovesCount;
+
+            const hiddenMiles = dispLoads.filter(d => d.hidden_miles === 'Hidden Miles Found!').length;
+            const lowRpmCount = dispLoads.filter(load => {
+                const rawContract = load.contract_type || 'LOO';
+                const contractKey = Object.keys(lowRpmThresholds.by_contract).find(k => k.toUpperCase() === (rawContract).toUpperCase()) || 'LOO';
+                const threshold = lowRpmThresholds.by_contract[contractKey] ?? lowRpmThresholds.default;
+                return (load.rpm_all || 0) < threshold;
+            }).length;
+
+            const dispOverdueLoads = weekOverdue.filter(ol => ol.dispatcher === dispName);
+            const overdueSum = dispOverdueLoads.reduce((sum, ol) => sum + (ol.daysPastDO || 0), 0);
+
+            // Retention
+            const poolStubs = enrichedHistoricalStubs.filter(s => {
+                const pDate = new Date(s.pay_date);
+                return pDate >= fourWeeksAgoStart && pDate <= retentionEnd && s.stub_dispatcher === dispName &&
+                       (s.retention_status === 'Active' || s.retention_status === 'Terminated' || s.retention_status === 'Start');
+            });
+            const historicalPool = new Set(poolStubs.map(s => s.driver_name));
+            let retainedCount = 0;
+            historicalPool.forEach(driverName => {
+                const driverStubsInWindow = enrichedHistoricalStubs.filter(s => 
+                    s.driver_name === driverName && new Date(s.pay_date) >= fourWeeksAgoStart && new Date(s.pay_date) <= retentionEnd
+                ).sort((a, b) => new Date(b.pay_date) - new Date(a.pay_date));
+                if (driverStubsInWindow.length > 0) {
+                    const lastStub = driverStubsInWindow[0];
+                    if ((lastStub.retention_status || '').trim() !== 'Terminated' && lastStub.stub_dispatcher === dispName) {
+                        retainedCount++;
+                    }
+                }
+            });
+            const retention4w = historicalPool.size > 0 ? (retainedCount / historicalPool.size) * 100 : null;
+
+            // Tenure
+            const currentWeekDrivers = [...new Set(dispLoads.map(l => l.driver).filter(Boolean))];
+            // Add drivers from stubs to currentWeekDrivers if they didn't have loads
+            weekStubs.filter(s => s.stub_dispatcher === dispName).forEach(s => currentWeekDrivers.push(s.driver_name));
+            
+            const getTenureList = (contractType) => {
+                return currentWeekDrivers
+                    .filter(dName => {
+                        const l = dispLoads.find(load => load.driver === dName);
+                        // If no load, fallback to stub for contract type
+                        let cType = (l && l.contract_type) ? l.contract_type.toUpperCase() : 'LOO';
+                        if (!l) {
+                            const s = weekStubs.find(st => st.driver_name === dName);
+                            if (s && s.contract_type) cType = s.contract_type.toUpperCase();
+                        }
+                        return contractType === 'OO' ? cType === 'OO' : cType !== 'OO';
+                    })
+                    .map(dName => {
+                        const stubDates = tenureMap[dName]?.[dispName] || [];
+                        return stubDates.filter(d => d <= targetPayDateForTenure).length;
+                    })
+                    .filter(t => t > 0);
+            };
+
+            const medianTenureOO = getTenureList('OO').length > 0 ? calculateMedian(getTenureList('OO')) : null;
+            const medianTenureLOO = getTenureList('LOO').length > 0 ? calculateMedian(getTenureList('LOO')) : null;
+
+            return {
+                name: dispName,
+                loads: dispLoads, 
+                team: dispLoads[0]?.team || weekStubs.find(s => s.stub_dispatcher === dispName)?.stub_team || 'Unknown',
+                wellness: wellnessScore,
+                wellnessDetails: { passed, good, failed },
+                goodMoves: goodMovesCount,
+                badMoves: badMovesCount,
+                hiddenMiles: hiddenMiles,
+                lowRpm: lowRpmCount,
+                overdueLoads: overdueSum,
+                retention4w: retention4w,
+                medianTenureOO: medianTenureOO,
+                medianTenureLOO: medianTenureLOO
+            };
+        });
+
+        // 5. Score & Aggregate
+        const scoredDispatchers = calculateComplianceScores(dispatcherMetricsList, dispatcherMetricsList);
+
+        const aggregateForGroup = (groupDispatchers) => {
+            if (groupDispatchers.length === 0) return { weekDate: payDate, dateLabel, badMoves: null, wellness: null, overdue: null, compliance: null };
+            const totalBadMoves = groupDispatchers.reduce((sum, d) => sum + d.badMoves, 0);
+            const complianceScores = groupDispatchers.map(d => d.complianceScore).filter(c => c !== null && !isNaN(c));
+            const avgCompliance = complianceScores.length > 0 ? calculateMedian(complianceScores) : 0;
+            const totalPassed = groupDispatchers.reduce((sum, d) => sum + d.wellnessDetails.passed, 0);
+            const totalGood = groupDispatchers.reduce((sum, d) => sum + d.wellnessDetails.good, 0);
+            const totalFailed = groupDispatchers.reduce((sum, d) => sum + d.wellnessDetails.failed, 0);
+            const totalWellnessLoads = totalPassed + totalGood + totalFailed;
+            const avgWellnessScore = totalWellnessLoads > 0 ? ((totalPassed + totalGood) / totalWellnessLoads) * 100 : 0;
+            const overdueSums = groupDispatchers.map(d => d.overdueLoads);
+            const medianOverdue = overdueSums.length > 0 ? calculateMedian(overdueSums) : 0;
+
+            return {
+                weekDate: payDate, dateLabel, badMoves: totalBadMoves,
+                wellness: avgWellnessScore, overdue: medianOverdue, compliance: avgCompliance
+            };
+        };
+
+        datasets["All Teams"].push(aggregateForGroup(scoredDispatchers));
+        allUniqueTeams.forEach(teamName => {
+            const teamDispatchers = scoredDispatchers.filter(d => d.team === teamName);
+            datasets[teamName].push(aggregateForGroup(teamDispatchers));
+        });
+    }
+
+    return Object.entries(datasets).map(([name, data]) => ({ name, data: data.sort((a,b) => a.weekDate - b.weekDate) }));
+}
+
+function renderComplianceHistoryChart(datasets, metricKey) {
+    const container = d3.select("#compliance-chart-container");
+    container.html("");
+    d3.selectAll(".compliance-tooltip").remove();
+
+    // Initialize hidden state - Show ALL teams in legend, but only selected one visible on chart by default
+    const currentTeam = appState.profiles.selectedTeam === 'ALL_TEAMS' ? "All Teams" : appState.profiles.selectedTeam;
+    
+    datasets.forEach(ds => {
+        if (ds.hidden === undefined) {
+            // Show only the selected team (or All Teams) by default
+            ds.hidden = ds.name !== currentTeam && ds.name !== "All Teams";
+            
+            // If specific team selected, ensure "All Teams" is visible for comparison
+            if (currentTeam !== "All Teams" && ds.name === "All Teams") ds.hidden = false;
+            
+            // Exclude noise
+            const excludedTeams = ["Cletus Spuckler", "Ralph Wiggum", "Spotter"];
+            if (excludedTeams.includes(ds.name)) ds.hidden = true;
+        }
+    });
+
+    const margin = { top: 20, right: 40, bottom: 30, left: 50 }; 
+    const width = container.node().clientWidth - margin.left - margin.right;
+    const height = container.node().clientHeight - margin.top - margin.bottom - 80; 
+    
+    const svg = container.append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    svg.append("defs").append("clipPath").attr("id", "comp-clip").append("rect").attr("width", width).attr("height", height);
+
+    // --- Scales ---
+    const getVisiblePoints = () => datasets.filter(ds => !ds.hidden).flatMap(ds => ds.data.filter(d => d[metricKey] !== null));
+    const allPoints = datasets.flatMap(ds => ds.data);
+    
+    const x = d3.scaleTime().domain(d3.extent(allPoints, d => d.weekDate)).range([0, width]);
+    
+    // Dynamic Y Domain based on metric
+    const visPoints = getVisiblePoints();
+    let yMin = 0, yMax = 100;
+    if (visPoints.length > 0) {
+        const vals = visPoints.map(d => d[metricKey]);
+        const maxVal = Math.max(...vals);
+        
+        if (metricKey === 'badMoves' || metricKey === 'overdue') {
+            yMin = 0; 
+            yMax = Math.max(5, maxVal + 1); // Ensure at least 0-5 range for small counts
+        } else {
+            // For percentages
+            const minVal = Math.min(...vals);
+            yMin = Math.max(0, minVal - 10);
+            yMax = Math.min(100, maxVal + 5);
+        }
+    }
+    const y = d3.scaleLinear().domain([yMin, yMax]).range([height, 0]);
+
+    // --- Axes ---
+    const formatY = (d) => {
+        if (metricKey === 'compliance' || metricKey === 'wellness') return d + "%";
+        return d;
+    };
+
+    svg.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(12).tickFormat(d3.timeFormat("%b %d"))).attr("color", "#9ca3af");
+    const yAxisGroup = svg.append("g").call(d3.axisLeft(y).ticks(5).tickFormat(formatY)).attr("color", "#9ca3af");
+    
+    const gridGroup = svg.append("g").attr("class", "grid").call(d3.axisLeft(y).tickSize(-width).tickFormat("").ticks(5)).style("stroke-dasharray", "3, 3").style("stroke-opacity", 0.1);
+    gridGroup.select(".domain").remove();
+
+    const chartBody = svg.append("g").attr("clip-path", "url(#comp-clip)");
+    const line = d3.line().x(d => x(d.weekDate)).y(d => y(d[metricKey])).defined(d => d[metricKey] !== null).curve(d3.curveMonotoneX);
+    const colorScale = d3.scaleOrdinal(d3.schemeTableau10); 
+
+    const updateChart = () => {
+        const visible = getVisiblePoints();
+        if (visible.length > 0) {
+            const vals = visible.map(d => d[metricKey]);
+            if (metricKey === 'badMoves' || metricKey === 'overdue') {
+                 y.domain([0, Math.max(5, Math.max(...vals) + 1)]);
+            } else {
+                 y.domain([Math.max(0, Math.min(...vals) - 10), Math.min(100, Math.max(...vals) + 5)]);
+            }
+        }
+        yAxisGroup.transition().call(d3.axisLeft(y).ticks(5).tickFormat(formatY));
+        gridGroup.transition().call(d3.axisLeft(y).tickSize(-width).tickFormat(""));
+
+        datasets.forEach((ds, i) => {
+            // Line
+            const path = chartBody.selectAll(`.line-${i}`).data([ds.data]);
+            path.enter().append("path").attr("class", `line-series line-${i}`)
+                .merge(path).transition()
+                .attr("d", line)
+                .attr("stroke", colorScale(i))
+                .attr("fill", "none")
+                .attr("stroke-width", ds.name === "All Teams" ? 4 : 2)
+                .style("opacity", ds.hidden ? 0 : 1);
+            
+            // Dots
+            const dots = chartBody.selectAll(`.dot-${i}`).data(ds.data.filter(d => d[metricKey] !== null));
+            dots.enter().append("circle").attr("class", `dot-series dot-${i}`)
+                .attr("r", 4)
+                .merge(dots).transition()
+                .attr("cx", d => x(d.weekDate))
+                .attr("cy", d => y(d[metricKey]))
+                .attr("fill", "#1f2937")
+                .attr("stroke", colorScale(i))
+                .attr("stroke-width", 2)
+                .style("opacity", ds.hidden ? 0 : 1);
+            dots.exit().remove();
+        });
+    };
+
+    updateChart();
+
+    // --- Legend ---
+    const legendContainer = container.append("div").attr("class", "chart-legend flex flex-wrap justify-center gap-x-4 gap-y-2 mt-2 px-4 overflow-y-auto").style("max-height", "80px");
+    
+    datasets.forEach((ds, i) => {
+        const color = colorScale(i);
+        legendContainer.append("div")
+            .attr("class", `chart-legend-item cursor-pointer flex items-center gap-2 text-xs select-none ${ds.hidden ? 'opacity-40 grayscale' : 'opacity-100'}`)
+            .style("text-decoration", ds.hidden ? "line-through" : "none")
+            .html(`<div class="w-3 h-3 rounded-full" style="background-color: ${color}"></div><span>${ds.name}</span>`)
+            .on("click", function() {
+                ds.hidden = !ds.hidden;
+                const el = d3.select(this);
+                el.classed("opacity-40 grayscale", ds.hidden).classed("opacity-100", !ds.hidden).style("text-decoration", ds.hidden ? "line-through" : "none");
+                updateChart();
+            });
+    });
+
+    // --- Tooltip ---
+    const tooltip = d3.select("body").append("div").attr("class", "d3-tooltip compliance-tooltip").style("opacity", 0);
+    const focus = svg.append("g").style("display", "none");
+    focus.append("line").attr("y1", 0).attr("y2", height).style("stroke", "#4b5563").style("stroke-dasharray", "3,3");
+
+    svg.append("rect").attr("width", width).attr("height", height).style("fill", "none").style("pointer-events", "all")
+        .on("mouseover", () => { focus.style("display", null); tooltip.style("opacity", 1); })
+        .on("mouseout", () => { focus.style("display", "none"); tooltip.style("opacity", 0); })
+        .on("mousemove", (event) => {
+            const x0 = x.invert(d3.pointer(event)[0]);
+            const bisect = d3.bisector(d => d.weekDate).left;
+            const refData = datasets[0].data;
+            const i = bisect(refData, x0, 1);
+            const d0 = refData[i - 1], d1 = refData[i];
+            const d = (d0 && d1) ? (x0 - d0.weekDate > d1.weekDate - x0 ? d1 : d0) : (d0 || d1);
+
+            if (d) {
+                focus.attr("transform", `translate(${x(d.weekDate)},0)`);
+                
+                // Use the pre-calculated dateLabel (Range) if available, otherwise fallback to Pay Date
+                const headerText = d.dateLabel 
+                    ? `<div class="text-[10px] text-gray-400 font-normal">Pay Date: ${d3.timeFormat("%b %d")(d.weekDate)}</div>${d.dateLabel}`
+                    : d3.timeFormat("%b %d")(d.weekDate);
+
+                let html = `<div class="font-bold text-white border-b border-gray-600 pb-1 mb-1 text-center">${headerText}</div>`;
+                
+                const points = datasets.map((ds, idx) => {
+                    const pt = ds.data.find(p => p.weekDate.getTime() === d.weekDate.getTime());
+                    // Pass the full point object ('pt') to access nested properties like wellnessBreakdown
+                    return pt && !ds.hidden ? { name: ds.name, val: pt[metricKey], pointData: pt, color: colorScale(idx) } : null;
+                }).filter(Boolean).sort((a, b) => b.val - a.val);
+
+                points.forEach(p => {
+                    let valStr = p.val === null ? '-' : (['compliance','wellness'].includes(metricKey) ? p.val.toFixed(1) + '%' : p.val.toFixed(1));
+                    
+                    // --- Special Tooltip for Wellness ---
+                    if (metricKey === 'wellness' && p.pointData.wellnessBreakdown) {
+                         const wb = p.pointData.wellnessBreakdown;
+                         html += `
+                            <div class="mb-2 border-b border-gray-700 pb-1 last:border-0">
+                                <div class="flex justify-between gap-4 text-xs font-semibold mb-0.5">
+                                    <span style="color:${p.color}">${p.name}</span>
+                                    <span class="font-mono text-white">${valStr}</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-2 text-[10px] text-gray-400">
+                                    <div class="text-green-400">Passed: ${wb.passed || 0}</div>
+                                    <div class="text-blue-300">Good: ${wb.good || 0}</div>
+                                    <div class="text-red-400">Failed: ${wb.failed || 0}</div>
+                                </div>
+                            </div>
+                         `;
+                    } else {
+                        // Standard Tooltip for other metrics
+                        html += `<div class="flex justify-between gap-4 text-xs"><span style="color:${p.color}">${p.name}</span><span class="font-mono text-white">${valStr}</span></div>`;
+                    }
+                });
+                
+                tooltip.html(html).style("left", (event.pageX + 15) + "px").style("top", (event.pageY - 28) + "px");
+            }
+        });
+}
+
 export function precomputeGlobalDriverStats() {
     const liveData = appState.profiles.liveData || [];
     const historicalStubs = appState.loads.historicalStubsData || [];
