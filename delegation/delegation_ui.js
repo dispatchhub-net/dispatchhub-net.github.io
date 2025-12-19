@@ -1151,25 +1151,13 @@ function renderCapacityRulesEditor(mode) {
     rules.sort((a, b) => a.min - b.min);
     
     const overrides = settings.capacityCustom || {};
-    const groups = settings.capacityGroups || [];
     
-    // Identify grouped dispatchers
-    const groupedDispatchers = new Set();
-    groups.forEach(g => g.members.forEach(m => groupedDispatchers.add(m)));
-
-    const individualOverrides = Object.keys(overrides).filter(d => !groupedDispatchers.has(d));
+    const allDispatchers = getDispatcherList().sort((a, b) => a.name.localeCompare(b.name));
     
-    // States
     const isSearchOpen = appState.delegation.isOverrideSearchOpen;
-    const isConfiguring = appState.delegation.isConfiguringGroupRules; 
     const searchTerm = (appState.delegation.overrideSearchTerm || '').toLowerCase();
-    const tempSelected = appState.delegation.tempSelectedDispatchers || new Set();
-    const expandedDispatcher = appState.delegation.expandedOverrideId;
 
-    const allDispatchers = getDispatcherList();
-    const availableForOverride = allDispatchers
-        .filter(d => !overrides.hasOwnProperty(d.name) && d.name.toLowerCase().includes(searchTerm))
-        .sort((a, b) => a.name.localeCompare(b.name));
+    const displayList = allDispatchers.filter(d => d.name.toLowerCase().startsWith(searchTerm));
 
   return `
     <div class="space-y-8 pb-10">
@@ -1188,158 +1176,62 @@ function renderCapacityRulesEditor(mode) {
         <div class="space-y-3">
             <div class="flex justify-between items-center border-b border-gray-700 pb-2">
                 <h4 class="text-xs font-bold text-yellow-400 uppercase tracking-wider flex items-center gap-2">
-                    Dispatch Overrides
+                    Individual Overrides
                 </h4>
                 <button onclick="window.toggleOverrideSearch()" class="px-3 py-1.5 bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 rounded hover:bg-yellow-500 hover:text-gray-900 transition-all text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                    ${isSearchOpen ? 'Cancel' : '+ Add Override'}
+                    ${isSearchOpen ? 'Close List' : '+ Edit Individual Capacities'}
                 </button>
             </div>
             
             ${isSearchOpen ? `
                 <div class="mb-4 bg-gray-700 p-3 rounded-lg border border-gray-600 animate-fade-in-up">
-                    
-                    ${!isConfiguring ? `
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="text-xs text-gray-300 font-semibold">Step 1: Select Dispatchers</span>
-                            <span id="selection-counter" class="text-xs text-teal-400 font-bold">${tempSelected.size} selected</span>
-                        </div>
-                        
+                    <div class="mb-3">
                         <input type="text" id="override-search-input" 
-                               placeholder="Search dispatchers..." 
-                               value="${searchTerm}"
+                               placeholder="Filter list (starts with)..." 
+                               value="${appState.delegation.overrideSearchTerm || ''}"
                                oninput="window.updateOverrideSearch(this.value)"
-                               class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-teal-500 mb-2">
-                        
-                        <div id="search-results-container" class="max-h-40 overflow-y-auto custom-scrollbar space-y-1 mb-3 bg-gray-800/50 rounded border border-gray-600/30">
-                            ${availableForOverride.length > 0 ? availableForOverride.map(d => {
-                                const isSelected = tempSelected.has(d.name);
-                                return `
-                                <div id="select-item-${d.name}" onclick="window.toggleDispatcherSelection('${d.name}')" class="px-3 py-2 ${isSelected ? 'bg-teal-900/40' : 'hover:bg-gray-700/50'} border-b border-gray-700/50 last:border-0 cursor-pointer text-sm text-gray-200 flex justify-between items-center transition-colors">
-                                    <span class="dispatcher-name ${isSelected ? 'text-teal-300 font-bold' : ''}">${d.name}</span>
-                                    <div class="check-icon w-4 h-4 rounded border ${isSelected ? 'bg-teal-500 border-teal-500' : 'border-gray-500'} flex items-center justify-center">
-                                        ${isSelected ? '<svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>' : ''}
-                                    </div>
-                                </div>
-                            `}).join('') : '<div class="text-xs text-gray-500 p-3 text-center italic">No matching dispatchers found.</div>'}
-                        </div>
+                               class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-teal-500">
+                    </div>
 
-                        <div class="flex justify-end pt-2 border-t border-gray-600">
-                            <button id="config-rules-btn" onclick="window.startGroupConfiguration()" class="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold rounded shadow transition-colors flex items-center gap-2" ${tempSelected.size === 0 ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
-                                Configure Rules <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                            </button>
-                        </div>
-                    ` : `
-                        <div class="flex justify-between items-center mb-3 border-b border-gray-600 pb-2">
-                            <span class="text-xs text-gray-300 font-semibold">Step 2: Set Rules for Group</span>
-                            <button onclick="window.backToGroupSelection()" class="text-xs text-gray-400 hover:text-white underline">Back</button>
-                        </div>
-
-                        <div class="bg-gray-800/80 p-3 rounded border border-gray-600 mb-4">
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="text-[10px] text-gray-400 uppercase tracking-wider">Target Dispatchers:</span>
-                                <span class="text-[10px] bg-teal-900 text-teal-300 px-1.5 py-0.5 rounded">${tempSelected.size}</span>
-                            </div>
-                            <div class="text-xs text-white mb-3 leading-relaxed max-h-16 overflow-y-auto custom-scrollbar">
-                                ${Array.from(tempSelected).join(', ')}
-                            </div>
-                            
-                            <div id="rules-container-temp_group" class="border-t border-gray-600/50 pt-2 space-y-1">
-                                ${renderRulesTable(settings.tempGroupRules, 'temp_group')}
-                            </div>
-                            <button onclick="window.addCapacityRule('temp_group')" class="w-full mt-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-[10px] font-bold uppercase rounded border border-gray-600 border-dashed transition-colors">+ Add Rule Segment</button>
-                        </div>
-
-                        <div class="flex justify-end gap-3">
-                            <button onclick="window.confirmDispatcherOverrides()" class="px-6 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold rounded shadow transition-colors flex items-center gap-2">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                Save & Apply
-                            </button>
-                        </div>
-                    `}
+                    <div id="overrides-list-scroll" class="overflow-y-auto custom-scrollbar max-h-[400px] border border-gray-600 rounded-lg">
+                        <table class="w-full text-left text-sm text-gray-400">
+                            <thead class="bg-gray-800 text-xs uppercase sticky top-0 z-10">
+                                <tr>
+                                    <th class="px-4 py-2 font-semibold text-gray-300">Dispatcher</th>
+                                    <th class="px-4 py-2 text-center font-semibold text-gray-300">Source</th>
+                                    <th class="px-4 py-2 text-center font-semibold text-teal-400">Max Cap</th>
+                                    <th class="px-4 py-2 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="overrides-table-body" class="divide-y divide-gray-700 bg-gray-800/50">
+                                ${renderOverridesTableRows(displayList, overrides, rules, mode)}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             ` : ''}
 
-            <div id="overrides-list" class="space-y-2">
-                ${groups.map(group => {
-                     const isExpanded = expandedDispatcher === group.id;
-                     return `
-                     <div class="bg-gray-700/30 border border-gray-600/50 rounded-lg overflow-hidden">
-                        <div onclick="window.toggleRuleAccordion('${group.id}')" class="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-700/50 transition-colors">
-                             <div class="flex items-center gap-3">
-                                <svg class="w-4 h-4 text-gray-400 transform transition-transform ${isExpanded ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                                <div>
-                                    <span class="text-sm font-bold text-white">Group (${group.members.length} Dispatchers)</span>
-                                    <div class="text-[10px] text-gray-400 truncate max-w-[200px]">${group.members.slice(0, 3).join(', ')}${group.members.length > 3 ? '...' : ''}</div>
-                                </div>
-                            </div>
-                             <button onclick="event.stopPropagation(); window.removeDispatcherOverride('${group.id}')" class="text-gray-500 hover:text-red-400 p-1" title="Remove entire group">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            </button>
-                        </div>
-                         ${isExpanded ? `
-                            <div class="p-3 bg-gray-800 border-t border-gray-600 animate-fade-in">
-                                <div class="mb-3">
-                                    <div class="text-xs text-gray-400 mb-1">Members:</div>
-                                    <div class="flex flex-wrap gap-1">
-                                        ${group.members.map(m => `
-                                            <span class="inline-flex items-center gap-1 bg-gray-700 text-gray-200 text-[10px] px-2 py-0.5 rounded border border-gray-600">
-                                                ${m}
-                                                <button onclick="window.removeDispatcherFromGroup('${group.id}', '${m}')" class="hover:text-red-400">&times;</button>
-                                            </span>
-                                        `).join('')}
-                                    </div>
-                                </div>
-                                <div class="flex justify-between items-center mb-2 pt-2 border-t border-gray-700/50">
-                                    <span class="text-xs text-gray-400">Rules applied to group</span>
-                                    <button onclick="window.addCapacityRule('${group.id}')" class="text-[10px] bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded">+ Add Segment</button>
-                                </div>
-                                <div id="rules-container-${group.id}" class="space-y-1">
-                                    ${renderRulesTable(group.rules, group.id)}
-                                </div>
-                            </div>
-                        ` : ''}
-                     </div>
-                     `;
-                }).join('')}
-
-                ${individualOverrides.map((name) => {
-                    const isExpanded = expandedDispatcher === name;
-                    const dispatcherRules = Array.isArray(overrides[name]) ? overrides[name] : [];
-                    
-                    return `
-                    <div class="bg-gray-700/30 border border-gray-600/50 rounded-lg overflow-hidden">
-                        <div onclick="window.toggleRuleAccordion('${name}')" class="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-700/50 transition-colors">
+            ${!isSearchOpen ? `
+                <div class="space-y-2 mt-4">
+                    <div class="text-xs text-gray-500 uppercase font-bold mb-2">Active Manual Overrides</div>
+                     ${Object.keys(overrides).filter(key => typeof overrides[key] === 'number').map(name => `
+                        <div class="flex items-center justify-between bg-gray-700/30 border border-gray-600/50 rounded p-2 px-3">
+                            <span class="text-sm text-white font-medium">${name}</span>
                             <div class="flex items-center gap-3">
-                                <svg class="w-4 h-4 text-gray-400 transform transition-transform ${isExpanded ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                                <span class="text-sm font-bold text-white">${name}</span>
-                                <span class="text-[10px] bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded border border-gray-600">Custom Rules</span>
+                                <span class="text-sm font-bold text-yellow-400">${overrides[name]} <span class="text-[10px] text-gray-500 font-normal">MAX</span></span>
+                                <button onclick="window.revertToRule('${name.replace(/'/g, "\\'")}')" class="text-gray-500 hover:text-red-400">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                </button>
                             </div>
-                            <button onclick="event.stopPropagation(); window.removeDispatcherOverride('${name}')" class="text-gray-500 hover:text-red-400 p-1">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            </button>
                         </div>
-                        
-                        ${isExpanded ? `
-                            <div class="p-3 bg-gray-800 border-t border-gray-600 animate-fade-in">
-                                <div class="flex justify-between items-center mb-2">
-                                    <span class="text-xs text-gray-400">Rules specific to this dispatcher</span>
-                                    <button onclick="window.addCapacityRule('${name}')" class="text-[10px] bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded">+ Add Segment</button>
-                                </div>
-                                <div id="rules-container-${name}" class="space-y-1">
-                                    ${renderRulesTable(dispatcherRules, name)}
-                                </div>
-                            </div>
-                        ` : ''}
-                    </div>
-                `;}).join('')}
-                
-                ${groups.length === 0 && individualOverrides.length === 0 ? '<div class="text-sm text-gray-500 italic p-4 text-center border border-dashed border-gray-700 rounded-lg">No dispatcher overrides defined.</div>' : ''}
-            </div>
+                     `).join('')}
+                     ${Object.keys(overrides).filter(key => typeof overrides[key] === 'number').length === 0 ? '<div class="text-xs text-gray-600 italic">No manual overrides active. All dispatchers following global rules.</div>' : ''}
+                </div>
+            ` : ''}
         </div>
     </div>
     `;
 }
-
 function renderDispatcherSettingsTab(dispatchers, activeTab) {
     const settings = appState.delegation.tempSettings || appState.delegation;
     const { capacityCustom } = settings;
@@ -1479,6 +1371,14 @@ function renderDispatcherSettingsModal() {
 
     const tooltipText = "Select the criteria used to calculate Max Capacity automatically. <br><br><b>Rankings (1W/4W):</b> Uses the performance rules defined below.<br><b>Manually set:</b> Allows you to manually set limits per dispatcher.";
 
+    const mainScroll = document.getElementById('dispatcher-settings-main-scroll');
+    const rulesScroll = document.getElementById('capacity-ranking-rules'); 
+    const overrideScroll = document.getElementById('overrides-list-scroll');
+    
+    const mainScrollPos = mainScroll ? mainScroll.scrollTop : 0;
+    const rulesScrollPos = rulesScroll ? rulesScroll.scrollTop : 0;
+    const overrideScrollPos = overrideScroll ? overrideScroll.scrollTop : 0;
+
     modal.innerHTML = `
         <div class="bg-gray-800 border-2 border-gray-700 rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col h-[85vh] transform transition-all duration-75 scale-100">
             <div class="flex justify-between items-center p-5 border-b border-gray-700 flex-shrink-0">
@@ -1496,7 +1396,7 @@ function renderDispatcherSettingsModal() {
                 </div>
             </div>
 
-            <div class="overflow-y-auto flex-grow p-0 relative">
+            <div id="dispatcher-settings-main-scroll" class="overflow-y-auto flex-grow p-0 relative">
                 ${activeTab === 'capacity' ? `
                     <div class="p-4 flex flex-col h-full">
                         <div class="flex flex-col md:flex-row items-start md:items-center gap-3 mb-4 p-3 bg-gray-700/50 rounded-lg border border-gray-600 flex-shrink-0">
@@ -1524,8 +1424,8 @@ function renderDispatcherSettingsModal() {
                     </div>
                 ` : `
                     <div class="p-4 h-full flex flex-col">
-                ${renderDispatcherSettingsTab(dispatchers, activeTab)}
-            </div>
+                        ${renderDispatcherSettingsTab(dispatchers, activeTab)}
+                    </div>
                 `}
             </div>
             
@@ -1535,7 +1435,17 @@ function renderDispatcherSettingsModal() {
         </div>
     `;
     
-    // Attach tooltips to this modal specifically
+    setTimeout(() => {
+        const newMainScroll = document.getElementById('dispatcher-settings-main-scroll');
+        if (newMainScroll) newMainScroll.scrollTop = mainScrollPos;
+
+        const newRulesScroll = document.getElementById('capacity-ranking-rules');
+        if (newRulesScroll) newRulesScroll.scrollTop = rulesScrollPos;
+
+        const newOverrideScroll = document.getElementById('overrides-list-scroll');
+        if (newOverrideScroll) newOverrideScroll.scrollTop = overrideScrollPos;
+    }, 0);
+
     attachDelegationTooltips(modal);
 }
 
@@ -1548,6 +1458,10 @@ window.openDispatcherSettings = () => {
         lastAlgorithmicMode: appState.delegation.lastAlgorithmicMode,
         capacityGroups: appState.delegation.capacityGroups || [] 
     }));
+    
+    appState.delegation.isOverrideSearchOpen = false;
+    appState.delegation.overrideSearchTerm = '';
+
     appState.delegation.isDispatcherSettingsModalOpen = true;
     renderDispatcherSettingsModal();
     const modal = document.getElementById('dispatcher-settings-modal');
@@ -1909,14 +1823,7 @@ window.toggleOverrideSearch = () => {
 
 window.updateOverrideSearch = (value) => {
     appState.delegation.overrideSearchTerm = value;
-    renderDispatcherSettingsModal();
-    setTimeout(() => {
-        const input = document.getElementById('override-search-input');
-        if (input) {
-            input.focus();
-            input.setSelectionRange(value.length, value.length);
-        }
-    }, 0);
+    window.refreshOverridesTable();
 };
 
 window.toggleDispatcherSelection = (name) => {
@@ -2359,6 +2266,21 @@ window.handleRuleCriteriaInput = (input) => {
         rules[index].max = val;
     }
 };
+window.revertToRule = (dispatcherName) => {
+    const settings = appState.delegation.tempSettings;
+    if (!settings) return;
+
+    if (settings.capacityCustom && settings.capacityCustom[dispatcherName] !== undefined) {
+        delete settings.capacityCustom[dispatcherName];
+    }
+
+    if (appState.delegation.isOverrideSearchOpen) {
+        window.refreshOverridesTable();
+    } else {
+        renderDispatcherSettingsModal();
+    }
+};
+
 window.removeDispatcherFromGroup = (groupId, dispatcherName) => {
     const settings = appState.delegation.tempSettings;
     if (!settings || !settings.capacityGroups) return;
@@ -2386,9 +2308,113 @@ window.removeDispatcherFromGroup = (groupId, dispatcherName) => {
 
     renderDispatcherSettingsModal();
     
-    // Restore scroll
     setTimeout(() => {
          const newContainer = document.getElementById('capacity-ranking-rules');
          if(newContainer) newContainer.scrollTop = scrollPos;
     }, 0);
+};
+window.updateManualOverride = (dispatcherName, value, inputEl) => {
+    const settings = appState.delegation.tempSettings;
+    if (!settings) return;
+
+    if (value === '' || value === null) {
+        if (settings.capacityCustom && settings.capacityCustom.hasOwnProperty(dispatcherName)) {
+            delete settings.capacityCustom[dispatcherName];
+        }
+    } else {
+        const numValue = parseInt(value);
+        if (!isNaN(numValue) && numValue >= 0) {
+            if (!settings.capacityCustom) settings.capacityCustom = {};
+            settings.capacityCustom[dispatcherName] = numValue;
+        }
+    }
+
+    if (inputEl) {
+        const tr = inputEl.closest('tr');
+        if (tr) {
+            const badgeCell = tr.cells[1]; 
+            const actionCell = tr.cells[3]; 
+            const isManual = (settings.capacityCustom && settings.capacityCustom[dispatcherName] !== undefined);
+            const safeName = dispatcherName.replace(/'/g, "\\'"); 
+
+            if (isManual) {
+                inputEl.classList.add('border-yellow-500', 'text-yellow-400', 'font-bold');
+                inputEl.classList.remove('border-gray-600', 'text-gray-300');
+                badgeCell.innerHTML = '<span class="text-[10px] bg-yellow-900/50 text-yellow-400 px-1.5 py-0.5 rounded border border-yellow-700/50">Manual</span>';
+                actionCell.innerHTML = `<button type="button" onclick="window.revertToRule('${safeName}')" class="text-xs text-red-400 hover:text-red-300 hover:underline">Reset</button>`;
+            } else {
+                inputEl.classList.remove('border-yellow-500', 'text-yellow-400', 'font-bold');
+                inputEl.classList.add('border-gray-600', 'text-gray-300');
+                badgeCell.innerHTML = '<span class="text-[10px] bg-teal-900/30 text-teal-400 px-1.5 py-0.5 rounded border border-teal-700/30">Auto Rule</span>';
+                actionCell.innerHTML = '';
+            }
+        }
+    }
+};
+
+function renderOverridesTableRows(displayList, overrides, rules, mode) {
+    if (displayList.length === 0) return '<tr><td colspan="4" class="p-4 text-center text-gray-500 text-xs">No dispatchers found.</td></tr>';
+    
+    return displayList.map(d => {
+        const customVal = overrides[d.name];
+        const hasOverride = (typeof customVal === 'number');
+        const safeName = d.name.replace(/'/g, "\\'"); 
+        
+        const criteriaKey = (mode === 'rank4w') ? 'criteria4w' : 'criteria1w';
+        const criteriaValue = d[criteriaKey];
+        let ruleBasedCap = 5;
+        if (criteriaValue !== null && criteriaValue !== undefined) {
+            const matchingRule = rules.find(rule => criteriaValue >= rule.min && criteriaValue <= rule.max);
+            if (matchingRule) ruleBasedCap = matchingRule.cap;
+        }
+
+        const displayVal = hasOverride ? customVal : '';
+        
+        return `
+        <tr class="hover:bg-gray-700/50 transition-colors">
+            <td class="px-4 py-2 font-medium text-white">
+                ${d.name}
+                <div class="text-[10px] text-gray-500">Rank/Crit: ${(criteriaValue * 100).toFixed(1)}%</div>
+            </td>
+            <td class="px-4 py-2 text-center">
+                ${hasOverride 
+                    ? '<span class="text-[10px] bg-yellow-900/50 text-yellow-400 px-1.5 py-0.5 rounded border border-yellow-700/50">Manual</span>' 
+                    : '<span class="text-[10px] bg-teal-900/30 text-teal-400 px-1.5 py-0.5 rounded border border-teal-700/30">Auto Rule</span>'
+                }
+            </td>
+            <td class="px-4 py-2 text-center">
+                <input type="number" 
+                       min="0" 
+                       placeholder="${ruleBasedCap}" 
+                       value="${displayVal}"
+                       oninput="window.updateManualOverride('${safeName}', this.value, this)"
+                       class="w-20 bg-gray-900 border ${hasOverride ? 'border-yellow-500 text-yellow-400 font-bold' : 'border-gray-600 text-gray-300'} rounded px-2 py-1 text-center focus:outline-none focus:border-teal-500 transition-colors">
+            </td>
+            <td class="px-4 py-2 text-right">
+                ${hasOverride ? `
+                    <button type="button" onclick="window.revertToRule('${safeName}')" class="text-xs text-red-400 hover:text-red-300 hover:underline">
+                        Reset
+                    </button>
+                ` : ''}
+            </td>
+        </tr>
+        `;
+    }).join('');
+}
+
+window.refreshOverridesTable = () => {
+    const settings = appState.delegation.tempSettings || appState.delegation;
+    const mode = settings.capacityMode;
+    const rules = settings.capacityRules[mode] || [];
+    const overrides = settings.capacityCustom || {};
+    const searchTerm = (appState.delegation.overrideSearchTerm || '').toLowerCase();
+    
+    const allDispatchers = getDispatcherList().sort((a, b) => a.name.localeCompare(b.name));
+    
+    const displayList = allDispatchers.filter(d => d.name.toLowerCase().startsWith(searchTerm));
+    
+    const tbody = document.getElementById('overrides-table-body');
+    if (tbody) {
+        tbody.innerHTML = renderOverridesTableRows(displayList, overrides, rules, mode);
+    }
 };
