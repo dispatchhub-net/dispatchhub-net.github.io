@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dispatcher Intelligence Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='1.5' stroke='%232dd4bf'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z' /%3E%3C/svg%3E">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/litepicker/dist/litepicker.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker/dist/css/litepicker.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gradient-to-br from-gray-950 to-gray-800 text-gray-100">
+
+    <div id="full-page-loader" class="fixed inset-0 z-50 overflow-hidden">
+        <div id="particles-js" class="absolute inset-0"></div>
+        <div id="loader-background" class="absolute inset-0"></div>
+
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div id="login-card" class="w-[400px] max-w-full relative rounded-2xl bg-gray-800 border border-gray-700 shadow-2xl p-8 space-y-6 hidden">
+                <div class="text-center">
+                    <h2 class="text-2xl font-semibold tracking-tight text-white">Dispatcher<span class="text-teal-400">Hub</span></h2>
+                    <p class="text-sm text-gray-400">Please sign in to continue</p>
+                </div>
+                <div id="login-error-message" class="hidden"></div>
+                <form id="login-form" class="space-y-4">
+                    <div>
+                        <input type="email" id="login-email" class="login-input" placeholder="Email Address" required>
+                    </div>
+                    <div class="relative">
+                        <input type="password" id="login-password" class="login-input pr-10" placeholder="Password" required>
+                        <button type="button" id="toggle-password-visibility" class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-200">
+                            <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            <svg id="eye-slash-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.291A9.953 9.953 0 012.458 12c1.274 4.057 5.064 7 9.542 7 1.472 0 2.882-.265 4.185-.75M21 12a9.97 9.97 0 00-2.63-4.593m-4.594-2.126a11.95 11.95 0 00-2.126-1.07M15.828 8.228A9.956 9.956 0 0117.71 12c-1.274 4.057-5.064 7-9.542 7A9.967 9.967 0 015.02 16.63M2.458 12A9.953 9.953 0 016.58 6.58" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div>
+                        <button type="submit" id="login-button" class="login-button">Sign In</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="loader-card" class="w-[760px] max-w-full opacity-0 relative overflow-hidden rounded-2xl bg-gray-800 border border-gray-700 shadow-2xl hidden">
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-6 p-6 sm:p-8">
+                    <div class="flex items-center gap-4">
+                        <div class="p-3 rounded-xl bg-gradient-to-br from-teal-400 to-emerald-500 shadow-lg">
+                            <svg class="w-8 h-8 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                               <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                           </svg>
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-semibold tracking-tight text-white">Dispatcher<span class="text-teal-400">Hub</span></h2>
+                            <p id="loader-message-default" class="text-sm text-gray-400">Loading workspace...</p>
+                            <p id="loader-message-logout" class="text-sm text-gray-400 hidden">Ending your session...</p>
+                        </div>
+                    </div>
+                    <div class="hidden sm:block w-96 text-right">
+                        <div id="loading-tip-text" class="text-sm text-gray-400 italic" style="height: 48px;"></div>
+                    </div>
+                </div>
+                <div id="loading-progress-bar" class="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-teal-400 to-emerald-500" style="width: 0%;"></div>
+            </div>
+        </div>
+    
+        <div id="cursor-dot" class="fixed -translate-x-1/2 -translate-y-1/2 z-[9000] pointer-events-none">
+            <div class="w-2 h-2 rounded-full bg-white/80"></div>
+        </div>
+        <div id="cursor-outline" class="fixed -translate-x-1/2 -translate-y-1/2 z-[8999] pointer-events-none">
+            <div class="w-6 h-6 rounded-full border border-white/15"></div>
+        </div>
+    </div>
+
+    <div id="app-wrapper" class="flex hidden h-screen">
+
+        <nav id="sidebar" class="flex flex-col h-screen bg-gray-800 border-r border-gray-700 shadow-lg transition-all duration-300 ease-in-out minimized">
+            <div class="flex items-center justify-center h-20 border-b border-gray-700 flex-shrink-0">
+                <div class="sidebar-logo-icon">
+                    <svg class="w-8 h-8 text-teal-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                    </svg>
+                </div>
+                <span class="sidebar-text text-xl font-bold">Dispatcher Hub</span>
+            </div>
+
+            <ul class="p-4 space-y-2">
+                <li id="rankings-menu-item">
+                    <a href="#" class="nav-item">
+                        <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>
+                        <span class="sidebar-text">Rankings</span>
+                    </a>
+                </li>
+                <li id="fleet-health-menu-item">
+                    <a href="#" class="nav-item">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="nav-icon">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.25-8.25-3.286Zm0 13.036h.008v.008H12v-.008Z" />
+                        </svg>
+                        <span class="sidebar-text">Fleet Health</span>
+                    </a>
+                </li>
+                <li id="delegation-menu-item">
+                    <a href="#" class="nav-item">
+                        <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                        </svg>
+                        <span class="sidebar-text">Delegation</span>
+                    </a>
+                </li>
+                <li id="loads-menu-item">
+                    <a href="#" class="nav-item">
+                        <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span class="sidebar-text">Loads</span>
+                    </a>
+                </li>
+            </ul>
+
+            <div class="flex-grow"></div>
+
+            <div class="flex-grow"></div>
+
+            <div id="sidebar-footer" class="p-4 border-t border-gray-700 flex-shrink-0 space-y-2">
+                <div id="sidebar-refresh-status" class="nav-item">
+                </div>
+                <a href="#" id="settings-menu-item" class="nav-item">
+                    <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" /></svg>
+                    <span class="sidebar-text">Settings</span>
+                </a>
+                <a href="#" id="logout-btn" class="nav-item">
+                    <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
+                    <span class="sidebar-text">Logout</span>
+                </a>
+                <button id="sidebar-toggle" class="nav-item w-full">
+                    <span class="nav-icon icon-collapse text-2xl">&laquo;</span>
+                    <span class="nav-icon icon-expand text-2xl">&raquo;</span>
+                    <span class="sidebar-text">Collapse</span>
+                </button>
+            </div>
+        </nav>
+
+        <main class="flex-1 flex flex-col min-w-0">
+            <div id="main-content-area" class="flex-1 p-2 md:p-3 overflow-y-auto">
+                <div id="app" class="h-full flex flex-col">
+
+                    <div id="loads-analytics-content" class="h-full flex flex-col p-2 md:p-4 space-y-4 hidden">
+                        <div id="strategic-map-view" class="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-shrink-0">
+                            <div class="map-container relative">
+                            <div class="map-sidebar">
+                                <button class="sidebar-btn" title="Date Range">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zM4.5 6.75a1.25 1.25 0 011.25-1.25h8.5a1.25 1.25 0 011.25 1.25v8.5a1.25 1.25 0 01-1.25 1.25h-8.5a1.25 1.25 0 01-1.25-1.25v-8.5z" clip-rule="evenodd" /></svg>
+                                </button>
+                                <button id="map-a-filter-btn" class="sidebar-btn" title="Filters">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M2.625 6.25a.75.75 0 01.75-.75h13.25a.75.75 0 010 1.5H3.375a.75.75 0 01-.75-.75zM2.625 10a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5a.75.75 0 01-.75-.75zM2.625 13.75a.75.75 0 01.75-.75h3.5a.75.75 0 010 1.5h-3.5a.75.75 0 01-.75-.75z" /></svg>
+                                </button>
+                            </div>
+                            <div id="map-a-filter-popup" class="map-filter-popup hidden">
+                                <div class="sidebar-filter-group">
+                                    <label for="map-a-mode-select" class="sidebar-label">Mode</label>
+                                    <select id="map-a-mode-select" class="sidebar-select">
+                                        <option value="cluster">Cluster</option>
+                                        <option value="state">State</option>
+                                    </select>
+                                </div>
+                                <div class="sidebar-filter-group">
+                                    <label for="map-a-metric-select" class="sidebar-label">Metric</label>
+                                    <select id="map-a-metric-select" class="sidebar-select">
+                                        <option value="rpm">RPM</option>
+                                        <option value="volume">Volume</option>
+                                    </select>
+                                </div>
+                                <div class="sidebar-filter-group">
+                                    <label for="map-a-direction-select" class="sidebar-label">Direction</label>
+                                    <select id="map-a-direction-select" class="sidebar-select">
+                                        <option value="outbound">Outbound</option>
+                                        <option value="inbound">Inbound</option>
+                                    </select>
+                                </div>
+                                <div class="sidebar-filter-group">
+                                    <label for="cluster-granularity-slider" class="sidebar-label">Cluster Size</label>
+                                    <input type="range" id="cluster-granularity-slider" min="1" max="5" value="2.5" step="0.25" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                                </div>
+                            </div>
+                            <div id="primary-map-container" class="map-render-area"></div>
+                        </div>
+                             
+                    
+                            <div class="map-container relative">
+                            <div class="map-sidebar">
+                                <button class="sidebar-btn" title="Date Range">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zM4.5 6.75a1.25 1.25 0 011.25-1.25h8.5a1.25 1.25 0 011.25 1.25v8.5a1.25 1.25 0 01-1.25 1.25h-8.5a1.25 1.25 0 01-1.25-1.25v-8.5z" clip-rule="evenodd" /></svg>
+                                </button>
+                                <button id="map-b-filter-btn" class="sidebar-btn" title="Filters">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M2.625 6.25a.75.75 0 01.75-.75h13.25a.75.75 0 010 1.5H3.375a.75.75 0 01-.75-.75zM2.625 10a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5a.75.75 0 01-.75-.75zM2.625 13.75a.75.75 0 01.75-.75h3.5a.75.75 0 010 1.5h-3.5a.75.75 0 01-.75-.75z" /></svg>
+                                </button>
+                            </div>
+                            <div id="map-b-filter-popup" class="map-filter-popup hidden">
+                                <div class="sidebar-filter-group">
+                                    <label for="map-b-mode-select" class="sidebar-label">Mode</label>
+                                    <select id="map-b-mode-select" class="sidebar-select">
+                                        <option value="cluster">Cluster</option>
+                                        <option value="state">State</option>
+                                    </select>
+                                </div>
+                                <div class="sidebar-filter-group">
+                                    <label for="map-b-metric-select" class="sidebar-label">Metric</label>
+                                    <select id="map-b-metric-select" class="sidebar-select">
+                                        <option value="rpm">RPM</option>
+                                        <option value="volume">Volume</option>
+                                    </select>
+                                </div>
+                                <div class="sidebar-filter-group">
+                                    <label for="map-b-direction-select" class="sidebar-label">Direction</label>
+                                    <select id="map-b-direction-select" class="sidebar-select">
+                                        <option value="outbound">Outbound</option>
+                                        <option value="inbound">Inbound</option>
+                                    </select>
+                                </div>
+                                <div class="sidebar-filter-group">
+                                    <label for="cluster-granularity-slider-b" class="sidebar-label">Cluster Size</label>
+                                    <input type="range" id="cluster-granularity-slider-b" min="1" max="5" value="2.5" step="0.25" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                                </div>
+                            </div>
+                            <div id="secondary-map-container" class="map-render-area"></div>
+                        </div>
+                        </div>
+                    
+                        <div id="live-intelligence-ticker">
+                            <div class="ticker-wrap">
+                                <div class="ticker-move">
+                                    <div class="ticker-item">Market Alert: RPMs in the Southeast have increased 11% this week.</div>
+                                    <div class="ticker-item">Top Lane: Dallas, TX to Atlanta, GA is averaging $3.25/mile.</div>
+                                    <div class="ticker-item">High Demand: Washington has a 3:1 outbound-to-inbound load ratio.</div>
+                                    <div class="ticker-item">Volatility Warning: The Northeast market has a high volatility score this week.</div>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div id="detailed-analysis-dashboard" class="flex-grow flex flex-col min-h-0">
+                            <div id="dashboard-switcher" class="flex-shrink-0">
+                                <button data-view="performance" class="switcher-btn">Performance</button>
+                                <button data-view="profit" class="switcher-btn">Profit & Efficiency</button>
+                                <button data-view="market" class="switcher-btn">Market Intelligence</button>
+                                <button data-view="anomalies" class="switcher-btn">Anomaly Feed</button>
+                                <button data-view="deep-dive" class="switcher-btn">Deep Dive</button>
+                                <button data-view="load-planner" class="switcher-btn">Load Planner</button>
+                            </div>
+                            <div class="dashboard-content-area flex-grow">
+                                <div id="performance-dashboard" class="dashboard-view">
+                                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                        <div class="kpi-card">
+                                            <h4 class="kpi-title">Total Loads Moved</h4>
+                                            <p class="kpi-value">1,284</p>
+                                            <p class="kpi-trend text-green-400">+5.2%</p>
+                                        </div>
+                                        <div class="kpi-card">
+                                            <h4 class="kpi-title">Average RPM</h4>
+                                            <p class="kpi-value">$2.87</p>
+                                            <p class="kpi-trend text-red-400">-1.1%</p>
+                                        </div>
+                                        <div class="kpi-card">
+                                            <h4 class="kpi-title">On-Time Delivery</h4>
+                                            <p class="kpi-value">97.3%</p>
+                                            <p class="kpi-trend text-green-400">+0.5%</p>
+                                        </div>
+                                        <div class="kpi-card">
+                                            <h4 class="kpi-title">Acceptance Rate</h4>
+                                            <p class="kpi-value">92%</p>
+                                            <p class="kpi-trend text-gray-400">0.0%</p>
+                                        </div>
+                                         <div class="kpi-card">
+                                            <h4 class="kpi-title">Avg. Deadhead</h4>
+                                            <p class="kpi-value">8.1%</p>
+                                            <p class="kpi-trend text-green-400">-0.2%</p>
+                                        </div>
+                                    </div>
+                                    <div class="chart-placeholder mt-6">
+                                        <span class="chart-placeholder-title">Weekly Performance Trends Chart</span>
+                                    </div>
+                                </div>
+                        
+                                <div id="profit-efficiency-dashboard" class="dashboard-view">
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div class="kpi-card">
+                                            <h4 class="kpi-title">Total Revenue</h4>
+                                            <p class="kpi-value">$4.1M</p>
+                                            <p class="kpi-trend text-green-400">+8.1%</p>
+                                        </div>
+                                        <div class="kpi-card">
+                                            <h4 class="kpi-title">Avg. Profit/Load</h4>
+                                            <p class="kpi-value">$412</p>
+                                            <p class="kpi-trend text-green-400">+$18</p>
+                                        </div>
+                                        <div class="kpi-card">
+                                            <h4 class="kpi-title">Fuel Cost %</h4>
+                                            <p class="kpi-value">28.5%</p>
+                                            <p class="kpi-trend text-red-400">+1.5%</p>
+                                        </div>
+                                        <div class="kpi-card">
+                                            <h4 class="kpi-title">Cost Per Mile</h4>
+                                            <p class="kpi-value">$1.98</p>
+                                            <p class="kpi-trend text-red-400">+$0.03</p>
+                                        </div>
+                                    </div>
+                                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                                        <div class="chart-placeholder">
+                                            <span class="chart-placeholder-title">Revenue vs. Cost Over Time</span>
+                                        </div>
+                                        <div class="chart-placeholder">
+                                            <span class="chart-placeholder-title">Profitability by Lane</span>
+                                        </div>
+                                    </div>
+                                </div>
+                        
+                                <div id="market-intelligence-dashboard" class="dashboard-view">
+                                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                        <div class="lg:col-span-2 chart-placeholder h-96">
+                                            <span class="chart-placeholder-title">National Rate Heatmap</span>
+                                        </div>
+                                        <div class="market-list">
+                                            <h4 class="market-list-title">Top 5 Lanes (by RPM)</h4>
+                                            <ul class="market-list-items">
+                                                <li><span>Dallas, TX ➝ Atlanta, GA</span><span class="text-green-400 font-bold">$3.25/mi</span></li>
+                                                <li><span>Chicago, IL ➝ Laredo, TX</span><span class="text-green-400 font-bold">$3.11/mi</span></li>
+                                                <li><span>Los Angeles, CA ➝ Phoenix, AZ</span><span class="text-green-400 font-bold">$3.05/mi</span></li>
+                                                <li><span>Carlisle, PA ➝ Richmond, VA</span><span class="text-green-400 font-bold">$2.98/mi</span></li>
+                                                <li><span>Seattle, WA ➝ Salt Lake City, UT</span><span class="text-green-400 font-bold">$2.95/mi</span></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                        
+                                <div id="anomaly-feed-dashboard" class="dashboard-view">
+                                    <div class="anomaly-feed">
+                                        <div class="anomaly-item">
+                                            <p class="anomaly-title">High Dwell Time</p>
+                                            <p class="anomaly-details">Load #84321 at <span class="font-semibold text-amber-400">Shipper XYZ</span> has been dwelling for 6 hours (avg. 2 hours).</p>
+                                            <p class="anomaly-time">3 minutes ago</p>
+                                        </div>
+                                        <div class="anomaly-item">
+                                            <p class="anomaly-title">Unusual Rate Drop</p>
+                                            <p class="anomaly-details">RPM on <span class="font-semibold text-amber-400">Chicago ➝ Laredo</span> lane dropped 15% in the last 24 hours.</p>
+                                            <p class="anomaly-time">1 hour ago</p>
+                                        </div>
+                                        <div class="anomaly-item">
+                                            <p class="anomaly-title">Excessive Deadhead</p>
+                                            <p class="anomaly-details">Truck #152 assigned to Load #84329 has <span class="font-semibold text-amber-400">150 miles</span> of deadhead (avg. 45 miles).</p>
+                                            <p class="anomaly-time">3 hours ago</p>
+                                        </div>
+                                    </div>
+                                </div>
+                        
+                                <div id="deep-dive-dashboard" class="dashboard-view">
+                                </div>
+                        
+                                <div id="load-planner-dashboard" class="dashboard-view">
+                                    <div class="chart-placeholder">
+                                        <span class="chart-placeholder-title">Intelligent Load Planner Dashboard</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="profiles-content" class="h-full flex flex-col p-1 md:p-4 space-y-4 hidden">
+                            <div id="profiles-header" class="flex-shrink-0 flex justify-between items-center">
+                                </div>
+
+                            <div id="profiles-kpi-container" class="flex-shrink-0 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                                </div>
+
+                                <div class="profile-tables-wrapper">
+                                    <div id="profiles-dispatch-breakdown" class="profile-table-container">
+                                    </div>
+                                
+                                    <div id="fleet-health-flag-summary" class="flex-shrink-0"></div>
+                                
+                                    <div id="profiles-driver-health" class="profile-table-container">
+                                        <div id="profiles-driver-toolbar" class="flex-shrink-0 flex flex-wrap items-center justify-between gap-4 mb-3"></div>
+                                        <div id="profiles-driver-table-container" class="flex-grow overflow-auto"></div>
+                                    </div>
+                                </div>
+                        </div>
+                        <div id="main-content" class="hidden">
+                        <section class="flex flex-wrap justify-start gap-4 pb-2 mb-2" id="key-metrics-overview"></section>
+                        <div id="loading-indicator" class="text-center py-8 text-blue-400 hidden">
+                            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
+                            <p>Loading data from Google Sheet...</p>
+                        </div>
+                        <div id="error-message" class="bg-red-900 border border-red-700 text-red-200 p-4 rounded-lg mb-4 hidden">
+                            <p class="font-bold">Error:</p>
+                            <p id="error-details"></p>
+                            <p class="text-sm mt-2">Please ensure your Google Sheet setup and Apps Script deployment.</p>
+                        </div>
+                        <div class="bg-gray-800 border-2 border-gray-600 p-2 rounded-xl shadow-lg mb-4">
+                            <h2 class="text-xl font-bold text-gray-200 mb-2 flex flex-col md:flex-row md:items-center justify-between relative z-45 space-y-2 md:space-y-0">
+                                <div class="flex items-center space-x-3">
+                                    <div class="relative group" id="ranking-mode-dropdown-container">
+                                        <button id="ranking-mode-btn" class="flex items-center text-xl font-bold text-gray-200">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 mr-2 text-yellow-400"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h.01"></path><path d="M4 12h.01"></path><path d="M4 18h.01"></path></svg>
+                                            <span id="ranking-mode-title" class="text-white">Dispatcher <span class="text-yellow-400">Rankings</span></span>
+                                            <svg class="w-5 h-5 ml-1 text-gray-400 group-hover:text-white transition-transform duration-200 transform group-hover:rotate-180" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                                        </button>
+                                        <div id="ranking-mode-options" class="absolute left-0 mt-2 w-48 bg-gray-700 border border-gray-600 rounded-lg shadow-xl z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform scale-95 group-hover:scale-100 origin-top-left">
+                                            <a href="#" data-mode="dispatcher" class="ranking-mode-option block px-4 py-2 text-sm text-gray-200 hover:bg-teal-600">Dispatcher Rankings</a>
+                                            <a href="#" data-mode="team" class="ranking-mode-option block px-4 py-2 text-sm text-gray-200 hover:bg-teal-600">Team Rankings</a>
+                                        </div>
+                                    </div>
+                                    <button id="hall-of-fame-btn" title="Hall of Fame" class="text-gray-400 hover:text-yellow-400 transition-colors duration-200 mr-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+                                    </button>
+                                    <button id="title-snapshot-btn" title="Take a snapshot of the table" class="text-gray-400 hover:text-sky-400 transition-colors duration-200">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                                    </button>
+                                </div>
+                                <div class="flex flex-col sm:flex-row items-center justify-end space-y-2 sm:space-y-0 sm:space-x-2 w-full md:w-auto flex-wrap">
+                                    
+                                    <div id="driver-type-switcher" class="flex-shrink-0 rounded-lg p-0.5 bg-gray-700 border border-gray-600 flex items-center justify-center h-full">
+                                        <button data-type="all" class="px-3 py-1 text-xs font-medium rounded-md transition-colors duration-200 h-full">ALL</button>
+                                        <button data-type="oo" class="px-3 py-1 text-xs font-medium rounded-md transition-colors duration-200 h-full">OO</button>
+                                        <button data-type="loo" class="px-3 py-1 text-xs font-medium rounded-md transition-colors duration-200 h-full">LOO</button>
+                                    </div>
+                                    <div class="flex items-center space-x-2 flex-shrink-0">
+                                        <label for="date-selector" class="text-gray-300 sr-only">Select Date:</label>
+                                        <select id="date-selector" class="bg-gray-700 text-gray-100 border border-gray-600 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent transition duration-200 custom-date-input h-full"></select>
+                                    </div>
+                                    <div class="relative group flex-shrink-0">
+                                        <button id="toggle-filter-btn" class="bg-gray-700 hover:bg-gray-600 text-gray-200 py-1 px-3 rounded-lg text-sm flex items-center space-x-2 transition duration-200 h-full">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-orange-400"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                                            <span>Filters</span>
+                                        </button>
+                                        <div id="filter-dropdown" class="absolute right-0 mt-2 w-72 bg-gray-700 border border-gray-600 rounded-lg shadow-xl z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform scale-95 group-hover:scale-100 origin-top-right py-2">
+                                            <div class="p-3 text-gray-300 font-semibold text-xs uppercase border-b border-gray-600">Apply Filters</div>
+                                            <div class="flex flex-col space-y-3 p-3">
+                                                <select id="filter-column-select" class="bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-2 py-1 text-sm focus:ring-teal-500 focus:border-transparent"></select>
+                                                <select id="filter-operator-select" class="bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-2 py-1 text-sm focus:ring-teal-500 focus:border-transparent"></select>
+                                                <input type="text" id="filter-value-input" placeholder="Value" class="bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-2 py-1 text-sm focus:ring-teal-500 focus:border-transparent"/>
+                                                <button id="add-filter-btn" class="bg-teal-600 hover:bg-teal-700 text-white py-2 px-3 rounded-lg text-sm transition duration-200">Add Filter</button>
+                                            </div>
+                                            <div class="p-3 text-gray-300 font-semibold text-xs uppercase border-t border-gray-600 pt-3 mt-3">Min. Drivers for Inclusion</div>
+                                            <div class="flex flex-col space-y-2 p-3">
+                                                <label for="min-drivers-filter-type" class="text-gray-300 text-xs">Filter Type:</label>
+                                                <select id="min-drivers-filter-type" class="bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-2 py-1 text-sm focus:ring-teal-500 focus:border-transparent w-full">
+                                                    <option value="none">None</option>
+                                                    <option value="numDrivers">Total Drivers</option>
+                                                    <option value="numOOs">OO Drivers</option>
+                                                    <option value="numLOOs">LOO Drivers</option>
+                                                    <option value="numDrivers_4wkAvg">Total Drivers (4W Avg)</option>
+                                                    <option value="numOOs_4wkAvg">OO Drivers (4W Avg)</option>
+                                                    <option value="numLOOs_4wkAvg">LOO Drivers (4W Avg)</option>
+                                                </select>
+                                                <label for="min-drivers-filter-value" class="text-gray-300 text-xs">Min Value:</label>
+                                                <input type="number" id="min-drivers-filter-value" placeholder="Min Value" min="0" value="0" class="bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-2 py-1 text-sm focus:ring-teal-500 focus:border-transparent w-full"/>
+                                                <button id="apply-min-drivers-filter-btn" class="bg-blue-600 hover:bg-blue-700 text-white py-1.5 px-2 rounded-lg text-sm transition duration-200 w-full">Apply</button>
+                                            </div>
+                                            <div id="applied-filters-container" class="p-3 border-t border-gray-600 space-y-2"></div>
+                                        </div>
+                                    </div>
+                                    <div class="relative group flex-shrink-0">
+                                        <button id="toggle-column-visibility-btn" class="bg-gray-700 hover:bg-gray-600 text-gray-200 py-1 px-3 rounded-lg text-sm flex items-center space-x-2 transition duration-200 h-full">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                            <span>Columns</span>
+                                        </button>
+                                        <div id="column-visibility-dropdown" class="absolute right-0 mt-2 w-64 bg-gray-700 border border-gray-600 rounded-lg shadow-xl z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform scale-95 group-hover:scale-100 origin-top-right py-2">
+                                            <div class="p-3 text-gray-300 font-semibold text-xs uppercase border-b border-gray-600">Toggle Column Visibility</div>
+                                            <div id="column-checkboxes"></div>
+                                        </div>
+                                    </div>
+                                    <div class="relative group flex-shrink-0">
+                                        <button id="toggle-view-dropdown-btn" class="bg-gray-700 hover:bg-gray-600 text-gray-200 py-1 px-3 rounded-lg text-sm flex items-center space-x-2 transition duration-200 h-full">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                                            <span>Views</span>
+                                        </button>
+                                        <div id="view-dropdown" class="absolute right-0 mt-2 w-64 bg-gray-700 border border-gray-600 rounded-lg shadow-xl z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform scale-95 group-hover:scale-100 origin-top-right py-2">
+                                            <div class="flex items-center justify-between p-2 border-b border-gray-600">
+                                                <input type="text" id="save-view-name-input" placeholder="New view name..." class="bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-2 py-1 text-sm w-full mr-2 focus:ring-teal-500 focus:border-transparent">
+                                                <button id="save-view-btn" class="bg-teal-600 hover:bg-teal-700 text-white py-1 px-2 rounded-lg text-xs transition duration-200 flex-shrink-0">Save</button>
+                                            </div>
+                                            <div id="saved-views-list" class="max-h-48 overflow-y-auto"></div>
+                                        </div>
+                                    </div>
+                                    <div class="relative group flex-shrink-0">
+                                        <button id="toggle-display-settings-btn" class="text-gray-400 hover:text-gray-200 transition-colors duration-200 p-1 rounded-full hover:bg-gray-700" title="Display Settings">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0-.33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.82.33h.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33-1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-.33 1.82Z"></path></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </h2>
+                            <div id="main-table-container" class="overflow-x-auto overflow-y-auto max-h-[500px] relative shadow-xl rounded-lg">
+                                <table class="min-w-full divide-y divide-gray-700">
+                                    <thead class="bg-gray-700 sticky top-0 z-30" id="main-table-head">
+                                        <tr>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="main-table-body">
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p id="table-footer-text" class="text-gray-400 text-xs mt-2">Click on a row to view its individual performance trends.</p>
+                        </div>
+        
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                            <section class="bg-gray-800 border-2 border-gray-600 p-2 rounded-xl shadow-lg">
+                                <div class="flex flex-col md:flex-row md:items-center justify-between mb-2 gap-2">
+                                    <h2 id="historical-rank-title" class="text-xl font-bold text-gray-200 flex items-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 mr-2 text-blue-400"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                                        Historical Rank Changes
+                                    </h2>
+                                
+                                    <div class="flex flex-wrap items-center justify-start sm:justify-end gap-2 w-full md:w-auto">
+                                        <select id="bump-metric-select" title="Rank By" class="bg-gray-700 text-gray-100 border border-gray-600 rounded-lg px-2 py-1 h-8 text-xs focus:ring-2 focus:ring-fuchsia-500 focus:border-transparent transition duration-200 w-full sm:w-auto">
+                                        </select>
+                                
+                                        <input type="number" id="weeks-back-input" title="Weeks Back" min="1" class="bg-gray-700 text-gray-100 border border-gray-600 rounded-lg px-2 py-1 h-8 text-xs focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200 w-full sm:w-20"/>
+                                
+                                        <div id="multi-select-dropdown-container" title="Dispatchers" class="w-full sm:w-40">
+                                        </div>
+                                    </div>
+                                </div>
+        
+                                <div id="bump-chart-container" class="w-full h-[300px]">
+                                </div>
+                                <div id="bump-chart-legend" class="chart-legend justify-center">
+                                </div>
+                            </section>
+            
+                            <section class="bg-gray-800 border-2 border-gray-600 p-2 rounded-xl shadow-lg">
+                                <h2 id="performance-tracker-title" class="text-xl font-bold text-gray-200 mb-2 flex items-center justify-between">
+                                    <span class="flex items-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 mr-2 text-red-400"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                                        Performance Tracker
+                                    </span>
+                                    <div class="flex items-center space-x-2">
+                                        <div class="relative group">
+                                            <div class="text-gray-400 hover:text-gray-200 transition-colors duration-200 cursor-pointer">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                                            </div>
+                                            <div class="absolute bottom-full right-0 mb-2 w-72 bg-gray-900 border border-gray-600 rounded-lg shadow-xl z-40 p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform scale-95 group-hover:scale-100 origin-bottom-right pointer-events-none">
+                                                <h4 class="font-bold text-teal-400 text-sm mb-1">Low Performers</h4>
+                                                <p class="text-xs text-gray-300 mb-3">Identifies entities that consistently underperform on a selected 1-week metric compared to their peers over a chosen historical period.</p>
+                                            
+                                                <h4 class="font-bold text-orange-400 text-sm mb-1">Performance Drops</h4>
+                                                <p class="text-xs text-gray-300 mb-3">Flags entities whose current performance has dropped significantly compared to their own historical average for a selected metric.</p>
+                                            
+                                                <h4 class="font-bold text-blue-400 text-sm mb-1">Trending</h4>
+                                                <p class="text-xs text-gray-300 mb-3">Compares performance from a "recent" period to an "older" period to find dispatchers with significant upward or downward momentum.</p>
+
+                                                <h4 class="font-bold text-red-400 text-sm mb-1">Alerts</h4>
+                                                <p class="text-xs text-gray-300 mb-3">Real-time feed of critical issues like Bad Moves, Overdue Loads, and Retention risks requiring immediate attention.</p>
+
+                                                <h4 class="font-bold text-yellow-400 text-sm mb-1">Historical Movement</h4>
+                                                <p class="text-xs text-gray-300">Select up to 3 dispatchers to view and compare their detailed weekly performance metrics over time.</p>
+                                            </div>
+                                        </div>
+                                        <button id="performance-tracker-settings-btn" class="text-gray-400 hover:text-gray-200 transition-colors duration-200 p-1 rounded-full hover:bg-gray-700" title="Performance Settings">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0-.33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.82.33h.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33-1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-.33 1.82Z"></path></svg>
+                                        </button>
+                                    </div>
+                                </h2>
+                                
+                                <div id="performance-tracker-switcher" class="flex mb-2 rounded-lg overflow-hidden border border-gray-600">
+                                    <button id="show-alerts" class="flex-1 px-3 py-1.5 text-sm font-medium transition duration-200 ease-in-out">
+                                        Alerts
+                                    </button>
+                                    <button id="show-low-performers" class="flex-1 px-3 py-1.5 text-sm font-medium transition duration-200 ease-in-out">
+                                        Low Performers
+                                    </button>
+                                    <button id="show-performance-drops" class="flex-1 px-3 py-1.5 text-sm font-medium transition duration-200 ease-in-out">
+                                        Performance Drops
+                                    </button>
+                                    <button id="show-trending" class="flex-1 px-3 py-1.5 text-sm font-medium transition duration-200 ease-in-out">
+                                        Trending
+                                    </button>
+                                    <button id="show-historical-movement" class="flex-1 px-3 py-1.5 text-sm font-medium transition duration-200 ease-in-out">
+                                        Historical Movement
+                                    </button>
+                                </div>
+        
+                                <div id="low-performers-table-container">
+                                </div>
+        
+                                <div id="performance-drops-table-container">
+                                </div>
+                                <div id="trending-table-container">
+                                </div>
+                                <div id="historical-movement-container">
+                                </div>
+                                <div id="wth-loads-table-container" class="hidden">
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+        
+                    <div id="performance-tracker-settings-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4 hidden transition-opacity duration-300">
+                        <div class="bg-gray-800 border-2 border-gray-700 rounded-2xl shadow-2xl w-full max-w-lg transform transition-all">
+                            <div class="flex items-center justify-between p-4 border-b border-gray-700">
+                                <h2 class="text-lg font-bold text-gray-200 flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 mr-2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0-.33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.82.33h.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33-1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-.33 1.82Z"></path></svg>
+                                    Performance Tracker Settings
+                                </h2>
+                                <button id="close-performance-tracker-modal-btn" class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
+                            </div>
+                            <div class="p-4 space-y-6 max-h-[80vh] overflow-y-auto">
+                                <div>
+                                    <h3 class="font-semibold text-teal-400 mb-3 border-b border-gray-700 pb-2">Low Performers Settings</h3>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                        <label class="flex flex-col space-y-1">
+                                            <span class="text-gray-300">Metric</span>
+                                            <select id="low-performance-metric-select" class="bg-gray-700 text-gray-100 border border-gray-600 rounded-md px-2 py-1 focus:ring-teal-500 focus:border-transparent"></select>
+                                        </label>
+                                        <label class="flex flex-col space-y-1">
+                                            <div class="flex items-center space-x-1 relative group">
+                                                <span class="text-gray-300">Low Threshold (%)</span>
+                                                <div class="text-gray-500 cursor-help"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></div>
+                                                <div class="absolute top-full left-0 mt-1 w-60 bg-gray-900 text-gray-300 text-xs rounded-md shadow-lg p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible pointer-events-none z-50">Sets the bottom performance tier for each paystub. For any single paystub date, the system ranks all active dispatchers. A value of 25 flags any dispatcher who performs in the bottom 25% of that group.</div>
+                                            </div>
+                                            <input type="number" id="low-performer-threshold-input" class="bg-gray-700 text-gray-100 border border-gray-600 rounded-md px-2 py-1 focus:ring-teal-500 focus:border-transparent">
+                                        </label>
+                                        <label class="flex flex-col space-y-1">
+                                            <div class="flex items-center space-x-1 relative group">
+                                                <span class="text-gray-300">Min. Paystubs in Threshold (%)</span>
+                                                <div class="text-gray-500 cursor-help"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></div>
+                                                <div class="absolute bottom-full left-0 mb-1 w-60 bg-gray-900 text-gray-300 text-xs rounded-md shadow-lg p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible pointer-events-none z-50">The percentage of paystubs an entity must be in the 'Low Threshold' to appear on the list. E.g., a value of 50 means they must be a low performer for at least half of the analyzed period.</div>
+                                            </div>
+                                            <input type="number" id="min-low-stubs-threshold-input" class="bg-gray-700 text-gray-100 border border-gray-600 rounded-md px-2 py-1 focus:ring-teal-500 focus:border-transparent">
+                                        </label>
+                                        <label class="flex flex-col space-y-1">
+                                             <div class="flex items-center space-x-1 relative group">
+                                                <span class="text-gray-300">History Lookback</span>
+                                                <div class="text-gray-500 cursor-help"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></div>
+                                                <div class="absolute bottom-full left-0 mb-1 w-60 bg-gray-900 text-gray-300 text-xs rounded-md shadow-lg p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible pointer-events-none z-50">Choose the historical period to analyze for consistent low performance.</div>
+                                            </div>
+                                            <select id="low-perf-history-lookback-select" class="bg-gray-700 text-gray-100 border border-gray-600 rounded-md px-2 py-1 focus:ring-teal-500 focus:border-transparent"><option value="allTime">All Time</option><option value="specificWeeks">Specific Weeks</option></select>
+                                        </label>
+                                        <div id="settings-low-perf-specific-weeks-input-group" class="hidden"><label class="flex flex-col space-y-1"><span class="text-gray-300">Number of Weeks</span><input type="number" id="low-perf-specific-weeks-input" class="bg-gray-700 text-gray-100 border border-gray-600 rounded-md px-2 py-1 focus:ring-teal-500 focus:border-transparent"></label></div>
+                                    </div>
+                                </div>
+                            
+                                <div>
+                                    <h3 class="font-semibold text-orange-400 mb-3 border-b border-gray-700 pb-2">Performance Drops Settings</h3>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                        <label class="flex flex-col space-y-1"><span class="text-gray-300">Metric</span><select id="deviation-metric-select" class="bg-gray-700 text-gray-100 border border-gray-600 rounded-md px-2 py-1 focus:ring-orange-500 focus:border-transparent"></select></label>
+                                        <label class="flex flex-col space-y-1">
+                                            <div class="flex items-center space-x-1 relative group">
+                                                <span class="text-gray-300">Deviation Threshold (%)</span>
+                                                <div class="text-gray-500 cursor-help"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></div>
+                                                <div class="absolute bottom-full left-0 mb-1 w-60 bg-gray-900 text-gray-300 text-xs rounded-md shadow-lg p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible pointer-events-none z-50">The minimum percentage drop required to flag an entity. The drop is calculated against their own historical average.</div>
+                                            </div>
+                                            <input type="number" id="deviation-threshold-input" class="bg-gray-700 text-gray-100 border border-gray-600 rounded-md px-2 py-1 focus:ring-orange-500 focus:border-transparent">
+                                        </label>
+                                        <label class="flex flex-col space-y-1">
+                                            <div class="flex items-center space-x-1 relative group">
+                                                <span class="text-gray-300">History Lookback</span>
+                                                <div class="text-gray-500 cursor-help"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></div>
+                                                <div class="absolute bottom-full left-0 mb-1 w-60 bg-gray-900 text-gray-300 text-xs rounded-md shadow-lg p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible pointer-events-none z-50">The historical period to use for calculating the dispatcher's personal average performance.</div>
+                                            </div>
+                                            <select id="drop-history-lookback-select" class="bg-gray-700 text-gray-100 border border-gray-600 rounded-md px-2 py-1 focus:ring-orange-500 focus:border-transparent"><option value="allTime">All Time</option><option value="specificWeeks">Specific Weeks</option></select>
+                                        </label>
+                                        <div id="settings-drop-specific-weeks-input-group" class="hidden"><label class="flex flex-col space-y-1"><span class="text-gray-300">Number of Weeks</span><input type="number" id="drop-specific-weeks-input" class="bg-gray-700 text-gray-100 border border-gray-600 rounded-md px-2 py-1 focus:ring-orange-500 focus:border-transparent"></label></div>
+                                    </div>
+                                </div>
+                            
+                                <div class="mt-6">
+                                    <h3 class="font-semibold text-blue-400 mb-3 border-b border-gray-700 pb-2">Trending Settings</h3>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                        <label class="flex flex-col space-y-1"><span class="text-gray-300">Analysis Metric</span><select id="trend-metric-select" class="bg-gray-700 text-gray-100 border border-gray-600 rounded-md px-2 py-1 focus:ring-blue-500 focus:border-transparent"></select></label>
+                                        <label class="flex flex-col space-y-1">
+                                            <div class="flex items-center space-x-1 relative group">
+                                                <span class="text-gray-300">Significance Threshold (%)</span>
+                                                <div class="text-gray-500 cursor-help"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></div>
+                                                <div class="absolute bottom-full left-0 mb-1 w-60 bg-gray-900 text-gray-300 text-xs rounded-md shadow-lg p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible pointer-events-none z-50">The minimum percentage change required to consider a trend significant enough to be displayed.</div>
+                                            </div>
+                                            <input type="number" id="trend-significance-threshold-input" class="bg-gray-700 text-gray-100 border border-gray-600 rounded-md px-2 py-1 focus:ring-blue-500 focus:border-transparent">
+                                        </label>
+                                        <label class="flex flex-col space-y-1">
+                                            <div class="flex items-center space-x-1 relative group">
+                                                <span class="text-gray-300">Older Period (Weeks)</span>
+                                                <div class="text-gray-500 cursor-help"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></div>
+                                                <div class="absolute bottom-full left-0 mb-1 w-60 bg-gray-900 text-gray-300 text-xs rounded-md shadow-lg p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible pointer-events-none z-50">The historical baseline period for the trend comparison.</div>
+                                            </div>
+                                            <input type="number" id="trend-older-period-input" class="bg-gray-700 text-gray-100 border border-gray-600 rounded-md px-2 py-1 focus:ring-blue-500 focus:border-transparent">
+                                        </label>
+                                        <label class="flex flex-col space-y-1">
+                                             <div class="flex items-center space-x-1 relative group">
+                                                <span class="text-gray-300">Recent Period (Weeks)</span>
+                                                <div class="text-gray-500 cursor-help"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></div>
+                                                <div class="absolute bottom-full left-0 mb-1 w-60 bg-gray-900 text-gray-300 text-xs rounded-md shadow-lg p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible pointer-events-none z-50">The more recent period that is compared against the 'Older Period' to determine the trend direction.</div>
+                                            </div>
+                                            <input type="number" id="trend-recent-period-input" class="bg-gray-700 text-gray-100 border border-gray-600 rounded-md px-2 py-1 focus:ring-blue-500 focus:border-transparent">
+                                        </label>
+                                        <label class="flex flex-col space-y-1"><span class="text-gray-300">Min. Older Stubs</span><input type="number" id="trend-min-older-stubs-input" class="bg-gray-700 text-gray-100 border border-gray-600 rounded-md px-2 py-1 focus:ring-blue-500 focus:border-transparent"></label>
+                                        <label class="flex flex-col space-y-1"><span class="text-gray-300">Min. Recent Stubs</span><input type="number" id="trend-min-recent-stubs-input" class="bg-gray-700 text-gray-100 border border-gray-600 rounded-md px-2 py-1 focus:ring-blue-500 focus:border-transparent"></label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+        
+                    <div id="dispatcher-trend-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4 hidden transition-opacity duration-300">
+                        <div class="bg-gray-800 border-2 border-gray-700 rounded-2xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col transform transition-all">
+                            <div class="relative flex items-center justify-center p-3 flex-shrink-0">
+                                <h2 id="dispatcher-modal-title" class="text-lg font-bold text-gray-200 text-center"></h2>
+                                <button id="close-dispatcher-modal-btn" class="absolute right-3 text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
+                            </div>
+                            <div class="p-2 flex-shrink-0">
+                                <div id="modal-chart-switcher" class="flex justify-center space-x-1 bg-gray-700 rounded-lg p-0.5 max-w-md mx-auto">
+                                    <button data-view="rank" class="px-4 py-1.5 text-xs font-semibold rounded-md w-full transition-colors duration-200">Rank History</button>
+                                    <button data-view="stubs" class="px-4 py-1.5 text-xs font-semibold rounded-md w-full transition-colors duration-200">Paystub Details</button>
+                                    <button data-view="heatmap" class="px-4 py-1.5 text-xs font-semibold rounded-md w-full transition-colors duration-200">Performance Map</button>
+                                </div>
+                            </div>
+                            <div class="flex-grow p-1 overflow-y-auto">
+                                <div id="modal-chart-container" class="w-full h-[300px]"></div>
+                                <div id="modal-stubs-container" class="w-full max-h-[300px] overflow-y-auto" style="display: none;"></div>
+                            </div>
+                            <div id="modal-chart-legend" class="p-2 text-center flex-shrink-0"></div>
+                        </div>
+                    </div>
+        
+                    <div id="display-settings-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4 hidden transition-opacity duration-300">
+                        <div class="bg-gray-800 border-2 border-gray-700 rounded-2xl shadow-2xl w-full max-w-md transform transition-all">
+                            <div class="flex items-center justify-between p-4 border-b border-gray-700">
+                                <h2 class="text-lg font-bold text-gray-200 flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 mr-2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0-.33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.82.33h.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33-1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-.33 1.82Z"></path></svg>
+                                    Display Settings
+                                </h2>
+                                <button id="close-display-settings-modal-btn" class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
+                            </div>
+                            <div class="p-4 space-y-4 text-sm">
+                                <div class="space-y-2">
+                                    <label for="table-height-input" class="text-gray-300">Table Max Height: <span id="table-height-value" class="font-semibold text-teal-400">500px</span></label>
+                                    <input id="table-height-input" type="range" min="200" max="800" step="25" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-gray-300">Visible Key Metrics</label>
+                                    <div id="key-metrics-multiselect-container"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+        
+                    <div id="main-criteria-info-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4 hidden transition-opacity duration-300">
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+        
+    <div id="loads-tooltip" class="hidden"></div>
+    
+    <div id="force-refresh-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-[999] p-4 hidden">
+        <div class="bg-gray-800 border-2 border-gray-700 rounded-2xl shadow-2xl w-full max-w-sm text-center p-6">
+            <h3 class="text-lg font-bold text-white mb-2">Force Refresh?</h3>
+            <p id="force-refresh-text" class="text-gray-400 text-sm mb-4">
+            </p>
+            <div class="flex justify-center gap-4">
+                <button id="confirm-force-refresh-btn" class="bg-teal-600 hover:bg-teal-700 text-white py-2 px-6 rounded-lg text-sm transition duration-200">Yes, Refresh Now</button>
+                <button id="cancel-force-refresh-btn" class="bg-gray-600 hover:bg-gray-500 text-white py-2 px-6 rounded-lg text-sm transition duration-200">No, Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="profiles-driver-deep-dive-modal" class="settings-modal-backdrop hidden">
+        <div id="profiles-modal-container" class="settings-modal-container max-w-custom-wide !h-[90vh]">
+            <div id="profiles-modal-header" class="flex justify-between items-center p-4 border-b border-gray-700 flex-shrink-0">
+                <div id="profiles-modal-header-left">
+                    </div>
+                
+                    <div id="profiles-modal-header-center">
+                        </div>
+                
+                    <div id="profiles-modal-header-right">
+                        <button id="close-profiles-deep-dive-modal-btn" class="text-gray-400 hover:text-white transition-colors text-3xl">&times;</button>
+                    </div>
+                </div>
+                
+                <div id="profiles-modal-content" class="p-4 flex flex-col gap-4 overflow-y-auto flex-grow">
+                     <div id="profiles-modal-table-container" class="flex-grow h-3/5 overflow-y-auto border border-gray-700 rounded-lg">
+                        </div>
+        
+                    <div class="flex-shrink-0 flex gap-4 h-2/5">
+                        <div id="profiles-modal-kpi-container" class="w-1/3 grid grid-cols-2 gap-4">
+                            </div>
+                        <div id="profiles-modal-chart-container" class="w-2/3 border border-gray-700 rounded-lg">
+                            </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="profiles-driver-filter-modal" class="settings-modal-backdrop hidden">
+            <div class="settings-modal-container !max-w-xl">
+                <div class="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
+                    <h2 class="text-lg font-bold text-gray-200 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="w-5 h-5 mr-2">
+                            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                        </svg>
+                        Driver Table Filters
+                    </h2>
+                    <button id="close-driver-filter-modal-btn" class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
+                </div>
+        
+                <div id="driver-filter-modal-content" class="p-4 text-sm">
+                    <div id="driver-filter-criteria-container" class="space-y-3">
+                        </div>
+                    <button id="add-driver-filter-criteria-btn" class="add-criteria-btn mt-4">+ Add Criterion</button>
+                    
+                    <div class="filter-logic-container mt-6">
+                        <label class="text-gray-400 text-xs font-bold uppercase">Match</label>
+                        <div class="flex items-center gap-1 bg-gray-700 rounded-lg p-1">
+                            <button data-logic="AND" class="filter-logic-btn flex-1 px-3 py-1 text-xs rounded-md">AND</button>
+                            <button data-logic="OR" class="filter-logic-btn flex-1 px-3 py-1 text-xs rounded-md">OR</button>
+                        </div>
+                    </div>
+                </div>
+        
+                <div class="flex justify-between items-center p-4 mt-auto border-t border-gray-700 bg-gray-800 flex-shrink-0">
+                    <button id="clear-driver-filters-btn" class="text-sm text-gray-400 hover:text-red-400 transition-colors">Clear All Filters</button>
+                    <div class="flex gap-x-2">
+                        <button id="save-driver-filter-btn" class="toolbar-btn !bg-gray-600 hover:!bg-gray-500">Save Filter</button>
+                        <button id="cancel-driver-filter-btn" class="cancel-btn">Cancel</button>
+                        <button id="apply-driver-filter-btn" class="save-btn">Apply Filters</button>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+
+        <div id="profiles-driver-settings-modal" class="settings-modal-backdrop hidden">
+            <div class="settings-modal-container !max-w-3xl !h-[90vh]">
+                <div class="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
+                    <h2 class="text-lg font-bold text-gray-200 flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924-1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0 3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        Driver Health Settings
+                    </h2>
+                    <button id="close-driver-settings-modal-btn" class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
+                </div>
+                
+                <div id="driver-settings-modal-content" class="p-4 overflow-y-auto flex-grow">
+                    </div>
+        
+                <div class="flex justify-end items-center p-4 mt-auto border-t border-gray-700 bg-gray-800/50 flex-shrink-0">
+                    <button id="save-driver-settings-btn" class="save-btn">Save Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="profiles-driver-health-settings-modal" class="settings-modal-backdrop hidden">
+            <div class="settings-modal-container !max-w-xl">
+                <div class="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
+                    <h2 class="text-lg font-bold text-gray-200 flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924-1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0 3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        Driver Drop Risk Settings
+                    </h2>
+                    <button id="close-driver-health-settings-modal-btn" class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
+                </div>
+        
+                <div class="p-6 text-sm space-y-6">
+                    <p class="text-gray-400">
+                        Adjust the importance of each flag in the drop risk calculation. The total weight must equal 100%.
+                    </p>
+                    <div id="driver-health-weights-container" class="space-y-4">
+                        </div>
+                    <div class="text-right font-bold text-lg mt-4">
+                        Total: <span id="driver-health-total-weight">100%</span>
+                    </div>
+                </div>
+        
+                <div class="flex justify-end items-center p-4 mt-auto border-t border-gray-700 bg-gray-800 flex-shrink-0">
+                    <button id="save-driver-health-settings-btn" class="save-btn">Done</button>
+                </div>
+            </div>
+        </div>
+
+    </div> <div id="snapshot-trigger" class="snapshot-trigger">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.5a.75.75 0 001.5 0v-8.5z" /><path fill-rule="evenodd" d="M9.636 2.21a.75.75 0 01.728 1.06l-4.25 7.5a.75.75 0 11-1.28-.72l4.25-7.5a.75.75 0 01.552-.34zM4.75 12.5a.75.75 0 01.75-.75h8.5a.75.75 0 010 1.5h-8.5a.75.75 0 01-.75-.75z" clip-rule="evenodd" /></svg>
+        <span>Snapshot</span>
+    </div>
+
+    <div id="snapshot-panel" class="snapshot-panel">
+        <div id="snapshot-header" class="snapshot-header">
+            <h2 id="snapshot-title" class="snapshot-title"></h2>
+            <button id="snapshot-close-btn" class="snapshot-close-btn">&times;</button>
+        </div>
+        <div id="snapshot-content" class="snapshot-content">
+            </div>
+    </div>
+    </div>
+
+    </div> <div id="profiles-compliance-settings-modal" class="settings-modal-backdrop hidden">
+        <div class="settings-modal-container !max-w-xl">
+            <div class="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
+                <h2 class="text-lg font-bold text-gray-200 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M12 6V3m0 18v-3m6-7h3m-18 0h3M5.64 5.64l-1.42-1.42m12.72 12.72l-1.42-1.42M18.36 5.64l-1.42 1.42m-12.72 12.72l-1.42-1.42"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    Compliance Score Settings
+                </h2>
+                <button id="close-compliance-settings-modal-btn" class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
+            </div>
+    
+            <div class="p-6 text-sm space-y-6 overflow-y-auto flex-grow">
+                <p class="text-gray-400">
+                    Adjust the importance of each metric in the final compliance calculation. The total weight must equal 100%.
+                </p>
+                <div id="compliance-weights-container" class="space-y-4">
+                    </div>
+                <div class="text-right font-bold text-lg mt-4">
+                    Total: <span id="compliance-total-weight">100%</span>
+                </div>
+            </div>
+    
+            <div class="flex justify-end items-center p-4 mt-auto border-t border-gray-700 bg-gray-800 flex-shrink-0">
+                <button id="save-compliance-settings-btn" class="save-btn">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="profiles-threshold-settings-modal" class="settings-modal-backdrop hidden">
+        <div class="settings-modal-container !max-w-xl">
+            <div class="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
+                <h2 class="text-lg font-bold text-gray-200 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426-1.756-2.924-1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0 3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Threshold Settings
+                </h2>
+                <button id="close-threshold-settings-modal-btn" class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
+            </div>
+    
+            <div id="threshold-modal-content" class="p-6 text-sm space-y-6 overflow-y-auto">
+                <div class="setting-item">
+                    <label for="low-rpm-threshold-input" class="setting-label flex items-center">
+                        Low RPM Threshold
+                        <div class="relative group ml-2">
+                            <span class="text-gray-500 cursor-help"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></span>
+                            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-60 bg-gray-900 text-gray-300 text-xs rounded-md shadow-lg p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible pointer-events-none z-50">
+                                Loads with an RPM below this value will be flagged as 'Low RPM'.
+                            </div>
+                        </div>
+                    </label>
+                    <div class="input-dollar-sign-wrapper">
+                        <span>$</span>
+                        <input id="low-rpm-threshold-input" type="number" step="0.01" class="settings-input">
+                    </div>
+                </div>
+                
+                <div class="border-t border-gray-700 my-4"></div>
+
+                <div>
+                    <h4 class="settings-section-title !mb-2">"Good Move" Thresholds</h4>
+                     <p class="text-xs text-gray-400 mb-4">A "Moved Load" is a <span class="font-bold text-green-400">Good Move</span> if the driver's gross pay for that week (excluding the moved load) is below the threshold. Otherwise, it's a <span class="font-bold text-red-400">Bad Move</span>.</p>
+                    <div id="good-move-thresholds-container" class="space-y-3">
+                        </div>
+                </div>
+            </div>
+
+            <div id="save-driver-filter-modal" class="settings-modal-backdrop hidden">
+                <div class="settings-modal-container !max-w-sm">
+                    <div class="flex items-center justify-between p-4 border-b border-gray-700">
+                        <h2 id="save-filter-modal-title" class="text-lg font-bold text-gray-200">Save Driver Filter</h2>
+                        <button id="close-save-driver-filter-modal-btn" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                    </div>
+                    <div class="p-4 space-y-4">
+                        <div>
+                            <label for="save-filter-name-input" class="block text-sm font-medium text-gray-300 mb-1">Filter Name</label>
+                            <input type="text" id="save-filter-name-input" class="settings-input w-full !text-left" placeholder="e.g., High Risk Drivers">
+                        </div>
+                        <div>
+                            <label for="save-filter-color-input" class="block text-sm font-medium text-gray-300 mb-1">Filter Color</label>
+                            <input type="color" id="save-filter-color-input" class="settings-input w-full !p-1">
+                        </div>
+                    </div>
+                    <div class="flex justify-end p-4 border-t border-gray-700 bg-gray-800">
+                        <button id="confirm-save-driver-filter-btn" class="save-btn">Save Filter</button>
+                    </div>
+                </div>
+            </div>
+    
+            <div class="flex justify-end items-center p-4 mt-auto border-t border-gray-700 bg-gray-800 flex-shrink-0">
+                <button id="save-threshold-settings-btn" class="save-btn">Done</button>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="admin-settings-modal" class="settings-modal-backdrop hidden">
+        <div class="settings-modal-container !max-w-6xl">
+            <div class="flex items-center justify-between p-4 border-b border-gray-700">
+                <h2 class="text-lg font-bold text-gray-200 flex items-center gap-2">
+                    <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" /></svg>
+                    Admin Settings
+                </h2>
+                <button id="close-admin-settings-modal-btn" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div id="admin-settings-content" class="p-6 text-sm">
+                </div>
+        </div>
+    </div>
+
+    <div id="user-form-modal" class="settings-modal-backdrop hidden">
+        <div class="settings-modal-container">
+            <div class="flex items-center justify-between p-4 border-b border-gray-700">
+                <h2 id="user-form-title" class="text-lg font-bold text-gray-200"></h2>
+                <button id="close-user-form-modal-btn" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <form id="user-form" class="p-6 user-form-grid text-sm">
+                <input type="hidden" id="user-id-input">
+                
+                <div>
+                    <label for="user-email-input" class="block mb-1">Email</label>
+                    <input type="email" id="user-email-input" required class="settings-input w-full !text-left">
+                </div>
+                
+                <div>
+                    <label for="user-password-input" class="block mb-1">Password</label>
+                    <input type="password" id="user-password-input" class="settings-input w-full !text-left">
+                </div>
+
+                <div class="form-span-2">
+                    <label for="user-role-select" class="block mb-1">Role</label>
+                    <select id="user-role-select" required class="settings-select w-full">
+                        <option value="Admin">Admin</option>
+                        <option value="Operations">Operations</option>
+                        <option value="Team Lead">Team Lead</option>
+                        <option value="Dispatcher">Dispatcher</option>
+                    </select>
+                    
+                    <div id="user-role-description" class="text-xs text-gray-400 mt-2 p-2 bg-gray-900/50 rounded-md border border-gray-700" style="min-height: 50px;">
+                        </div>
+                </div>
+
+                <div class="form-span-2">
+                    <label class="block mb-1">Access Permissions</label>
+                    <div id="user-access-multiselect-container">
+                        </div>
+                     <p class="text-xs text-gray-500 mt-1">Select team or dispatcher for whom you want give an access.</p>
+                </div>
+
+                <div class="form-span-2 flex items-center">
+                    <input type="checkbox" id="user-loads-access-checkbox" class="form-checkbox h-4 w-4 text-teal-500 rounded border-gray-500 mr-2 bg-gray-900">
+                    <label for="user-loads-access-checkbox" class="text-gray-300">Grant Access to 'Loads' Section</label>
+                </div>
+
+                <div class="form-span-2 flex items-center mt-2">
+                    <input type="checkbox" id="user-delegation-access-checkbox" class="form-checkbox h-4 w-4 text-teal-500 rounded border-gray-500 mr-2 bg-gray-900">
+                    <label for="user-delegation-access-checkbox" class="text-gray-300">Grant Access to 'Delegation' Section</label>
+                </div>
+
+                <div class="form-span-2 flex justify-end pt-4">
+                    <button type="submit" class="save-btn">Save User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="logout-confirm-modal" class="confirm-modal-backdrop hidden">
+        <div class="confirm-modal-container">
+            <h3 class="confirm-modal-title">Confirm Logout</h3>
+            <p class="confirm-modal-text">Are you sure you want to end your session?</p>
+            <div class="confirm-modal-actions">
+                <button id="logout-cancel-btn" class="confirm-modal-btn cancel-btn">Cancel</button>
+                <button id="logout-confirm-btn" class="confirm-modal-btn confirm-btn-danger">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="logout-loader" class="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-900 bg-opacity-80 backdrop-blur-sm hidden">
+        <div class="flex flex-col items-center gap-4 text-center">
+            <svg class="animate-spin h-10 w-10 text-teal-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <h3 class="text-xl font-semibold text-white">Logging Out</h3>
+            <p class="text-gray-400">Please wait a moment...</p>
+        </div>
+    </div>
+
+    <div id="saving-indicator-overlay" class="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-900 bg-opacity-80 backdrop-blur-sm hidden">
+        <div class="flex flex-col items-center gap-4 text-center">
+            <svg class="animate-spin h-10 w-10 text-teal-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <h3 class="text-xl font-semibold text-white">Saving...</h3>
+            <p class="text-gray-400">Please wait a moment.</p>
+        </div>
+    </div>
+
+    <script src="https://d3js.org/topojson.v3.min.js"></script>
+    <script type="module" src="loads/loads_maps.js"></script>
+    <script type="module" src="main.js"></script>
+
+<div id="dispatch-tooltip" class="dispatch-tooltip"></div>
+<div id="summary-tooltip" class="summary-tooltip hidden"></div>
+<script type="module" src="main.js"></script>
+
+</body>
+</html>

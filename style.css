@@ -1,0 +1,5194 @@
+/* DISPATCH TESTER/style.css */
+/* style.css */
+
+/* Custom styles for compact chart legend */
+.chart-legend-compact {
+    display: flex;
+    justify-content: center;
+    gap: 15px; /* Adjust spacing between items */
+    margin-top: -20px; /* Reduced space above the legend */
+    color: #cbd5e0;
+    font-size: 12px;
+    flex-wrap: wrap; /* Allows wrapping on smaller screens */
+}
+
+#app {
+    position: relative; /* FIX: Added to anchor absolute elements like tooltips */
+}
+
+/* Add this new class to your style.css */
+.rank-change-tooltip {
+    position: absolute;
+    z-index: 100; /* High z-index to ensure it's on top */
+}
+
+.chart-legend-item-compact {
+    display: inline-flex; /* Use inline-flex to keep them in one line within their container */
+    align-items: center;
+    gap: 4px; /* Space between color indicator and text */
+}
+
+.chart-legend-color-line {
+    width: 15px; /* Width of the line indicator */
+    height: 2px; /* Thickness of the line */
+    border-top: 2px dashed; /* Dashed line style */
+    display: inline-block; /* Ensure it's treated as a block for width/height */
+    vertical-align: middle; /* Align with text */
+}
+    body {
+        font-family: 'Inter', sans-serif;
+        background: linear-gradient(to bottom right, #1a202c, #2d3748);
+        min-height: 100vh;
+        color: #e2e8f0;
+    }
+    .animate-fade-in-up {
+        animation: fadeInUp 0.5s ease-out forwards;
+    }
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    /* Custom styles for date input placeholder color (for dark theme) */
+    .custom-date-input::-webkit-datetime-edit-text,
+    .custom-date-input::-webkit-datetime-edit-month-field,
+    .custom-date-input::-webkit-datetime-edit-day-field,
+    .custom-date-input::-webkit-datetime-edit-year-field {
+        color: #E2E8F0; /* gray-200 */
+    }
+    .custom-date-input::-webkit-calendar-picker-indicator {
+        filter: invert(1); /* Makes the calendar icon white */
+    }
+    /* D3 Tooltip styling */
+    .d3-tooltip {
+        opacity: 0;
+        position: absolute;
+        background-color: #2d3748;
+        border: none;
+        border-radius: 8px;
+        padding: 8px;
+        color: #a0aec0;
+        font-size: 12px;
+        pointer-events: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        line-height: 1.5;
+        z-index: 9999;
+    }
+    .d3-tooltip strong {
+        color: #edf2f7;
+    }
+    /* Style for chart legends outside the main SVG area */
+    .chart-legend, #bump-chart-legend, #modal-chart-legend { /* FIX: Made selector more specific */
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin-top: 15px;
+        color: #cbd5e0;
+        font-size: 12px;
+        flex-wrap: wrap;
+    }
+    .chart-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .chart-legend-color {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+    }
+
+    /* Custom Scrollbar Styles for Webkit browsers (Chrome, Safari) */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+        background-color: #2d3748;
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background-color: #4a5568;
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: #6b7280;
+        border-radius: 4px;
+    }
+    
+    /* Make table headers sticky */
+    .sticky-header th {
+        position: sticky;
+        top: 0;
+        background-color: #4a5568;
+        z-index: 20;
+    }
+    .scrollable-table-container {
+        max-height: 300px;
+        overflow-y: auto;
+        position: relative;
+    }
+    #column-visibility-dropdown {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    /* Style for table rows to have subtle borders */
+    #main-table-body tr {
+        border-bottom: 1px solid #374151;
+    }
+    #main-table-body tr:last-child {
+        border-bottom: none;
+    }
+
+    /* Add this new rule to style.css */
+    #main-table-body tr:hover {
+        position: relative;
+        z-index: 50;
+    }
+
+    /* Tooltip for drivers */
+    .driver-tooltip {
+        opacity: 0;
+        position: absolute;
+        background-color: #2d3748;
+        border: none;
+        border-radius: 8px;
+        padding: 8px;
+        color: #a0aec0;
+        font-size: 12px;
+        pointer-events: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        line-height: 1.5;
+        z-index: 9999;
+        white-space: nowrap;
+        transition: opacity 0.2s ease-in-out;
+    }
+    .driver-tooltip.visible {
+        opacity: 1;
+    }
+
+    /* Styles for drag-and-drop */
+    .dragging {
+        opacity: 0.5;
+        background: #5a6578;
+    }
+    #main-table-head th {
+        cursor: move;
+    }
+    #main-table-head .drag-over {
+        /* Add a visual cue on the element being hovered over */
+        border-right: 2px solid #38b2ac; /* A teal color */
+    }
+
+    #saved-views-list .drag-over {
+        background-color: #374151; /* gray-700 */
+    }
+
+    .modal-chart-switcher button.active {
+        background-color: #10b981; /* teal-500 */
+        color: white;
+    }
+
+/* --- Final Styles for Left Sidebar (v4) --- */
+
+#app-wrapper {
+    gap: 0.3rem; /* 24px */
+}
+
+/* Sidebar container */
+#sidebar {
+    width: 280px; /* Expanded width */
+    flex-shrink: 0; /* Prevent sidebar from shrinking */
+    border-color: #4b5563; /* gray-600 */
+    /* NEW: Add the extra outline */
+    outline: 1px solid #4a5462;
+    /* FIX: Add this property to optimize the width transition */
+    will-change: width;
+}
+
+#sidebar.minimized {
+    width: 80px; /* Minimized width */
+}
+
+#sidebar.minimized .sidebar-text {
+    opacity: 0;
+    visibility: hidden;
+    width: 0;
+}
+#sidebar.minimized .nav-arrow {
+    display: none;
+}
+
+.sidebar-text {
+    white-space: nowrap;
+    transition: opacity 0.2s ease-in-out, width 0.2s ease-in-out;
+    opacity: 1;
+    visibility: visible;
+}
+.sidebar-logo-icon {
+    transition: all 0.3s ease-in-out;
+}
+#sidebar.minimized .sidebar-logo-icon {
+     transform: scale(1.2);
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    /* UPDATED: Increased left/right padding for better alignment */
+    padding: 0.75rem 1.5rem; 
+    border-radius: 0.5rem;
+    color: #cbd5e1; /* gray-300 */
+    font-weight: 500;
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+.nav-item:hover {
+    background-color: #374151; /* gray-700 */
+    color: white;
+}
+
+.nav-item.active {
+    background-color: #4b5563; /* gray-600 */
+    color: white;
+}
+
+.nav-icon {
+    width: 1.5rem; /* 24px */
+    height: 1.5rem; /* 24px */
+    margin-right: 1rem;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#sidebar.minimized .nav-item {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+}
+#sidebar.minimized .nav-item .nav-icon {
+    margin-right: 0;
+}
+
+#profiles-submenu {
+    max-height: 0;
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+#profiles-menu-item.open #profiles-submenu {
+    max-height: 200px;
+}
+#profiles-menu-item.open .nav-arrow {
+    transform: rotate(180deg);
+}
+
+#loads-submenu {
+    max-height: 0;
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+#loads-menu-item.open #loads-submenu {
+    max-height: 200px;
+}
+#loads-menu-item.open .nav-arrow {
+    transform: rotate(180deg);
+}
+
+.sub-nav-item {
+    display: block;
+    padding: 0.5rem 0.5rem 0.5rem 0;
+    border-radius: 0.375rem;
+    color: #9ca3af; /* gray-400 */
+    font-size: 0.875rem;
+    transition: color 0.2s ease-in-out;
+}
+.sub-nav-item:hover {
+    color: white;
+}
+
+/* NEW: Style for the active submenu item */
+.sub-nav-item.active {
+    color: #2dd4bf; /* teal-400 */
+    font-weight: 600;
+}
+
+
+.icon-expand {
+    display: none;
+}
+#sidebar.minimized .icon-expand {
+    display: flex;
+}
+#sidebar.minimized .icon-collapse {
+    display: none;
+}
+/* --- Tooltip for Minimized Sidebar --- */
+
+/* Make the link a positioning container for the tooltip */
+.nav-item {
+    position: relative;
+}
+
+/* Style the text to become a tooltip ONLY when sidebar is minimized and the item is hovered */
+/* Style the text to become a tooltip ONLY when sidebar is minimized and the item is hovered */
+#sidebar.minimized .nav-item:hover .sidebar-text {
+    /* Override hiding styles */
+    visibility: visible;
+    opacity: 1;
+    width: auto;
+    
+    /* Tooltip appearance */
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 1rem; /* 16px space from the icon */
+    padding: 0.5rem 1rem; /* 8px 16px */
+    
+    background-color: #1f2937; /* gray-800 */
+    color: #e5e7eb; /* gray-200 */
+    border-radius: 0.5rem; /* 8px */
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    white-space: nowrap; /* Keep text on one line */
+    
+    /* UPDATED: Higher z-index to ensure it's on top */
+    z-index: 99;
+    
+}
+/* --- Exclude Tooltip for Collapse Button --- */
+
+/* This rule specifically targets the tooltip text inside the toggle button 
+   and keeps it hidden, even on hover. */
+   #sidebar.minimized #sidebar-toggle:hover .sidebar-text {
+    visibility: hidden;
+    opacity: 0;
+}
+/* --- Styles for Sticky Columns --- */
+#main-table-container th.sticky,
+#main-table-container td.sticky {
+    position: -webkit-sticky;
+    position: sticky;
+    z-index: 25; /* Default z-index for sticky elements */
+}
+
+/* Apply the darker background ONLY to sticky cells within the TABLE BODY */
+#main-table-body td.sticky {
+    background-color: #263142; 
+}
+
+/* Ensure pinned HEADERS are above everything and match the normal header color */
+#main-table-head th.sticky {
+    z-index: 35; /* Higher z-index to stay above scrolling body */
+    background-color: #374151; /* This now matches the bg-gray-700 of the header row */
+}
+
+/* Add a subtle shadow to give a sense of elevation */
+#main-table-container th.sticky-left,
+#main-table-container td.sticky-left {
+    box-shadow: 5px 0 5px -5px rgba(0,0,0,0.4);
+}
+
+#main-table-container th.sticky-right,
+#main-table-container td.sticky-right {
+    box-shadow: -5px 0 5px -5px rgba(0,0,0,0.4);
+}
+
+/* --- Row Hover Styles --- */
+/* This ensures BOTH sticky and non-sticky cells get the hover effect */
+#main-table-body tr:hover td {
+    background-color: #374151; /* Corresponds to hover:bg-gray-700 */
+}
+
+/* Override hover color for a selected row to maintain its selection color */
+#main-table-body tr.bg-teal-900:hover td {
+   background-color: #2d7975 !important; /* A slightly darker version of teal-900, !important to ensure it overrides */
+}
+/* --- Definitive Fix for Sticky Header Color --- */
+#main-table-head th.is-sticky-header {
+    background-color: #374151 !important; /* This is the correct color for bg-gray-700 */
+  }
+/* Add this to your style.css file */
+.dimmed {
+    opacity: 0.2;
+    transition: opacity 0.3s ease-in-out;
+}
+/* --- LOADS DASHBOARD STYLES --- */
+.toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: #374151; /* gray-700 */
+    color: #d1d5db; /* gray-300 */
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+.toolbar-btn:hover {
+    background-color: #4b5563; /* gray-600 */
+}
+
+.toolbar-input {
+    background-color: #374151; /* gray-700 */
+    color: #d1d5db; /* gray-300 */
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid #4b5563; /* gray-600 */
+}
+.toolbar-input::-webkit-calendar-picker-indicator {
+    filter: invert(0.8);
+}
+
+.toolbar-input::placeholder {
+    color: #9ca3af; /* gray-400 */
+    font-style: italic;
+    opacity: 0.7;
+}
+
+.master-search-bar {
+    width: 100%;
+    max-width: 450px; /* Set a max width to make it narrower */
+    padding: 0.375rem 0.75rem; /* Makes it a bit smaller vertically */
+    font-size: 0.875rem; /* Smaller font */
+    text-align: center; /* Center the placeholder text */
+    transition: all 0.2s ease-in-out;
+    outline: none;
+}
+
+.master-search-bar::placeholder {
+    text-align: center;
+}
+
+.master-search-bar:focus {
+    text-align: left; /* Align text to the left when typing */
+    border-color: #2dd4bf; /* teal-400 */
+    box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.3);
+}
+
+.master-search-bar:focus::placeholder {
+    text-align: left;
+}
+
+.saved-filter-btn {
+    display: flex;
+    align-items: center;
+    /* justify-content: space-between; */ /* <-- REMOVE this line */
+    gap: 0.25rem; /* <-- ADD this line back */
+    padding: 0.25rem 0.625rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    font-size: 0.75rem;
+    border: 1px solid #4b5563;
+    color: #d1d5db;
+    background-color: transparent;
+    transition: all 0.2s;
+    min-width: 100px;
+}
+
+.saved-filter-btn:hover {
+    opacity: 0.8;
+}
+
+/* --- Unselected State Colors (NEW) --- */
+.saved-filter-btn[data-color="red"]:not(.active) { border-color: #f87171; color: #f87171; }
+.saved-filter-btn[data-color="blue"]:not(.active) { border-color: #60a5fa; color: #60a5fa; }
+.saved-filter-btn[data-color="yellow"]:not(.active) { border-color: #fbbf24; color: #fbbf24; }
+.saved-filter-btn[data-color="purple"]:not(.active) { border-color: #c084fc; color: #c084fc; }
+.saved-filter-btn[data-color="white"]:not(.active) { border-color: white; color: white; }
+
+/* --- NEW REFACTORED Active (Selected) State Colors --- */
+.saved-filter-btn.active[data-color="red"],
+.custom-filter-wrapper.is-active[data-color="red"] > .saved-filter-btn,
+.custom-filter-wrapper.is-active[data-color="red"] .filter-actions-trigger {
+    background-color: #991b1b; border-color: #f87171; color: white;
+}
+
+.saved-filter-btn.active[data-color="blue"],
+.custom-filter-wrapper.is-active[data-color="blue"] > .saved-filter-btn,
+.custom-filter-wrapper.is-active[data-color="blue"] .filter-actions-trigger {
+    background-color: #1e3a8a; border-color: #60a5fa; color: white;
+}
+
+.saved-filter-btn.active[data-color="yellow"],
+.custom-filter-wrapper.is-active[data-color="yellow"] > .saved-filter-btn,
+.custom-filter-wrapper.is-active[data-color="yellow"] .filter-actions-trigger {
+    background-color: #92400e; border-color: #fbbf24; color: white;
+}
+
+.saved-filter-btn.active[data-color="purple"],
+.custom-filter-wrapper.is-active[data-color="purple"] > .saved-filter-btn,
+.custom-filter-wrapper.is-active[data-color="purple"] .filter-actions-trigger {
+    background-color: #581c87; border-color: #c084fc; color: white;
+}
+
+.saved-filter-btn.active[data-color="white"],
+.custom-filter-wrapper.is-active[data-color="white"] > .saved-filter-btn,
+.custom-filter-wrapper.is-active[data-color="white"] .filter-actions-trigger {
+    background-color: white; border-color: white; color: black;
+}
+
+.saved-filter-btn.active[data-color="orange"],
+.custom-filter-wrapper.is-active[data-color="orange"] > .saved-filter-btn,
+.custom-filter-wrapper.is-active[data-color="orange"] .filter-actions-trigger {
+    background-color: #c2410c; border-color: #fb923c; color: white;
+}
+
+.saved-filter-btn.active[data-color="green"],
+.custom-filter-wrapper.is-active[data-color="green"] > .saved-filter-btn,
+.custom-filter-wrapper.is-active[data-color="green"] .filter-actions-trigger {
+    background-color: #166534; border-color: #4ade80; color: white;
+}
+
+
+.load-flag {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    color: white;
+    white-space: nowrap;
+}
+/* Add for new flags for Not Closed and Low RPM */
+.load-flag.bg-orange-500 { background-color: #f97316; } /* Tailwind orange-500 */
+.load-flag.bg-yellow-500 { background-color: #eab308; } /* Tailwind yellow-500 */
+
+/* Styles for drag-and-drop filters */
+#saved-filters-bar button.dragging {
+    opacity: 0.5;
+    background: #5a6578;
+}
+#saved-filters-bar button.drag-over {
+    border-color: #38b2ac; /* Teal border for drag over */
+}
+.force-modal-width {
+    max-width: 900px !important; /* Adjust this value as needed, try 900px first */
+}
+/* Add these styles to the end of style.css */
+
+/* Make the loads table scrollable with a sticky header */
+#loads-table-container {
+    max-height: 77vh; /* Adjust height as needed */
+    overflow: auto;
+}
+
+#loads-table-container thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+/* Styles for the column manager in settings */
+#loads-column-manager .column-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    background-color: #4b5563; /* gray-600 */
+    border-radius: 0.375rem;
+    cursor: grab;
+}
+
+#loads-column-manager .column-item.dragging {
+    opacity: 0.5;
+    background-color: #6b7280; /* gray-500 */
+}
+
+#loads-table-container th.drag-over {
+    border-right: 3px solid #2dd4bf; /* A thick teal line */
+}
+/* --- PAGINATION CONTROLS V2 --- */
+.pagination-controls-wrapper {
+    display: flex;
+    justify-content: flex-end; /* Align to the right side */
+    align-items: center;
+    gap: 1.5rem; /* 24px */
+    padding-top: 0.5rem; /* 8px */
+    font-size: 0.875rem; /* 14px */
+    color: #9ca3af; /* gray-400 */
+    user-select: none;
+}
+.pagination-select-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+.pagination-select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-color: #374151; /* gray-700 */
+    border: 1px solid #4b5563; /* gray-600 */
+    color: #e5e7eb; /* gray-200 */
+    padding: 0.25rem 2rem 0.25rem 0.75rem; /* 4px 32px 4px 12px */
+    border-radius: 0.375rem; /* 6px */
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+.pagination-select:hover {
+    border-color: #6b7280; /* gray-500 */
+}
+.pagination-select-container::after {
+    content: '▼';
+    position: absolute;
+    top: 50%;
+    right: 0.75rem; /* 12px */
+    transform: translateY(-50%) scale(0.6);
+    pointer-events: none;
+    color: #9ca3af; /* gray-400 */
+}
+.pagination-range {
+    color: #e5e7eb; /* gray-200 */
+    font-weight: 500;
+}
+.pagination-buttons {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem; /* 8px */
+}
+.pagination-button {
+    color: #e5e7eb; /* gray-200 */
+    cursor: pointer;
+    transition: color 0.2s;
+}
+.pagination-button:hover {
+    color: white;
+}
+.pagination-button:disabled {
+    color: #4b5563; /* gray-600 */
+    cursor: not-allowed;
+}
+.pagination-button:disabled:hover {
+    color: #4b5563; /* gray-600 */
+}
+/* PU Location Tooltip Styles */
+.tooltip-container {
+    position: relative; /* Required for positioning the tooltip */
+    cursor: help;
+}
+
+.tooltip-container::after {
+    content: attr(data-tooltip); /* The text for the tooltip comes from this data attribute */
+    position: absolute;
+    bottom: 100%; /* Position it above the cell */
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 5px; /* Space between cell and tooltip */
+
+    background-color: #1f2937; /* gray-800 */
+    color: #e5e7eb; /* gray-200 */
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem; /* rounded-md */
+    border: 1px solid #4b5563; /* gray-600 */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+    white-space: nowrap;
+    z-index: 10;
+
+    /* Hidden by default and transition for a smooth effect */
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none; /* Prevents the tooltip from interfering with mouse events */
+    transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+
+/* Show the tooltip on hover */
+.tooltip-container:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+/* ADD these styles to the end of your style.css file */
+
+.search-wrapper {
+    display: flex;
+    align-items: center;
+    background-color: #374151; /* gray-700 */
+    border: 1px solid #4b5563; /* gray-600 */
+    border-radius: 0.5rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    height: 38px; /* Set a fixed height */
+}
+.search-wrapper:focus-within {
+    border-color: #2dd4bf; /* teal-400 */
+    box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.3);
+}
+
+.search-column-trigger {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 0 0.75rem;
+    cursor: pointer;
+    white-space: nowrap;
+    color: #d1d5db; /* gray-300 */
+    border-right: 1px solid #4b5563; /* gray-600 */
+    height: 100%;
+    transition: background-color 0.2s;
+}
+.search-column-trigger:hover {
+    background-color: #4b5563; /* gray-600 */
+    border-top-left-radius: 0.5rem;
+    border-bottom-left-radius: 0.5rem;
+}
+.search-column-trigger .column-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.search-column-trigger .arrow {
+    margin-left: 0.5rem;
+    width: 1rem;
+    height: 1rem;
+    color: #9ca3af; /* gray-400 */
+    flex-shrink: 0;
+}
+
+#loads-master-search-input {
+    flex-grow: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 0.5rem 0.75rem;
+    color: #e5e7eb; /* gray-200 */
+    font-size: 0.875rem;
+    width: 100%;
+}
+#loads-master-search-input::placeholder {
+    color: #9ca3af;
+}
+
+#loads-search-column-panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 0.25rem;
+    background-color: #2d3748;
+    border: 1px solid #4b5563;
+    border-radius: 0.5rem;
+    z-index: 50;
+    max-height: 250px;
+    overflow-y: auto;
+    min-width: 200px;
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+.column-panel-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    color: #d1d5db;
+    font-size: 0.875rem;
+}
+.column-panel-item:hover {
+    background-color: #4b5563;
+}
+.column-panel-item.selected {
+    background-color: #1e4ed8;
+    color: white;
+    font-weight: 600;
+}
+/* PU Location Tooltip Styles */
+.tooltip-container {
+    position: relative; /* Required for positioning the tooltip */
+    cursor: help;
+}
+
+.tooltip-container::after {
+    content: attr(data-tooltip); /* The text for the tooltip comes from this data attribute */
+    position: absolute;
+    bottom: 100%; /* Position it above the cell */
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 5px; /* Space between cell and tooltip */
+
+    background-color: #1f2937; /* gray-800 */
+    color: #e5e7eb; /* gray-200 */
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem; /* rounded-md */
+    border: 1px solid #4b5563; /* gray-600 */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+    white-space: nowrap;
+    z-index: 10;
+
+    /* Hidden by default and transition for a smooth effect */
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none; /* Prevents the tooltip from interfering with mouse events */
+    transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+
+/* Show the tooltip on hover */
+.tooltip-container:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* New rule for tooltips positioned to the left */
+.tooltip-container.tooltip-left::after {
+    /* Override default position */
+    bottom: auto; /* Unset the default bottom positioning */
+    top: 50%;
+    left: auto;
+    right: 100%;
+    transform: translateY(-50%); /* Vertically center */
+    
+    /* Add some spacing */
+    margin-bottom: 0;
+    margin-right: 8px;
+}
+/* DISPATCH TESTER/style.css */
+
+/* ADD these NEW styles to the end of your style.css file */
+.tooltip-day-range {
+    color: #fbbf24; /* amber-400 */
+    font-weight: 600;
+}
+
+.tooltip-rate {
+    color: #2dd4bf; /* teal-400 */
+    font-weight: 600;
+}
+
+.tooltip-canceled {
+    color: #ef4444; /* red-500 */
+    font-weight: 600;
+}
+
+/* NEW Global Tooltip Style */
+#loads-tooltip {
+    position: absolute; /* Positioned relative to the body */
+    z-index: 9999; /* Ensure it's on top of everything */
+    background-color: #1f2937; /* gray-800 */
+    color: #e5e7eb; /* gray-200 */
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem; /* rounded-md */
+    border: 1px solid #4b5563; /* gray-600 */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    pointer-events: none; /* Prevents the tooltip from interfering with mouse events */
+    font-size: 0.75rem; /* 12px */
+    line-height: 1.5;
+    max-width: 450px; /* Give it a max width for long content */
+    text-align: left;
+    white-space: normal; /* Allow text to wrap */
+}
+
+#loads-tooltip.hidden {
+    display: none;
+}
+.load-flag.new-start-flag {
+    background-color: white;
+    color: black;
+}
+
+.compact-flags-container {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background-color: transparent;
+    border: 1px solid #2dd4bf; /* This is the cyan color (teal-400) */
+    border-radius: 0.375rem;
+    cursor: help;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.compact-flags-container:hover {
+    background-color: rgba(45, 212, 191, 0.1); /* Adds a subtle cyan glow on hover */
+}
+
+.compact-flags-count {
+    color: #2dd4bf; /* This is the cyan color (teal-400) */
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+/* Unselected State */
+.saved-filter-btn[data-color="orange"]:not(.active) { border-color: #fb923c; color: #fb923c; }
+.saved-filter-btn[data-color="green"]:not(.active) { border-color: #4ade80; color: #4ade80; }
+
+/* Active (Selected) State */
+.saved-filter-btn.active[data-color="orange"] { background-color: #c2410c; border-color: #fb923c; color: white; }
+.saved-filter-btn.active[data-color="green"] { background-color: #166534; border-color: #4ade80; color: white; }
+.load-filter-flag-multiselect {
+    position: relative;
+}
+
+.multiselect-trigger {
+    width: 100%;
+    background-color: #374151; /* gray-700 */
+    border: 1px solid #4b5563; /* gray-600 */
+    color: #e5e7eb; /* gray-200 */
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    text-align: left;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.multiselect-panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 0.25rem;
+    background-color: #2d3748;
+    border: 1px solid #4b5563;
+    border-radius: 0.5rem;
+    z-index: 50;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.multiselect-panel label {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    cursor: pointer;
+    color: #d1d5db;
+    border-radius: 0.25rem;
+}
+
+.multiselect-panel label:hover {
+    background-color: #4b5563;
+}
+.filter-actions-menu-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.filter-actions-trigger {
+    padding: 0.25rem;
+    border-radius: 0.25rem;
+    line-height: 1;
+}
+
+.filter-actions-panel {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background-color: #2d3748; /* gray-800 */
+    border: 1px solid #4b5563; /* gray-600 */
+    border-radius: 0.5rem;
+    z-index: 50;
+    width: 120px;
+    padding: 0.25rem;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.filter-actions-panel.hidden {
+    display: none;
+}
+
+.filter-action-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 0.5rem;
+    font-size: 0.875rem;
+    color: #d1d5db; /* gray-300 */
+    border-radius: 0.25rem;
+    transition: background-color 0.2s, color 0.2s;
+    text-align: left;
+}
+
+.filter-action-item svg {
+    margin-right: 0.5rem;
+    width: 1rem;
+    height: 1rem;
+}
+
+.filter-action-item.edit-loads-filter-btn:hover {
+    background-color: #0d9488; /* teal-600 */
+    color: white;
+}
+
+.filter-action-item.delete-loads-filter-btn:hover {
+    background-color: #b91c1c; /* red-700 */
+    color: white;
+}
+.custom-filter-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: stretch; /* Make items full height */
+}
+
+/* This targets the main part of the custom button */
+.saved-filter-btn.saved-filter-main {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right-width: 0;
+}
+
+.filter-actions-trigger {
+    height: 100%;
+    padding: 0 0.5rem;
+    border-width: 1px;
+    border-color: inherit; /* Inherit color from the active/inactive state */
+    border-left: 1px solid #5a6578; /* A separator */
+    color: inherit;
+    background-color: transparent;
+    border-top-right-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+    transition: background-color 0.2s;
+    cursor: pointer;
+}
+
+.saved-filter-btn.active + .filter-actions-menu-container > .filter-actions-trigger {
+    border-color: inherit;
+}
+
+.filter-actions-trigger:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Position the dropdown panel correctly */
+.filter-actions-panel {
+    top: calc(100% + 4px);
+}
+/* Hides the menu container when the filter is not active */
+.filter-actions-menu-container.hidden {
+    display: none;
+}
+
+/* When the menu is hidden, the main button should have normal rounded corners on the right */
+.custom-filter-wrapper:not(.is-active) .saved-filter-main {
+    border-top-right-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+    border-right-width: 1px;
+}
+/* --- Summary Cards --- */
+#summary-cards-container {
+    position: fixed;
+    bottom: 0;
+    left: calc(var(--sidebar-width, 280px) + 20px);
+    z-index: 100;
+    height: 50px;
+    width: 620px;
+}
+
+.summary-card {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 380px;
+    background-color: #374151;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 10px 10px 0 0;
+    box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s ease-in-out;
+    cursor: pointer;
+}
+
+/* Collapsed Horizontal Stacking Effect */
+.summary-card.collapsed {
+    height: 50px;
+    overflow: hidden;
+}
+
+#summary-cards-container .summary-card {
+    transition: all 0.3s ease-in-out, z-index 0s;
+}
+
+#summary-cards-container .summary-card:nth-child(1) {
+    left: 0px;
+    z-index: 1;
+}
+
+#summary-cards-container .summary-card:nth-child(2) {
+    left: 80px;
+    z-index: 2;
+}
+
+#summary-cards-container .summary-card:nth-child(3) {
+    left: 160px;
+    z-index: 3;
+}
+
+#summary-cards-container .summary-card:nth-child(4) {
+    left: 240px;
+    z-index: 4;
+}
+
+/* Hover Effect */
+#summary-cards-container:hover .summary-card:hover {
+    z-index: 10;
+    transform: none;
+}
+
+.summary-card.expanded {
+    height: 420px;
+    width: 650px;
+    cursor: default;
+    z-index: 20 !important;
+    left: 0;
+    transform: none !important;
+}
+
+/* --- Card Themes --- */
+/* ... (Keep your existing .theme-red, .theme-purple, etc. rules here) ... */
+/* Red Theme (Moved Loads) */
+.summary-card.theme-red {
+    border-color: #991b1b;
+}
+
+.summary-card.theme-red.expanded,
+#summary-cards-container:hover .summary-card.theme-red:hover {
+    border-color: #ef4444;
+    box-shadow: 0 -8px 25px rgba(239, 68, 68, 0.1);
+}
+
+/* Purple Theme (Hidden Mileage) */
+.summary-card.theme-purple {
+    border-color: #6b21a8;
+}
+
+.summary-card.theme-purple.expanded,
+#summary-cards-container:hover .summary-card.theme-purple:hover {
+    border-color: #a855f7;
+    box-shadow: 0 -8px 25px rgba(168, 85, 247, 0.1);
+}
+
+/* Green Theme (Not Closed) */
+.summary-card.theme-green {
+    border-color: #166534;
+}
+
+.summary-card.theme-green.expanded,
+#summary-cards-container:hover .summary-card.theme-green:hover {
+    border-color: #22c55e;
+    box-shadow: 0 -8px 25px rgba(34, 197, 94, 0.1);
+}
+
+/* Yellow Theme (Low RPM) */
+.summary-card.theme-yellow {
+    border-color: #a16207;
+}
+
+.summary-card.theme-yellow.expanded,
+#summary-cards-container:hover .summary-card.theme-yellow:hover {
+    border-color: #f59e0b;
+    box-shadow: 0 -8px 25px rgba(245, 158, 11, 0.1);
+}
+
+
+/* --- Generic Card Content Styles --- */
+.summary-card .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 18px;
+    border-bottom: 1px solid #4b5563;
+}
+
+.summary-card .card-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #d1d5db;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.summary-card.expanded .card-header {
+    cursor: default;
+}
+
+/* START: Corrected Dropdown Styles */
+.summary-card .relative {
+    position: relative;
+    /* This is crucial for positioning the dropdown */
+}
+
+.summary-card .dropdown-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: color 0.2s;
+}
+
+.summary-card.expanded .dropdown-title {
+    cursor: pointer;
+}
+
+.summary-card.expanded .dropdown-title:hover {
+    color: #e5e7eb;
+}
+
+.summary-card .dropdown-arrow {
+    display: none;
+    width: 14px;
+    height: 14px;
+    transition: transform 0.3s, color 0.2s;
+}
+
+.summary-card.expanded .dropdown-arrow {
+    display: inline-block;
+}
+
+.summary-card.dropdown-open .dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.dropdown-panel {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    width: 180px;
+    background-color: #1f2937;
+    border: 1px solid #4b5563;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    z-index: 110;
+    padding: 4px;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+}
+
+.dropdown-panel:not(.hidden) {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.dropdown-item {
+    display: block;
+    padding: 8px 12px;
+    color: #d1d5db;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+}
+
+.dropdown-item:hover {
+    background-color: #b91c1c; /* red-700 */
+    color: white;
+}
+
+.dropdown-item.active {
+    background-color: #991b1b; /* red-800 */
+    color: white;
+    font-weight: 600;
+}
+/* END: Corrected Dropdown Styles */
+
+
+/* Card Content and Table */
+.summary-card .card-content {
+    padding: 8px 16px 16px;
+    height: calc(100% - 51px);
+    overflow-y: auto;
+}
+
+/* ... (The rest of your summary-card-table and highlight styles remain the same) ... */
+.summary-card-table table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.summary-card-table th,
+.summary-card-table td {
+    padding: 10px;
+    text-align: center;
+    font-size: 0.8rem;
+    border-bottom: 1px solid #4b5563;
+}
+
+.summary-card-table th {
+    color: #9ca3af;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background-color: #1f2937; /* This is the dark gray background */
+}
+
+.summary-card-table td {
+    color: #d1d5db;
+}
+
+.summary-card-table tr:last-child td {
+    border-bottom: none;
+}
+
+.summary-card-table td:first-child,
+.summary-card-table th:first-child {
+    font-weight: 600;
+    text-align: left;
+    color: #e5e7eb;
+}
+
+/* Highlighting Logic */
+@keyframes pulse-glow {
+    0% {
+        text-shadow: 0 0 4px;
+    }
+
+    50% {
+        text-shadow: 0 0 16px;
+    }
+
+    100% {
+        text-shadow: 0 0 4px;
+    }
+}
+
+.summary-card-table td.is-zero {
+    color: #4b5563;
+}
+
+.summary-card-table td.is-high-value {
+    font-weight: 700;
+    animation: pulse-glow 2.5s infinite ease-in-out;
+}
+
+/* Per-theme highlight colors */
+.theme-red .is-high-value {
+    color: #fca5a5;
+}
+
+.theme-purple .is-high-value {
+    color: #c084fc;
+}
+
+.theme-green .is-high-value {
+    color: #4ade80;
+}
+
+.theme-yellow .is-high-value {
+    color: #facc15;
+}
+/* --- Final Redesigned Loads Settings Modal --- */
+.settings-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(17, 24, 39, 0.75); /* Dimming overlay */
+    z-index: 200; /* Higher than summary cards */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.settings-modal-container {
+    background-color: #2d3748; /* gray-800 */
+    border: 1px solid #4b5563; /* gray-600 */
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh; /* Limits the modal's max height */
+    display: flex;
+    flex-direction: column;
+}
+
+#settings-modal-content {
+    overflow-y: auto; /* Makes the content scrollable */
+    padding: 0;
+    flex-grow: 1; /* <-- ADD THIS LINE */
+}
+    
+.settings-section {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #4b5563; /* gray-600 */
+}
+.settings-section:last-child {
+    border-bottom: none;
+}
+    
+.settings-section-title {
+    color: #2dd4bf; /* teal-400 */
+    font-weight: 600;
+    margin-bottom: 1rem;
+    font-size: 0.75rem; /* 12px */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+    
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+    
+.setting-label {
+    color: #d1d5db; /* gray-300 */
+}
+    
+.settings-input {
+    background-color: #374151; /* gray-700 */
+    border: 1px solid #4b5563; /* gray-600 */
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    color: white;
+    width: 120px; /* Give inputs a consistent width */
+    text-align: right;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+    
+.settings-input:focus {
+    outline: none;
+    border-color: #2dd4bf; /* teal-400 */
+    box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.3);
+}
+    
+/* Good Move Thresholds Section */
+.good-move-overrides-list {
+    max-height: 160px; /* Limit the height of the list */
+    overflow-y: auto; /* Make ONLY the list scrollable */
+    padding-right: 8px; /* Space for the scrollbar */
+}
+    
+.threshold-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+    
+.threshold-row .settings-select {
+    flex-grow: 1;
+    background-color: #374151;
+    border: 1px solid #4b5563;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    color: white;
+}
+    
+.input-dollar-sign-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+    
+.input-dollar-sign-wrapper span {
+    position: absolute;
+    left: 0.75rem;
+    color: #9ca3af;
+}
+    
+.input-dollar-sign-wrapper .settings-input {
+    padding-left: 1.75rem;
+    width: 120px;
+}
+    
+.remove-threshold-btn {
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    transition: color 0.2s, background-color 0.2s;
+}
+    
+.remove-threshold-btn:hover {
+    color: #ef4444;
+    background-color: rgba(239, 68, 68, 0.1);
+}
+    
+#add-threshold-btn {
+    background-color: rgba(45, 212, 191, 0.1);
+    border: 1px solid #14b8a6;
+    color: #2dd4bf;
+    font-weight: 600;
+    border-radius: 6px;
+    padding: 0.5rem;
+    cursor: pointer;
+    margin-top: 0.75rem;
+    width: 100%;
+    text-align: center;
+    transition: background-color 0.2s;
+}
+    
+#add-threshold-btn:hover {
+    background-color: rgba(45, 212, 191, 0.2);
+}
+/* --- Redesigned Custom Filter Modal --- */
+#custom-filter-modal-content {
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+#load-filter-criteria-container .threshold-row {
+    grid-template-columns: 1.5fr 1.5fr 2fr auto;
+}
+
+#add-load-filter-criteria-btn {
+    background-color: transparent;
+    border: 1px dashed #4b5563; /* gray-600 */
+    color: #9ca3af; /* gray-400 */
+    border-radius: 6px;
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+#add-load-filter-criteria-btn:hover {
+    color: #2dd4bf; /* teal-400 */
+    border-color: #2dd4bf;
+}
+
+.cancel-btn {
+    background-color: #4b5563; /* gray-600 */
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+}
+.cancel-btn:hover {
+    background-color: #6b7280; /* gray-500 */
+}
+
+.save-btn {
+    background-color: #1d4ed8; /* blue-700 */
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+}
+.save-btn:hover {
+    background-color: #1e40af; /* blue-800 */
+}
+/* --- Loads Analytics Command Center (Compact Redesign) --- */
+#loads-analytics-content {
+    --analytics-bg: #1f2937;
+    --analytics-border: #4b5563;
+    --analytics-accent: #2dd4bf;
+}
+
+/* Zone 1: Maps */
+#strategic-map-view {
+    height: 320px; /* Lock the height of the top zone */
+}
+
+.map-container, .contextual-panel {
+    background-color: var(--analytics-bg);
+    border: 1px solid var(--analytics-border);
+    border-radius: 0.75rem;
+    padding: 0.75rem; /* Reduced padding */
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Ensure containers respect parent height */
+}
+.map-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.5rem; /* Added margin */
+}
+.map-date-input, .map-filter-select {
+    background-color: #374151;
+    border: 1px solid var(--analytics-border);
+    color: #e5e7eb;
+    border-radius: 6px;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+}
+.map-date-input::-webkit-calendar-picker-indicator { filter: invert(0.8); }
+.map-placeholder {
+    flex-grow: 1;
+    background-color: rgba(0,0,0,0.2);
+    border: 2px dashed var(--analytics-border);
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.map-title {
+    color: #6b7280;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+/* Zone 1 Right Side Panel */
+.contextual-tabs {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--analytics-border);
+    margin-bottom: 0.75rem; /* Reduced margin */
+}
+.contextual-tab-btn {
+    padding: 0.4rem 0.8rem; /* Reduced padding */
+    border-bottom: 3px solid transparent;
+    color: #9ca3af;
+    font-weight: 600;
+    font-size: 0.8rem; /* Made text smaller */
+    transition: all 0.2s;
+}
+.contextual-tab-btn:hover {
+    color: white;
+}
+.contextual-tab-btn.active {
+    color: var(--analytics-accent);
+    border-bottom-color: var(--analytics-accent);
+}
+.contextual-content-area, .contextual-view.active {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.contextual-view { display: none; }
+.welcome-placeholder {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 0.5rem;
+    height: 100%;
+    color: #6b7280;
+}
+.welcome-placeholder svg { width: 40px; height: 40px; }
+
+
+/* Zone 2: Ticker */
+#live-intelligence-ticker {
+    background: linear-gradient(90deg, rgba(13, 76, 69, 0.3), rgba(17, 24, 39, 0.1) 50%, rgba(13, 76, 69, 0.3));
+    border-top: 1px solid rgba(45, 212, 191, 0.2);
+    border-bottom: 1px solid rgba(45, 212, 191, 0.2);
+    box-shadow: 0 0 15px rgba(45, 212, 191, 0.1);
+    padding: 0.25rem 0;
+    overflow: hidden;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    max-width: 100%; /* Makes it narrower */
+    margin-left: auto; /* Horizontally centers the element */
+    margin-right: auto; /* Horizontally centers the element */
+    margin-top: 1rem;
+    margin-bottom: 0rem;
+    border-radius: 0.25rem; /* Adds rounded corners */
+}
+.ticker-wrap { width: 100%; overflow: hidden; }
+.ticker-move {
+    display: inline-block;
+    animation: ticker 40s linear infinite;
+    padding-left: 100%;
+}
+.ticker-item {
+    display: inline-block;
+    padding: 0 2.5rem;
+    color: #9ca3af;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+@keyframes ticker {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+}
+
+/* Zone 3: Detailed Dashboards */
+#detailed-analysis-dashboard {
+    background-color: var(--analytics-bg);
+    border: 1px solid var(--analytics-border);
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+#dashboard-switcher {
+    display: flex;
+    background-color: #111827;
+    padding: 0.4rem; /* Reduced padding */
+    gap: 0.4rem;
+}
+.switcher-btn {
+    flex-grow: 1;
+    padding: 0.4rem; /* Reduced padding */
+    border-radius: 6px;
+    color: #9ca3af;
+    font-weight: 600;
+    font-size: 0.8rem; /* Made text smaller */
+    transition: background-color 0.2s, color 0.2s;
+}
+.switcher-btn:hover {
+    background-color: #374151;
+    color: white;
+}
+.switcher-btn.active {
+    background-color: var(--analytics-accent);
+    color: #111827;
+}
+.dashboard-content-area {
+    padding: 1rem; /* Reduced padding */
+}
+.dashboard-view {
+    display: none;
+    color: #6b7280;
+    font-size: 1.2rem; /* Reduced font size */
+    font-weight: 600;
+}
+/* --- Analytics Contextual Panel (Zone 1 Right Side) --- */
+.contextual-panel {
+    background-color: var(--analytics-bg);
+    border: 1px solid var(--analytics-border);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    min-height: 350px;
+}
+.contextual-tabs {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--analytics-border);
+    margin-bottom: 1rem;
+}
+.contextual-tab-btn {
+    padding: 0.5rem 1rem;
+    border-bottom: 3px solid transparent;
+    color: #9ca3af; /* gray-400 */
+    font-weight: 600;
+    transition: all 0.2s;
+}
+.contextual-tab-btn:hover {
+    color: white;
+}
+.contextual-tab-btn.active {
+    color: var(--analytics-accent);
+    border-bottom-color: var(--analytics-accent);
+}
+.contextual-content-area {
+    flex-grow: 1;
+    display: flex;
+    min-height: 0;
+}
+
+/* New Date Range Picker Button Style */
+.map-date-range-picker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: #374151;
+    border: 1px solid var(--analytics-border);
+    color: #e5e7eb;
+    border-radius: 6px;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+.map-date-range-picker:hover {
+    border-color: #6b7280;
+}
+
+/* New Contextual Header Layout */
+.contextual-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--analytics-border);
+    margin-bottom: 0.75rem;
+}
+/* Remove margin and border from the tab switcher itself */
+.contextual-tabs {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+/* ADD THIS CSS TO style.css */
+
+/* --- KPI Card Styles --- */
+.kpi-card {
+    background-color: #111827;
+    border: 1px solid var(--analytics-border);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    text-align: center;
+}
+.kpi-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.kpi-value {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: #e5e7eb;
+    margin: 0.25rem 0;
+}
+.kpi-trend {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+/* --- Chart Placeholder Styles --- */
+.chart-placeholder {
+    background-color: rgba(0,0,0,0.2);
+    border: 2px dashed var(--analytics-border);
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 250px;
+    height: 100%;
+}
+.chart-placeholder-title {
+    color: #6b7280;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+/* --- Market Intelligence List Styles --- */
+.market-list {
+    background-color: #111827;
+    border: 1px solid var(--analytics-border);
+    border-radius: 0.75rem;
+    padding: 1rem;
+}
+.market-list-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #e5e7eb;
+    margin-bottom: 1rem;
+}
+.market-list-items li {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--analytics-border);
+    font-size: 0.875rem;
+    color: #d1d5db;
+}
+.market-list-items li:last-child {
+    border-bottom: none;
+}
+
+/* --- Anomaly Feed Styles --- */
+.anomaly-feed {
+    max-width: 800px;
+    margin: 0 auto;
+    space-y: 1rem;
+}
+.anomaly-item {
+    background-color: #111827;
+    border: 1px solid var(--analytics-border);
+    border-left: 4px solid #f97316; /* Orange accent */
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+.anomaly-title {
+    font-weight: 600;
+    color: #fb923c; /* Lighter orange */
+}
+.anomaly-details {
+    color: #d1d5db;
+    margin: 0.25rem 0;
+}
+.anomaly-time {
+    font-size: 0.75rem;
+    color: #6b7280;
+    text-align: right;
+}
+/* ADD THIS to style.css */
+
+/* --- D3 Map Styles --- */
+#primary-map-container {
+    width: 100%;
+    height: 100%;
+}
+
+.state-boundary {
+    /* The fill is now set dynamically by the D3 script */
+    stroke: #4a5568; /* Corresponds to gray-600 */
+    stroke-width: 0.5px;
+}
+
+.state-circle {
+    stroke: rgba(255, 255, 255, 0.2);
+    stroke-width: 1px;
+    opacity: 0.75;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+.state-circle.hovered {
+    opacity: 1;
+    stroke: #2dd4bf; /* This is your app's main teal color */
+    stroke-width: 2px;
+    /* The transform property that caused movement has been removed */
+}
+
+.map-tooltip {
+    position: absolute;
+    text-align: left;
+    padding: 8px;
+    font-size: 12px;
+    background: #1f2937; /* Corresponds to gray-800 */
+    border: 1px solid #4a5568;
+    border-radius: 8px;
+    pointer-events: none;
+    color: #cbd5e1;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+}
+/* ADD THIS to the end of style.css */
+
+/* --- New Map Sidebar Layout --- */
+.map-container, .contextual-panel {
+    padding: 0; /* Remove padding to allow map to go to the edges */
+    display: flex;
+    flex-direction: row; /* Arrange items side-by-side */
+    overflow: hidden; /* Prevent content from spilling out */
+}
+
+.map-render-area {
+    flex-grow: 1; /* This makes the map take up all available space */
+    height: 100%;
+}
+
+.contextual-content-wrapper {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.map-sidebar {
+    width: 60px;
+    flex-shrink: 0; /* Prevent the sidebar from shrinking */
+    background-color: #111827; /* A darker shade for the sidebar */
+    border-right: 1px solid var(--analytics-border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.75rem 0;
+    gap: 0.75rem;
+}
+
+.sidebar-btn {
+    width: 40px;
+    height: 40px;
+    background-color: #374151; /* gray-700 */
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af; /* gray-400 */
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+.sidebar-btn:hover {
+    background-color: #4b5563; /* gray-600 */
+    color: var(--analytics-accent);
+}
+
+.sidebar-btn svg {
+    width: 20px;
+    height: 20px;
+    pointer-events: none; /* Add this line */
+}
+
+/* --- Cleanup Old/Conflicting Styles --- */
+.map-controls, .contextual-header {
+    display: none; /* Hide the old control bars */
+}
+
+.contextual-panel {
+    padding: 0; /* Ensure no padding on the main panel */
+}
+/* 🟢 ADD this CSS to the end of the file */
+.sidebar-filter-group {
+    width: 100%;
+    padding: 0 0.5rem;
+    text-align: center;
+}
+.sidebar-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+.sidebar-select {
+    width: 100%;
+    background-color: #374151;
+    border: 1px solid #4b5563;
+    color: #e5e7eb;
+    border-radius: 4px;
+    padding: 0.1rem 0.2rem;
+    font-size: 0.75rem;
+}
+/* --- Map Filter Popup Styles --- */
+.map-filter-popup {
+    position: absolute;
+    top: 3rem;
+    left: calc(50px + 0.5rem); /* Corrected: 60px sidebar width + 0.5rem gap */
+    z-index: 100;
+    background-color: #1f2937; /* gray-900 */
+    border: 1px solid #4b5563; /* gray-600 */
+    border-radius: 0.75rem;
+    padding: 1rem;
+    width: 200px;
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.2), 0 4px 6px -4px rgb(0 0 0 / 0.2);
+    opacity: 1;
+    transform: scale(1);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    transform-origin: left center;
+}
+
+.map-filter-popup.hidden {
+    opacity: 0;
+    transform: scale(0.95);
+    pointer-events: none;
+}
+
+.map-filter-popup .sidebar-filter-group {
+    width: auto;
+    padding: 0;
+    text-align: left;
+}
+
+.map-filter-popup .sidebar-filter-group:not(:last-child) {
+    margin-bottom: 1rem;
+}
+
+.map-filter-popup .sidebar-label {
+    font-size: 0.75rem;
+}
+
+.map-filter-popup .sidebar-select, .map-filter-popup input[type="range"] {
+    width: 100%;
+}
+
+/* --- NEW: Redesigned Litepicker Dark Theme --- */
+.litepicker {
+    background-color: #1f2937 !important; /* gray-800 */
+    border: 1px solid #4b5563 !important;  /* gray-600 */
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3) !important;
+}
+
+/* Header: "August 2025" and arrows */
+.litepicker .month-item-header {
+    background-color: #111827 !important; /* A darker, deeper blue-gray */
+    padding: 8px 0 !important;
+}
+.litepicker .month-item-header div,
+.litepicker .month-item-header select,
+.litepicker .month-item-header button {
+    color: #e5e7eb !important; /* Brighter white for better contrast */
+    font-weight: 600 !important;
+    font-size: 1rem !important;
+}
+.litepicker .month-item-header button:hover {
+    background-color: #374151 !important; /* gray-700 */
+}
+
+/* Weekdays: "Mon", "Tue", etc. */
+.litepicker .month-item-weekday {
+    color: #9ca3af !important; /* gray-400 */
+    font-weight: 600 !important;
+}
+
+/* Individual Days */
+.litepicker .month-item-day {
+    color: #d1d5db !important; /* gray-300 */
+    border-radius: 50% !important; /* Makes all days circular */
+}
+.litepicker .month-item-day:hover {
+    background-color: #374151 !important; /* gray-700 */
+    color: white !important;
+}
+
+/* Selected Dates & Ranges */
+.litepicker .is-start-date,
+.litepicker .is-end-date {
+    background-color: #14b8a6 !important; /* A vibrant teal */
+    color: #111827 !important; /* Dark text for contrast */
+    font-weight: 700 !important;
+}
+.litepicker .is-in-range {
+    background-color: rgba(45, 212, 191, 0.2) !important; /* Semi-transparent teal */
+    color: #e5e7eb !important; /* Light text for in-range dates */
+}
+
+/* Today's Date (if not selected) */
+.litepicker .is-today {
+    color: #2dd4bf !important; /* Teal text */
+    font-weight: 700 !important;
+}
+
+/* Buttons (if you use them) */
+.litepicker .button-apply, .litepicker .button-cancel {
+    background-color: #374151 !important;
+    border: 1px solid #4b5563 !important;
+    color: #e5e7eb !important;
+}
+.litepicker .button-apply:hover, .litepicker .button-cancel:hover {
+    background-color: #4b5563 !important;
+}
+/* --- STUBS DASHBOARD STYLES --- */
+#stubs-table-container {
+    /* This makes the table scrollable within its container */
+    overflow-y: auto;
+}
+
+#stubs-table-container thead th {
+    /* This makes the table headers sticky during scrolling */
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #111827; /* The CORRECT dark, blackish color (gray-900) */
+}
+/* --- STUBS LIVE INDICATOR STYLES --- */
+.live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem; /* 8px */
+    background-color: #7f1d1d; /* red-900 */
+    color: #fecaca; /* red-200 */
+    font-size: 0.75rem; /* 12px */
+    font-weight: 700;
+    padding: 0.25rem 0.625rem; /* 4px 10px */
+    border-radius: 9999px; /* pill shape */
+    border: 1px solid #dc2626; /* red-600 */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.live-badge-dot {
+    width: 0.5rem; /* 8px */
+    height: 0.5rem; /* 8px */
+    background-color: #ef4444; /* red-500 */
+    border-radius: 50%;
+    animation: pulse 1.5s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+    50% {
+        opacity: 0.8;
+        box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
+    }
+}
+/* --- STUBS TABLE SCROLLING FIX --- */
+#stubs-table-wrapper {
+    min-height: 0;
+}
+
+/* --- STUBS DEEP DIVE MODAL REDESIGN --- */
+#stubs-modal-container .d3-tooltip {
+    opacity: 1; /* Override the default opacity for this specific tooltip */
+    background-color: #2d3748;
+    border: 1px solid #4b5563;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    pointer-events: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    line-height: 1.5;
+    z-index: 9999;
+}
+#stubs-modal-container .d3-tooltip.hidden {
+    display: none;
+}
+#stubs-modal-container .d3-tooltip strong {
+    color: #e5e7eb;
+}
+
+.stubs-deep-dive-table th {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.stubs-deep-dive-table tbody tr:nth-child(even) {
+    background-color: rgba(17, 24, 39, 0.5); /* gray-900 with opacity */
+}
+
+#stubs-modal-chart-container .axis-style .tick line {
+    stroke-opacity: 0.2;
+}
+/* --- STUBS MODAL HEADER REDESIGN --- */
+.risk-badge-medium {
+    display: inline-block;
+    background-color: #a16207; /* amber-700 */
+    color: #fef3c7; /* amber-100 */
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    border: 1px solid #f59e0b; /* amber-500 */
+}
+/* --- STUBS MODAL CHART REFINEMENTS --- */
+#stubs-modal-chart-container {
+    border: 1px solid #4b5563; /* gray-600 */
+    border-radius: 0.75rem; /* rounded-lg */
+    padding: 0.5rem;
+}
+
+#stubs-modal-chart-container .axis-style .domain {
+    stroke: #6b7280; /* gray-500 */
+    stroke-width: 1.5px;
+}
+
+#stubs-modal-chart-container .axis-style .tick text {
+    fill: #d1d5db; /* gray-300 */
+    font-size: 11px;
+    font-weight: 500;
+}
+/* --- NEW STYLES FOR STUBS TABLE FLAGS --- */
+.stub-flag {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.125rem 0.6rem; /* 2px 9.6px */
+    border-radius: 9999px;
+    color: white;
+    white-space: nowrap;
+    line-height: 1.25;
+}
+
+.stub-flag.flag-red { background-color: #ef4444; }
+.stub-flag.flag-purple { background-color: #a855f7; }
+.stub-flag.flag-yellow { background-color: #eab308; }
+.stub-flag.flag-blue { background-color: #3b82f6; }
+.stub-flag.flag-orange { background-color: #f97316; }
+
+/* --- DEEP DIVE DASHBOARD (COMPACT REDESIGN) --- */
+#deep-dive-dashboard {
+    display: flex; /* Changed from block to flex */
+    flex-direction: column;
+    height: 100%;
+}
+
+.deep-dive-kpi-compact {
+    background-color: #111827;
+    border: 1px solid var(--analytics-border);
+    border-radius: 0.75rem;
+    padding: 0.5rem 1rem;
+    text-align: center;
+}
+.deep-dive-kpi-compact .kpi-title {
+    font-size: 0.65rem;
+    margin-bottom: 0.125rem;
+}
+.deep-dive-kpi-compact .kpi-value {
+    font-size: 1.25rem;
+    line-height: 1.25;
+    margin: 0;
+}
+
+.deep-dive-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--analytics-border);
+    margin-bottom: 0.5rem;
+}
+.deep-dive-tab-btn {
+    padding: 0.5rem 1rem;
+    border-bottom: 3px solid transparent;
+    color: #9ca3af;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.deep-dive-tab-btn:hover {
+    color: white;
+}
+.deep-dive-tab-btn.active {
+    color: var(--analytics-accent);
+    border-bottom-color: var(--analytics-accent);
+}
+.deep-dive-tab-content {
+    display: none;
+    height: 100%;
+    overflow-y: auto;
+}
+.deep-dive-tab-content.active {
+    display: block;
+}
+/* --- Team Profile Page Styles (Compact) --- */
+.profile-kpi-card-compact {
+    background-color: #1f2937; /* gray-800 */
+    border: 1px solid #4b5563; /* gray-600 */
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    text-align: center;
+}
+
+.profile-kpi-card-compact .kpi-title-compact {
+    font-size: 0.65rem; /* 10px */
+    font-weight: 600;
+    color: #9ca3af; /* gray-400 */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.25rem;
+}
+
+.profile-kpi-card-compact .kpi-value-compact {
+    font-size: 1.5rem; /* 24px */
+    font-weight: 700;
+    color: #e5e7eb; /* gray-200 */
+    line-height: 1.2;
+}
+
+.dispatch-table-row {
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.dispatch-table-row:hover td {
+    background-color: #374151; /* gray-700 */
+}
+
+/* Ensure selected rows maintain their color on hover */
+.dispatch-table-row.selected:hover td {
+    background-color: #042f2e; /* Darker teal */
+}
+
+/* Ensure selected sticky cells also maintain their color on hover */
+.dispatch-table-row.selected:hover td.sticky {
+    background-color: #053836;
+}
+
+.dispatch-table-row.selected {
+    background-color: #042f2e; /* Darker teal */
+    border-left: 4px solid #2dd4bf; /* teal-400 */
+}
+
+.dispatch-table-row.selected td:first-child {
+    color: #2dd4bf; /* teal-400 */
+}
+
+.driver-flag {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.125rem 0.6rem;
+    border-radius: 9999px;
+    color: white;
+    white-space: nowrap;
+}
+
+.driver-flag.flag-red { background-color: #ef4444; }
+.driver-flag.flag-purple { background-color: #a855f7; }
+.driver-flag.flag-yellow { background-color: #eab308; }
+.driver-flag.flag-blue { background-color: #3b82f6; }
+.driver-flag.flag-orange { background-color: #f97316; }
+.driver-flag.flag-green { background-color: #22c55e; }
+
+.risk-bar {
+    width: 100px;
+    height: 8px;
+    background-color: #374151; /* gray-700 */
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 0 auto;
+}
+
+.risk-bar-fill {
+    height: 100%;
+    background: linear-gradient(to right, #22c55e 40%, #facc15 75%, #ef4444 100%);
+    border-radius: 4px;
+    transition: width 0.3s ease-in-out;
+}
+/* --- Dispatch Table Column Settings & Sticky --- */
+#dispatch-table-head th.sticky {
+    position: -webkit-sticky;
+    position: sticky;
+    z-index: 25;
+    background-color: #1f2937; /* gray-800 */
+}
+
+#dispatch-table-body td.sticky {
+    position: -webkit-sticky;
+    position: sticky;
+    background-color: #263142; /* Custom darker shade */
+}
+
+#dispatch-table-body tr:hover td.sticky {
+    background-color: #374151; /* gray-700 */
+}
+
+#dispatch-table-body tr.selected td.sticky {
+    background-color: #053836; /* Darker version of selected color */
+}
+
+#dispatch-table-head th.sticky-left,
+#dispatch-table-body td.sticky-left {
+    box-shadow: 5px 0 5px -5px rgba(0,0,0,0.4);
+}
+
+#dispatch-table-head th.sticky-right,
+#dispatch-table-body td.sticky-right {
+    box-shadow: -5px 0 5px -5px rgba(0,0,0,0.4);
+}
+
+#dispatch-table-head th {
+    cursor: grab;
+}
+
+#dispatch-table-head th:active {
+    cursor: grabbing;
+}
+
+#dispatch-table-head th.drag-over-border {
+    border-right: 3px solid #2dd4bf; /* teal-400 */
+}
+#dispatch-table-head th.sticky {
+    background-color: #111827; /* gray-900 */
+}
+/* --- Profile KPI Card (Compact Redesign) --- */
+.profile-kpi-card-ranking {
+    background-color: #111827;
+    border: 1px solid #374151; /* gray-700 */
+    border-bottom: 3px solid #0d9488; /* Darker Teal on bottom */
+    border-radius: 0.5rem; /* Smaller radius */
+    padding: 0.5rem 0.75rem; /* Reduced padding */
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 65px; /* Reduced height */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.2s ease-in-out;
+}
+
+.kpi-title-ranking {
+    font-size: 0.6rem; /* Smaller font */
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.1rem;
+}
+
+.kpi-value-ranking {
+    font-size: 1rem; /* Smaller font */
+    font-weight: 700;
+    color: #e5e7eb;
+    line-height: 1.2;
+}
+
+.kpi-trend {
+    font-size: 0.6rem; /* Smaller font */
+    font-weight: 500;
+    margin-top: 0.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+/* --- Redesigned Fleet & Equipment Breakdowns --- */
+.fleet-breakdown-horizontal, .equipment-breakdown-horizontal {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.5rem;
+    font-size: 0.7rem; /* 11.2px */
+    color: #9ca3af; /* gray-400 */
+}
+
+.fleet-breakdown-horizontal .font-bold, .equipment-breakdown-horizontal .font-bold {
+    font-size: 1.1rem; /* 17.6px */
+}
+
+/* --- Equipment Letter Styles --- */
+.equipment-letter {
+    font-weight: 700;
+    font-size: 0.8rem;
+}
+
+/* --- Dispatch Table Tooltip --- */
+.dispatch-tooltip {
+    position: absolute;
+    z-index: 100;
+    background-color: #111827; /* gray-900 */
+    border: 1px solid #4b5563; /* gray-600 */
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    font-size: 0.75rem; /* 12px */
+    color: #d1d5db; /* gray-300 */
+    max-width: 1000px; /* Increased width for full locations */
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.2s, visibility 0.2s, border-color 0.2s;
+    line-height: 1.6;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+}
+
+.dispatch-tooltip.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.dispatch-tooltip.copied {
+    border-color: #22c55e; /* green-500 */
+    transition: border-color 0.1s ease-in-out;
+}
+
+.tooltip-title {
+    font-weight: 700;
+    color: #e5e7eb; /* gray-200 */
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.tooltip-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.25rem 0.75rem;
+    align-items: center;
+}
+
+.tooltip-label {
+    font-weight: 600;
+    color: #9ca3af; /* gray-400 */
+}
+
+.tooltip-value-green { color: #4ade80; }
+.tooltip-value-orange { color: #fb923c; }
+.tooltip-value-yellow { color: #facc15; }
+.tooltip-value-purple { color: #c084fc; }
+
+.tooltip-hr {
+    border: none;
+    border-top: 1px solid #374151; /* gray-700 */
+    margin: 0.5rem 0;
+}
+/* --- Profile Page Layout --- */
+.profile-tables-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    flex-grow: 1;
+    min-height: 0; /* Crucial for flexbox scrolling */
+}
+
+.profile-table-container {
+    display: flex;
+    flex-direction: column;
+    background-color: #1f2937; /* gray-800 */
+    border: 2px solid #374151; /* gray-700 */
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    flex-basis: 50%; 
+    min-height: 0;
+    /* overflow properties are removed to prevent clipping the tooltip */
+}
+/* --- Tooltip Load Row Formatting (Flexbox) --- */
+.tooltip-load-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.tooltip-load-row-flex {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #374151; /* gray-700 */
+}
+
+.tooltip-load-list .tooltip-load-row-flex:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.tooltip-route-flex {
+    white-space: nowrap; /* Prevents the route from wrapping */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #cbd5e1; /* gray-300 */
+    flex-grow: 1;
+}
+
+.tooltip-details-flex {
+    white-space: nowrap;  /* Keep it on one line */
+    flex-shrink: 0;     /* ⭐ This is the key: Tell this element NOT to shrink */
+}
+
+/* --- Profile Driver Filter Styles --- */
+.active-filter-tag {
+    display: inline-flex;
+    align-items: center;
+    background-color: #1e40af; /* blue-800 */
+    color: #dbeafe; /* blue-100 */
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 1px solid #3b82f6; /* blue-500 */
+}
+
+.remove-active-filter-btn {
+    margin-left: 0.5rem;
+    background: none;
+    border: none;
+    color: #93c5fd; /* blue-300 */
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.remove-active-filter-btn:hover {
+    color: white;
+}
+
+#driver-filter-criteria-container .settings-select,
+#driver-filter-criteria-container .settings-input {
+    font-size: 0.875rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+/* --- FIX FOR UNREADABLE FILTER DROPDOWNS --- */
+.settings-select option {
+    background-color: #374151; /* gray-700 */
+    color: #e5e7eb; /* gray-200 */
+}
+
+
+/* --- Profile Driver Filter Multi-Select --- */
+.filter-multiselect-container .multiselect-panel {
+    position: absolute;
+    background-color: #2d3748;
+    border: 1px solid #4b5563;
+    border-radius: 0.5rem;
+    z-index: 60; /* Higher than modal content */
+    max-height: 150px;
+    overflow-y: auto;
+    padding: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.filter-multiselect-container .multiselect-panel label {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    cursor: pointer;
+    color: #d1d5db;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.filter-multiselect-container .multiselect-panel label:hover {
+    background-color: #4b5563;
+}
+
+.filter-multiselect-container .multiselect-checkbox {
+    margin-right: 0.5rem;
+    height: 1rem;
+    width: 1rem;
+    /* --- START: Corrected CSS Properties --- */
+    accent-color: #14b8a6;         /* This sets the checkmark color (replaces text-teal-500) */
+    background-color: #111827;     /* Replaces bg-gray-900 */
+    border: 1px solid #6b7280;     /* Replaces border-gray-500 */
+    border-radius: 0.25rem;        /* Replaces rounded */
+    /* --- END: Corrected CSS Properties --- */
+}
+
+/* --- Profile Driver Filter Styles --- */
+.active-filter-tag {
+    display: inline-flex;
+    align-items: center;
+    background-color: #1e40af; /* blue-800 */
+    color: #dbeafe; /* blue-100 */
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 1px solid #3b82f6; /* blue-500 */
+}
+
+.remove-active-filter-btn {
+    margin-left: 0.5rem;
+    background: none;
+    border: none;
+    color: #93c5fd; /* blue-300 */
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.remove-active-filter-btn:hover {
+    color: white;
+}
+
+#driver-filter-criteria-container .settings-select,
+#driver-filter-criteria-container .settings-input {
+    font-size: 0.875rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    background-color: #374151; /* gray-700 */
+    border: 1px solid #4b5563; /* gray-600 */
+    color: #e5e7eb; /* gray-200 */
+    border-radius: 6px;
+}
+#driver-filter-criteria-container .settings-input::placeholder {
+    color: #9ca3af; /* gray-400 */
+}
+
+
+/* --- FIX FOR UNREADABLE FILTER DROPDOWNS --- */
+.settings-select option {
+    background-color: #374151; /* gray-700 */
+    color: #e5e7eb; /* gray-200 */
+}
+
+
+/* --- Profile Driver Filter Multi-Select --- */
+.filter-multiselect-container .multiselect-panel {
+    position: absolute;
+    background-color: #2d3748;
+    border: 1px solid #4b5563;
+    border-radius: 0.5rem;
+    z-index: 60; /* Higher than modal content */
+    max-height: 150px;
+    overflow-y: auto;
+    padding: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.filter-multiselect-container .multiselect-panel label {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    cursor: pointer;
+    color: #d1d5db;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.filter-multiselect-container .multiselect-panel label:hover {
+    background-color: #4b5563;
+}
+
+.filter-multiselect-container .multiselect-checkbox {
+    margin-right: 0.5rem;
+    height: 1rem;
+    width: 1rem;
+    /* --- START: Corrected CSS Properties --- */
+    accent-color: #14b8a6;         /* This sets the checkmark color (replaces text-teal-500) */
+    background-color: #111827;     /* Replaces bg-gray-900 */
+    border: 1px solid #6b7280;     /* Replaces border-gray-500 */
+    border-radius: 0.25rem;        /* Replaces rounded */
+    /* --- END: Corrected CSS Properties --- */
+}
+
+/* --- Profile Driver Filter - AND/OR Switch --- */
+.filter-logic-btn {
+    background-color: transparent;
+    color: #9ca3af; /* gray-400 */
+    font-weight: 600;
+    transition: all 0.2s ease-in-out;
+}
+
+.filter-logic-btn.active {
+    background-color: #4b5563; /* gray-600 */
+    color: #e5e7eb; /* gray-200 */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.add-criteria-btn {
+    width: 100%;
+    background-color: transparent;
+    border: 1px dashed #4b5563; /* gray-600 */
+    color: #9ca3af; /* gray-400 */
+    border-radius: 6px;
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.add-criteria-btn:hover {
+    color: #2dd4bf; /* teal-400 */
+    border-color: #2dd4bf;
+}
+
+/* --- Profile Driver Filter - AND/OR Switch --- */
+.filter-logic-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.filter-logic-btn {
+    background-color: transparent;
+    color: #9ca3af; /* gray-400 */
+    font-weight: 600;
+    transition: all 0.2s ease-in-out;
+}
+
+.filter-logic-btn.active {
+    background-color: #4b5563; /* gray-600 */
+    color: #e5e7eb; /* gray-200 */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.add-criteria-btn {
+    width: 100%;
+    background-color: transparent;
+    border: 1px dashed #4b5563; /* gray-600 */
+    color: #9ca3af; /* gray-400 */
+    border-radius: 6px;
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.add-criteria-btn:hover {
+    color: #2dd4bf; /* teal-400 */
+    border-color: #2dd4bf;
+}
+
+/* --- Tooltip Driver Name Styling (Single Row Redesign) --- */
+.tooltip-route-flex {
+    color: #cbd5e1; /* gray-300 */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1; /* Allow route to shrink if needed */
+}
+
+.tooltip-driver-name {
+    color: #9ca3af; /* gray-400 */
+    font-weight: 500;
+    white-space: nowrap;
+    padding: 0 0.5rem; /* 8px padding on left and right */
+    border-left: 1px solid #4b5563; /* gray-600 */
+    border-right: 1px solid #4b5563; /* gray-600 */
+    margin: 0 0.5rem; /* 8px margin */
+}
+
+/* --- FIX: Tooltip Styles for Profiles Driver Modal --- */
+#profiles-modal-container .d3-tooltip {
+    opacity: 1; 
+    background-color: #2d3748;
+    border: 1px solid #4b5563;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    pointer-events: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    line-height: 1.5;
+    z-index: 9999;
+}
+#profiles-modal-container .d3-tooltip.hidden {
+    display: none;
+}
+#profiles-modal-container .d3-tooltip strong {
+    color: #e5e7eb;
+}
+
+/* Main Modal Container */
+#profiles-modal-container {
+    background: linear-gradient(145deg, #2d3748, #1a202c);
+    border: 1px solid #4b5563;
+}
+
+/* Header Redesign */
+#profiles-modal-header {
+    height: auto;
+    padding: 1rem 1.5rem;
+    position: relative;
+}
+.modal-header-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    width: 100%;
+    gap: 1.5rem;
+}
+.header-col-left .driver-name {
+    font-size: 2rem;
+    font-weight: 800;
+    color: white;
+    letter-spacing: -1px;
+    line-height: 1;
+}
+.header-col-left .stubs-count {
+    font-size: 0.875rem;
+    color: #9ca3af;
+    margin-top: 0.25rem;
+}
+.header-col-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+.header-col-right {
+    font-size: 0.875rem;
+    color: #9ca3af;
+    text-align: right;
+    line-height: 1.6;
+}
+.header-col-right .value {
+    font-weight: 600;
+    color: #e5e7eb;
+}
+
+/* KPI Section Redesign */
+#profiles-modal-kpi-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 1rem;
+}
+.modal-kpi-card {
+    background-color: rgba(17, 24, 39, 0.6);
+    border: 1px solid #374151;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.modal-kpi-card.hero {
+    grid-column: span 2 / span 2; /* Make this card span both columns */
+    flex-direction: row;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.25rem;
+}
+.modal-kpi-icon {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.modal-kpi-icon.net { background-color: rgba(34, 197, 94, 0.15); color: #4ade80; }
+.modal-kpi-icon.gross { background-color: rgba(96, 165, 250, 0.15); color: #60a5fa; }
+.modal-kpi-icon.rpm { background-color: rgba(248, 113, 113, 0.15); color: #f87171; }
+.modal-kpi-icon.miles { background-color: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+.modal-kpi-icon svg { width: 24px; height: 24px; }
+
+.modal-kpi-content .title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.modal-kpi-content .value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #e5e7eb;
+}
+.modal-kpi-card.hero .modal-kpi-content .value {
+    font-size: 2.25rem;
+}
+
+/* Table Redesign */
+.stubs-deep-dive-table thead {
+    border-bottom: 2px solid #4b5563;
+}
+.stubs-deep-dive-table th {
+    color: #9ca3af;
+    font-size: 0.7rem;
+}
+.stubs-deep-dive-table td {
+    color: #d1d5db;
+    font-size: 0.8rem;
+}
+
+/* Chart Redesign */
+.chart-switcher-profiles {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+}
+.chart-switcher-profiles button {
+    background-color: #374151;
+    color: #9ca3af;
+    font-weight: 600;
+    padding: 0.375rem 1rem;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    transition: all 0.2s ease-in-out;
+}
+.chart-switcher-profiles button:hover {
+    color: white;
+    background-color: #4b5563;
+}
+.chart-switcher-profiles button.active {
+    color: #111827;
+    background-color: #2dd4bf;
+    box-shadow: 0 0 15px rgba(45, 212, 191, 0.3);
+}
+
+
+/* --- FIX: Tooltip Styles for Profiles Driver Modal --- */
+#profiles-modal-container .d3-tooltip {
+    opacity: 1; 
+    background-color: #2d3748;
+    border: 1px solid #4b5563;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    pointer-events: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    line-height: 1.5;
+    z-index: 9999;
+}
+#profiles-modal-container .d3-tooltip.hidden {
+    display: none;
+}
+#profiles-modal-container .d3-tooltip strong {
+    color: #e5e7eb;
+}
+
+/* --- NEW: Redesigned Risk Badge for Modal Header --- */
+.modal-risk-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.modal-risk-label {
+    font-size: 0.7rem; /* 11.2px */
+    font-weight: 600;
+    color: #9ca3af; /* gray-400 */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.modal-risk-bar {
+    width: 120px;
+    height: 10px;
+    background-color: #374151; /* gray-700 */
+    border-radius: 5px;
+    overflow: hidden;
+    border: 1px solid #4b5563; /* gray-600 */
+}
+
+.modal-risk-bar-fill {
+    height: 100%;
+    background: linear-gradient(to right, #22c55e, #eab308, #ef4444);
+    border-radius: 4px;
+    transition: width 0.3s ease-in-out;
+}
+
+
+
+/* --- Compact Profile Table Rows --- */
+#profiles-dispatch-table-container td,
+#profiles-driver-table-container td {
+    padding-top: 0.2rem; /* Reduced from 6px */
+    padding-bottom: 0.2rem; /* Reduced from 6px */
+}
+
+#profiles-dispatch-table-container th,
+#profiles-driver-table-container th {
+    padding-top: 0.35rem; /* Reduced from 8px */
+    padding-bottom: 0.35rem; /* Reduced from 8px */
+}
+
+/* --- Redesigned Threshold Modal --- */
+#profiles-threshold-settings-modal .settings-modal-container {
+    max-width: 800px !important; /* Widen the modal for two columns */
+}
+
+#threshold-modal-content .settings-section-title {
+    font-size: 1rem; /* Make titles larger */
+    border-bottom: 1px solid #4b5563;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+#threshold-modal-content .remove-threshold-btn {
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.good-move-overrides-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+
+.stub-flag.flag-green { background-color: #22c55e; }
+
+
+
+/* --- Redesigned Driver Health Settings Modal (v8.1 - Final Clipping Fix) --- */
+.accordion-item {
+    border: 1px solid #4b5563; /* gray-600 */
+    border-radius: 0.75rem; /* rounded-xl */
+    overflow: hidden; /* This is now required and safe */
+    transition: all 0.3s ease-in-out;
+}
+.accordion-item.open {
+    border-color: #14b8a6; /* teal-500 */
+}
+.accordion-item:not(:last-child) {
+    margin-bottom: 0.75rem;
+}
+.accordion-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0.75rem 1.25rem;
+    background-color: #374151; /* gray-700 */
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+    position: relative;
+    z-index: 2;
+}
+.accordion-item.open .accordion-header {
+    background-color: #0d9488; /* Official teal color */
+}
+.accordion-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 600;
+    color: #e5e7eb; /* gray-200 */
+}
+.accordion-arrow {
+    transition: transform 0.3s ease-in-out;
+}
+.accordion-item.open .accordion-arrow {
+    transform: rotate(180deg);
+}
+.accordion-panel {
+    max-height: 0; /* Height is controlled by JS */
+    overflow: hidden;
+    transition: max-height 0.4s ease-in-out;
+    background-color: #1f2937; /* gray-800 */
+    padding: 0 1.5rem;
+}
+.accordion-panel-content {
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+}
+
+#driver-settings-modal-content {
+    background-color: #2d3748; /* gray-800 */
+}
+.description {
+    font-size: 0.875rem;
+    color: #9ca3af; /* gray-400 */
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+}
+.setting-controls .setting-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+.input-group.compact label {
+    font-size: 0.75rem; 
+    font-weight: 500;
+    color: #9ca3af;
+    margin-bottom: 0.25rem;
+    display: block;
+}
+.input-group.compact .settings-select,
+.input-group.compact .settings-input {
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+}
+.lookback-group {
+    display: flex;
+}
+.lookback-group .settings-select {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right-width: 0;
+    flex-basis: 65%;
+}
+.lookback-group .settings-input {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    flex-basis: 35%;
+}
+.settings-select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+    background-color: #374151;
+    border: 1px solid #4b5563;
+    color: #e5e7eb;
+    border-radius: 6px;
+}
+.settings-select:focus {
+    outline: none;
+    border-color: #2dd4bf;
+    box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.3);
+}
+.settings-input:disabled {
+    background-color: #374151;
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+.override-section {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.override-row label.override-label {
+    /* This is the new style for the override label */
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #9ca3af;
+    margin-bottom: 0.25rem;
+    display: block;
+}
+.remove-override-btn {
+    background: none; border: none; color: #6b7280; font-size: 1.5rem; line-height: 1;
+    cursor: pointer; margin-left: 0.5rem; transition: color 0.2s;
+}
+.remove-override-btn:hover { color: #ef4444; }
+.add-override-btn {
+    font-size: 0.8rem; font-weight: 500; color: #60a5fa; /* blue-400 */ cursor: pointer;
+}
+
+/* FIX: Panel is now positioned by JS and attached to the body */
+.add-override-panel {
+    position: absolute; /* Changed from relative */
+    background-color: #374151; 
+    border: 1px solid #4b5563;
+    border-radius: 6px; 
+    z-index: 210; /* Higher than modal */
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+}
+
+.add-override-option { padding: 0.5rem 1rem; cursor: pointer; font-weight: 500; }
+.add-override-option:hover { background-color: #0d9488; }
+.low-pay-grid.compact {
+    display: grid;
+    grid-template-columns: 0.75fr 1fr 1.5fr 1fr 1fr; /* Updated for 5 columns */
+    gap: 1rem 1.5rem;
+}
+.threshold-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.low-pay-grid.compact .metric-label {
+    text-align: right;
+    font-weight: 600;
+    color: #d1d5db;
+    padding-top: 0.5rem;
+}
+.low-pay-grid.compact .grid-header {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    font-weight: 500;
+    text-align: left;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #4b5563;
+}
+.low-pay-grid.compact .grid-header:first-child {
+    border-bottom: none;
+}
+
+.settings-select option {
+    background-color: #374151; /* gray-700 */
+    color: #e5e7eb; /* gray-200 */
+}
+
+/* --- Compact Driver Health Settings Modal --- */
+#profiles-driver-settings-modal .accordion-header {
+    padding: 0.5rem 1rem; /* Reduced vertical padding */
+}
+
+#profiles-driver-settings-modal .accordion-title {
+    font-size: 0.9rem; /* Slightly smaller title font */
+}
+
+#profiles-driver-settings-modal .accordion-panel-content {
+    padding: 1rem; /* Reduced padding inside the panel */
+}
+
+#profiles-driver-settings-modal .description {
+    margin-bottom: 1rem; /* Reduced space below description */
+    font-size: 0.8rem; /* Smaller description font */
+}
+
+#profiles-driver-settings-modal .setting-controls .setting-grid {
+    gap: 1rem; /* Reduced gap between grid items */
+}
+
+#profiles-driver-settings-modal .low-pay-grid.compact {
+    gap: 0.75rem 1rem; /* Reduced gap for the complex grid */
+}
+
+#profiles-driver-settings-modal .input-group.compact label {
+    font-size: 0.7rem; /* Smaller labels */
+    margin-bottom: 0.125rem;
+}
+
+#profiles-driver-settings-modal .input-group.compact .settings-select,
+#profiles-driver-settings-modal .input-group.compact .settings-input {
+    font-size: 0.8rem; /* Smaller input font */
+    padding: 0.375rem 0.6rem; /* Smaller inputs */
+}
+
+#profiles-driver-settings-modal .settings-select {
+    background-position: right 0.25rem center; /* Adjust arrow position */
+}
+
+#profiles-driver-settings-modal .override-section {
+    margin-top: 0.5rem; /* Reduced space above overrides */
+    gap: 0.5rem;
+}
+
+#profiles-driver-settings-modal .low-pay-grid.compact .metric-label {
+    padding-top: 0.375rem; /* Adjust alignment */
+}
+
+/* Add this new rule to the end of your style.css file */
+#profiles-modal-chart-container {
+    position: relative;
+}
+
+
+/* --- Fleet Health Flag Summary --- */
+#fleet-health-flag-summary {
+    background-color: #111827; /* gray-900 */
+    border: 1px solid #374151; /* gray-700 */
+    border-bottom: 3px solid #0d9488; /* Darker Teal on bottom */
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem; /* Vertical and horizontal gap */
+}
+
+.flag-summary-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.flag-summary-count {
+    font-size: 1.125rem; /* 18px */
+    font-weight: 700;
+    line-height: 1;
+}
+
+.flag-summary-label {
+    font-size: 0.7rem; /* 11.2px */
+    font-weight: 500;
+    color: #9ca3af; /* gray-400 */
+    text-transform: uppercase;
+}
+
+:root {
+    --flag-color-red: #ef4444;
+    --flag-color-purple: #a855f7;
+    --flag-color-gray: #6b7280;
+    --flag-color-blue: #3b82f6;
+    --flag-color-orange: #f97316;
+    --flag-color-green: #22c55e;
+    --flag-color-yellow: #eab308;
+    --flag-color-cyan: #22d3ee;
+}
+
+/* --- Fleet Health Compact UI Tweaks --- */
+.profile-table-container {
+    padding: 0.5rem 0.75rem; /* Reduced vertical padding */
+}
+
+/* This targets both the Dispatch and Driver health toolbars */
+#profiles-dispatch-breakdown .flex.justify-between.items-center,
+#profiles-driver-toolbar {
+    margin-bottom: 0.5rem; /* Removed !important */
+}
+
+.profile-table-container h3 {
+    font-size: 1rem; /* Was text-lg (1.125rem) */
+}
+
+#profiles-dispatch-breakdown .toolbar-btn,
+#profiles-driver-toolbar .toolbar-btn {
+    padding: 0.375rem !important; /* p-1.5, smaller than p-2 */
+}
+
+#profiles-dispatch-breakdown .toolbar-btn svg,
+#profiles-driver-toolbar .toolbar-btn svg {
+    width: 1.125rem; /* 18px, smaller than w-5 (20px) */
+    height: 1.125rem; /* 18px, smaller than h-5 (20px) */
+}
+
+
+/* --- Square Icon Flags --- */
+.driver-flag-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    color: white;
+    position: relative; /* For tooltip positioning */
+}
+
+.driver-flag-icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+.driver-flag-icon .flag-tooltip-text {
+    visibility: hidden;
+    width: max-content;
+    background-color: #111827;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px 10px;
+    position: absolute;
+    z-index: 10;
+    bottom: 125%; /* Position above the icon */
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.driver-flag-icon:hover .flag-tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+.driver-flag-icon.flag-red { background-color: #ef4444; }
+.driver-flag-icon.flag-purple { background-color: #a855f7; }
+.driver-flag-icon.flag-gray { background-color: #6b7280; }
+.driver-flag-icon.flag-blue { background-color: #3b82f6; }
+.driver-flag-icon.flag-orange { background-color: #f97316; }
+.driver-flag-icon.flag-green { background-color: #22c55e; }
+
+
+#profiles-driver-table-container thead {
+    z-index: 30; /* Ensures the entire header row is above scrolling body content */
+}
+
+/* --- FIX: Ensure Save Filter Modal Appears On Top --- */
+#save-driver-filter-modal {
+    z-index: 210 !important;
+}
+
+/* --- Sidebar Refresh Status --- */
+#sidebar-refresh-status {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    /* The .nav-item class handles alignment */
+}
+
+#sidebar.minimized #sidebar-refresh-status:hover .sidebar-text {
+    /* This reuses the main tooltip logic from the nav items */
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* --- Modal Comparison --- */
+#comparison-container {
+    display: inline-flex;
+    align-items: center;
+    position: relative;
+}
+
+#comparison-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 8px;
+    z-index: 100;
+}
+
+/* --- Stubs Table Comparison Row --- */
+#modal-stubs-container tbody tr.bg-rose-900.bg-opacity-30:hover {
+    background-color: rgba(136, 19, 55, 0.7); /* Corresponds to hover:bg-rose-800 with opacity */
+}
+
+/* --- Legend Toggling --- */
+.chart-legend-item-compact.legend-hidden {
+    opacity: 0.4;
+    text-decoration: line-through;
+    cursor: pointer;
+}
+.chart-legend-item-compact {
+    cursor: pointer;
+}
+
+/* --- Team Modal Dispatcher Drilldown --- */
+.dispatcher-row {
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.dispatcher-row:hover {
+    background-color: #374151; /* gray-700 */
+}
+
+.dispatcher-row.is-expanded {
+    background-color: #0d9488; /* A darker teal */
+    color: white;
+}
+
+.dispatcher-details-row td {
+    padding: 0;
+    border: none;
+    background-color: #111827; /* gray-900 */
+}
+.nested-driver-table thead th {
+    padding: 4px 12px;
+    white-space: nowrap;
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+}
+
+.nested-driver-table tbody td {
+    padding: 3px 12px;
+    font-size: 0.75rem;
+}
+
+/* --- Fleet Health Filter Dropdown Height Limit --- */
+#franchise-filter-dropdown,
+#company-filter-dropdown,
+#contract-type-filter-dropdown {
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+
+/* --- TEAM SNAPSHOT PANEL (FINAL REDESIGN) --- */
+.snapshot-trigger {
+    position: fixed;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%) rotate(-90deg);
+    transform-origin: bottom right;
+    background-color: #0d9488; /* teal-600 */
+    color: white;
+    padding: 6px 12px;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    z-index: 199;
+    font-weight: 600;
+    font-size: 0.8rem;
+    display: none; /* Hidden by default */
+    align-items: center;
+    gap: 6px;
+    transition: background-color 0.2s;
+    box-shadow: -2px -2px 10px rgba(0,0,0,0.3);
+}
+.snapshot-trigger:hover {
+    background-color: #0f766e; /* teal-700 */
+}
+.snapshot-trigger svg {
+    width: 14px;
+    height: 14px;
+    transform: rotate(90deg);
+}
+
+#full-page-loader:not(.hidden) + #app-wrapper .snapshot-trigger {
+    display: none !important;
+}
+
+.snapshot-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 620px; /* New, wider value */
+    max-width: 90%;
+    height: 100%;
+    background: #1f2937; /* gray-800 */
+    border-left: 2px solid #0d9488;
+    box-shadow: -10px 0 25px rgba(0,0,0,0.5);
+    z-index: 200;
+    transform: translateX(100%);
+    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    display: flex;
+    flex-direction: column;
+}
+.snapshot-panel.open {
+    transform: translateX(0);
+}
+
+.snapshot-header {
+    padding: 0.5rem 1rem; /* Reduced padding */
+    border-bottom: 1px solid #4b5563;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.snapshot-title {
+    font-size: 0.9rem; /* Reduced font size */
+    font-weight: 600;
+    color: white;
+}
+.snapshot-close-btn {
+    background: none; border: none; color: #9ca3af;
+    font-size: 1.75rem; line-height: 1; cursor: pointer;
+    transition: color 0.2s;
+}
+.snapshot-close-btn:hover {
+    color: white;
+}
+
+.snapshot-content {
+    padding: 0.75rem; /* Reduced padding */
+    overflow-y: hidden; /* No scroll! */
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem; /* Reduced gap */
+    height: 100%;
+}
+
+.snapshot-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+}
+.snapshot-kpi-item {
+    background-color: #111827;
+    padding: 0.3rem 0.5rem; /* Reduced padding */
+    height: 45px; /* Reduced height */
+    border-radius: 0.375rem; /* smaller radius */
+    border: 1px solid #374151;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.snapshot-kpi-item .label {
+    font-size: 0.55rem; /* 8.8px */
+    font-weight: 500;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.snapshot-kpi-item .value {
+    font-size: 1rem; /* Reduced font size */
+    font-weight: 700;
+    color: #e5e7eb;
+    line-height: 1.2;
+}
+.snapshot-kpi-item .trend {
+    font-size: 0.65rem;
+    position: absolute;
+    bottom: 3px;
+    right: 5px;
+}
+.snapshot-kpi-item .trend.good { color: #4ade80; }
+.snapshot-kpi-item .trend.bad { color: #f87171; }
+.snapshot-kpi-item .trend.neutral { color: #9ca3af; }
+
+.snapshot-section {
+    background-color: #111827;
+    border: 1px solid #374151;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem; /* Reduced padding */
+}
+.snapshot-section-title {
+    font-size: 0.65rem; /* Reduced font size */
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 0.4rem;
+}
+.snapshot-rankings-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+.snapshot-rankings-grid h5 {
+    font-size: 0.7rem; /* Reduced font size */
+    font-weight: 600;
+    color: #d1d5db;
+    margin-bottom: 0.25rem;
+}
+.snapshot-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.7rem; /* Reduced font size */
+    padding: 1px 0;
+}
+.snapshot-list-item .name {
+    color: #d1d5db;
+}
+.snapshot-list-item .value {
+    font-weight: 600;
+    font-family: monospace;
+}
+.snapshot-list-item .value.good { color: #4ade80; }
+.snapshot-list-item .value.bad { color: #f87171; }
+
+.snapshot-list-item:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+#snapshot-driver-table {
+    width: 100%;
+    table-layout: fixed; /* This helps space columns evenly */
+}
+
+#snapshot-driver-table tbody tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+#snapshot-driver-table th {
+    font-size: 0.6rem; /* Reduced font size */
+    text-transform: uppercase;
+    color: #9ca3af;
+    text-align: left;
+    padding: 2px 4px;
+    font-weight: 500;
+}
+#snapshot-driver-table td {
+    font-size: 0.7rem; /* Reduced font size */
+    padding: 2px 4px;
+    color: #d1d5db;
+}
+/* This specifically colors the risk % red */
+#snapshot-driver-table .risk-value {
+    font-weight: 600;
+    font-family: monospace;
+    color: #f87171;
+}
+
+.snapshot-chart-container {
+    height: 100%;
+    width: 100%;
+    flex-grow: 1;
+    min-height: 0;
+    position: relative; /* For legend positioning */
+    overflow: hidden; /* Add this line to clip anything outside the container */
+}
+.snapshot-chart-container .axis .domain { stroke: none; }
+.snapshot-chart-container .axis .tick line { stroke: #374151; }
+.snapshot-chart-container .axis .tick text { fill: #9ca3af; font-size: 10px; }
+.snapshot-chart-container .grid .tick line {
+    stroke: #4b5563; /* gray-600 */
+    stroke-opacity: 0.5;
+    stroke-dasharray: 2,2; /* Dashed lines */
+}
+.snapshot-chart-container .chart-line { stroke-width: 2; fill: none; }
+.snapshot-chart-container .chart-area { opacity: 0.2; }
+
+.snapshot-chart-container .chart-data-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-anchor: middle;
+}
+
+#snapshot-driver-table td:first-child {
+    white-space: nowrap; /* Forces driver name onto one line */
+}
+
+.snapshot-chart-legend {
+    position: absolute;
+    bottom: 45px; /* Increased value to move it up */
+    right: 15px;
+    font-size: 0.65rem;
+    color: #9ca3af;
+    display: flex;
+    gap: 10px; /* Space out legend items horizontally */
+}
+.snapshot-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.snapshot-legend-color {
+    width: 10px;
+    height: 2px;
+}
+
+#snapshot-driver-table td:first-child {
+    white-space: nowrap; /* Forces driver name onto one line */
+}
+
+.snapshot-list-item:nth-child(even),
+#snapshot-driver-table tbody tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02); /* Subtle zebra striping */
+}
+
+#snapshot-driver-table td:first-child,
+.snapshot-list-item .name {
+    white-space: nowrap; /* Forces name onto one line */
+}
+
+.snapshot-chart-container .chart-data-label {
+    font-size: 9px;
+    font-weight: 600;
+    text-anchor: middle;
+}
+
+#snapshot-driver-table td:first-child,
+#snapshot-driver-table td:nth-child(4),
+.snapshot-list-item .name {
+    white-space: nowrap; /* Forces name onto one line */
+}
+
+/* Increase max height for the stubs table in the rankings modal */
+#modal-stubs-container {
+    max-height: 500px !important;
+}
+
+
+/* --- NEW: Minimalist Search Input for Profile Tables --- */
+.profile-table-search {
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid #4b5563; /* gray-600 */
+    color: #e5e7eb; /* gray-200 */
+    padding: 0.1rem 0.25rem;
+    font-size: 0.875rem; /* 14px */
+    transition: border-color 0.2s ease-in-out;
+    width: 200px; /* Set a default width */
+    margin-left: 1rem;
+}
+
+.profile-table-search:focus {
+    outline: none;
+    border-bottom: 1px solid #2dd4bf; /* teal-400 */
+}
+
+.profile-table-search::placeholder {
+    color: #6b7280; /* gray-500 */
+    font-style: italic;
+}
+
+/* --- NEW: Active Filter Button Indicator --- */
+.toolbar-btn.filter-active {
+    box-shadow: 0 0 0 2px #10b981; /* teal-500 */
+}
+/* --- NEW: Redesigned Loader Styles --- */
+@keyframes soft-pulse {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.05);
+      opacity: 0.8;
+    }
+  }
+  
+  .loader-logo-pulse {
+    animation: soft-pulse 2s infinite ease-in-out;
+  }
+  
+  #loading-progress-bar {
+      transition: width 0.4s ease-in-out;
+      position: relative;
+      overflow: hidden;
+  }
+  
+  .progress-bar-shimmer {
+      position: absolute;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.25) 50%, rgba(255,255,255,0) 100%);
+      animation: shimmer 2.5s infinite;
+      opacity: 0.8;
+  }
+  
+  @keyframes shimmer {
+      0% { transform: translateX(-150%); }
+      100% { transform: translateX(150%); }
+  }
+  
+  .tip-arrow-btn {
+      color: #4b5563; /* gray-600 */
+      transition: color 0.2s ease-in-out;
+      padding: 0.5rem;
+      border-radius: 9999px;
+  }
+  
+  .tip-arrow-btn:hover {
+      color: #9ca3af; /* gray-400 */
+      background-color: rgba(75, 85, 99, 0.2);
+  }
+
+
+  /* --- NEW: Redesigned Professional Loader Styles --- */
+#full-page-loader {
+    /* Hide the default browser cursor when the loader is active */
+    cursor: none;
+}
+
+#loader-background {
+    /* The final gradient color is now closer to the original, brighter teal */
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f766e 100%);
+    /* The mouse glow is slightly brighter for better effect */
+    background-image: radial-gradient(circle at var(--mouse-x, -9999px) var(--mouse-y, -9999px), rgba(255,255,255,0.05), transparent 20%),
+                      radial-gradient(circle at calc(var(--mouse-x, -9999px) / 2) calc(var(--mouse-y, -9999px) / 2), rgba(255,255,255,0.02), transparent 20%),
+                      linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f766e 100%);
+    transition: background-image 0.1s ease-out;
+}
+
+@keyframes card-fade-in {
+    from { opacity: 0; transform: translateY(20px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+#loader-card {
+    animation: card-fade-in 0.8s ease-out forwards;
+    animation-delay: 0.2s; /* Let the background appear first */
+}
+
+#loading-progress-bar {
+    transition: width 0.4s ease-in-out;
+}
+
+#loading-tip-text {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.tip-fade-enter {
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.45s ease-out, transform 0.45s ease-out;
+}
+.tip-fade-exit {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.45s ease-in, transform 0.45s ease-in;
+}
+.tip-fade-exit-active {
+    opacity: 0;
+    transform: translateY(-6px);
+}
+
+#cursor-dot, #cursor-outline {
+    /* Base styles for both cursor elements */
+    will-change: transform;
+    transition-property: transform;
+}
+
+/* Give the outline a slower, laggy transition */
+#cursor-outline {
+    transition: transform 0.25s cubic-bezier(0.2, 1, 0.8, 1);
+}
+
+/* Give the dot a faster, more responsive transition */
+#cursor-dot {
+    transition: transform 0.1s cubic-bezier(0.2, 1, 0.8, 1);
+}
+
+
+/* --- NEW: Redesigned Loader - Particles & Glass Effect --- */
+#particles-js {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    z-index: 1; /* Behind the card, but on top of the background */
+    pointer-events: none; /* ADD THIS LINE to allow clicks to pass through */
+  }
+  
+  .whitespace-nowrap {
+    white-space: nowrap;
+}
+
+/* --- NEW: Login Screen Styles --- */
+#login-card {
+    animation: card-fade-in 0.8s ease-out forwards;
+}
+
+.login-input {
+    background-color: #374151;
+    border: 1px solid #4b5563;
+    color: white;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    width: 100%;
+    transition: all 0.2s ease-in-out;
+}
+
+.login-input:focus {
+    outline: none;
+    border-color: #2dd4bf;
+    box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.2);
+}
+
+.login-button {
+    background-color: #0d9488;
+    color: white;
+    font-weight: 600;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    width: 100%;
+    transition: background-color 0.2s;
+}
+
+.login-button:hover {
+    background-color: #0f766e;
+}
+
+#login-error-message {
+    color: #fca5a5;
+    background-color: rgba(220, 38, 38, 0.2);
+    border: 1px solid #ef4444;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    font-size: 0.875rem;
+    text-align: center;
+}
+
+/* --- NEW: Settings Icon --- */
+#settings-menu-item {
+    display: none; /* Hidden by default, shown for Admin via JS */
+}
+
+
+
+/* --- NEW: Redesigned User Form Modal --- */
+#user-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Two-column layout */
+    gap: 1.5rem 1rem; /* Vertical and horizontal gap */
+}
+
+#user-form .form-span-2 {
+    grid-column: span 2 / span 2; /* Make an element span both columns */
+}
+
+#user-form label {
+    font-weight: 500;
+    color: #9ca3af; /* gray-400 */
+}
+
+/* --- NEW: Custom Multi-Select Component for Access Control --- */
+#user-access-multiselect-container {
+    position: relative;
+}
+
+.multiselect-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    background-color: #374151;
+    border: 1px solid #4b5563;
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+    transition: all 0.2s ease-in-out;
+    cursor: text;
+}
+.multiselect-container:focus-within {
+    border-color: #2dd4bf;
+    box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.2);
+}
+
+.multiselect-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: #0d9488; /* teal-600 */
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.multiselect-pill-remove {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+.multiselect-pill-remove:hover {
+    color: white;
+}
+
+.multiselect-search-input {
+    flex-grow: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: white;
+    min-width: 150px;
+    padding: 0.25rem;
+}
+
+.multiselect-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 0.25rem;
+    background-color: #2d3748;
+    border: 1px solid #4b5563;
+    border-radius: 0.5rem;
+    z-index: 210; /* Above modal backdrop */
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+}
+
+.multiselect-option {
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+.multiselect-option:hover {
+    background-color: #4b5563;
+}
+.multiselect-option.is-group-label {
+    font-weight: 700;
+    color: #2dd4bf;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    padding-top: 0.75rem;
+    padding-bottom: 0.25rem;
+    cursor: default;
+}
+.multiselect-option.is-group-label:hover {
+    background-color: transparent;
+}
+
+/* --- NEW: Force Hide Utility --- */
+.force-hidden {
+    display: none !important;
+}
+
+/* --- NEW: Redesigned Confirmation Modal (for Logout) --- */
+.confirm-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(17, 24, 39, 0.75);
+    z-index: 300; /* Above everything else */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.confirm-modal-backdrop:not(.hidden) {
+    opacity: 1;
+}
+
+.confirm-modal-container {
+    background-color: #2d3748; /* gray-800 */
+    border: 1px solid #4b5563; /* gray-600 */
+    border-radius: 1rem; /* rounded-2xl */
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    width: 100%;
+    max-width: 400px;
+    padding: 1.5rem;
+    text-align: center;
+    transform: scale(0.95);
+    transition: transform 0.2s ease-in-out;
+}
+
+.confirm-modal-backdrop:not(.hidden) .confirm-modal-container {
+    transform: scale(1);
+}
+
+.confirm-modal-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 0.5rem;
+}
+
+.confirm-modal-text {
+    color: #9ca3af; /* gray-400 */
+    margin-bottom: 1.5rem;
+}
+
+.confirm-modal-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.confirm-modal-btn {
+    padding: 0.6rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+
+.confirm-modal-btn.confirm-btn-danger {
+    background-color: #991b1b; /* red-800 */
+    color: white;
+}
+.confirm-modal-btn.confirm-btn-danger:hover {
+    background-color: #b91c1c; /* red-700 */
+}
+
+.confirm-modal-btn.cancel-btn {
+    background-color: #4b5563; /* gray-600 */
+    color: white;
+}
+.confirm-modal-btn.cancel-btn:hover {
+    background-color: #6b7280; /* gray-500 */
+}
+
+/* --- NEW: Restore default cursor on login card --- */
+#login-card {
+    cursor: default;
+}
+
+/* --- FIX: Force Loads and Delegation menu items to have full-width clickable area --- */
+#loads-menu-item > a.nav-item,
+#delegation-menu-item > a.nav-item {
+    display: flex;
+    width: 100%;
+}
+
+/* --- Vertical Resizer for Profile Tables --- */
+#fleet-health-flag-summary {
+    background-color: #111827; /* gray-900 */
+    border: 1px solid #374151; /* gray-700 */
+    border-bottom: 3px solid #0d9488; /* Darker Teal on bottom */
+    padding: 0.25rem 0.75rem; /* Reduced vertical padding for smaller height */
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    gap: 0.25rem 1.5rem; /* Reduced vertical gap */
+    cursor: row-resize; /* Make it draggable */
+    transition: border-color 0.2s ease-in-out;
+}
+
+#fleet-health-flag-summary:hover {
+    border-color: #2dd4bf; /* Highlight with teal on hover */
+}
+
+/* Add a class to the body during resize to prevent text selection */
+body.resizing-vertical {
+    cursor: row-resize;
+    user-select: none;
+}
+
+
+/* --- Historical Movement Styles (Redesigned) --- */
+#historical-movement-container {
+    max-height: 300px;
+    overflow: auto;
+    width: 100%;
+    background-color: #1f2937; /* gray-800 */
+    border-radius: 0.75rem;
+    border: 1px solid #4b5563; /* gray-600 */
+}
+
+.historical-movement-table {
+    width: 100%;
+    border-collapse: collapse;
+    white-space: nowrap;
+    font-size: 0.75rem;
+    border-spacing: 0;
+}
+
+.historical-movement-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.historical-movement-table th {
+    background-color: #2d3748;
+    color: #9ca3af;
+    font-weight: 500;
+    padding: 0.5rem;
+    text-align: center;
+    border-bottom: 2px solid #4b5563;
+    border-left: none;
+    border-right: none;
+}
+
+.historical-movement-table th.dispatcher-group-header {
+    color: #e5e7eb;
+    font-weight: 600;
+    background-color: #374151;
+    border-left: 2px solid #4b5563; 
+}
+
+.historical-movement-table th.dispatcher-group-header:first-of-type {
+    border-left: none;
+}
+    
+.historical-movement-table tbody td.hm-group-start {
+    border-left: 2px solid #4b5563;
+}
+.historical-movement-table tbody td {
+    padding: 0.35rem 0.5rem;
+    border: none;
+    border-bottom: 1px solid #374151;
+    font-family: monospace;
+    text-align: center;
+}
+
+
+.historical-movement-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.historical-movement-table tbody tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* --- Historical Movement (Separated Header - Final Fix) --- */
+#historical-movement-container {
+    max-height: 300px;
+    border: 1px solid #4b5563;
+    border-radius: 0.5rem;
+    display: flex; /* IMPORTANT */
+    flex-direction: column; /* IMPORTANT */
+    overflow: hidden; /* IMPORTANT */
+}
+
+.historical-movement-placeholder {
+    padding: 2rem;
+    text-align: center;
+    color: #6b7280;
+}
+
+.hm-layout-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* --- The Sticky Header --- */
+.hm-header-container {
+    display: flex;
+    flex-shrink: 0;
+    background-color: #2d3848;
+    z-index: 10;
+    border-bottom: 2px solid #6b7280; /* The sticky bottom line */
+}
+.hm-date-header {
+    width: 120px;
+    flex-shrink: 0;
+    padding: 0.5rem;
+    font-weight: 600;
+    color: #cbd5e1;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid #6b7280;
+}
+.hm-header-group {
+    flex: 1;
+    min-width: 0;
+    border-left: 1px solid #6b7280;
+}
+.hm-super-header {
+    padding: 0.25rem;
+    font-weight: 600;
+    color: #e5e7eb;
+    background-color: #374151;
+    text-align: center;
+    border-bottom: 1px solid #4b5563;
+}
+.hm-sub-header-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    color: #9ca3af;
+    font-size: 0.7rem;
+    padding: 0.2rem 0;
+}
+.hm-sub-header-grid span { text-align: center; }
+
+/* --- The Scrollable Body --- */
+.hm-body-container {
+    overflow: auto; /* THIS IS THE FIX that enables scrolling */
+    background-color: #1f2937;
+}
+.historical-movement-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+    table-layout: fixed;
+}
+.historical-movement-table col.date-col { width: 120px; }
+.historical-movement-table col.dispatcher-col-group { width: calc((100% - 120px) / 3); }
+
+.historical-movement-table td {
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid #374151;
+    font-family: monospace;
+    text-align: center;
+    color: #d1d5db;
+}
+.hm-date-cell {
+    border-right: 1px solid #6b7280;
+    font-family: -apple-system, sans-serif;
+    text-align: left;
+}
+.hm-no-data-cell {
+    text-align: center;
+    color: #4b5563;
+    font-family: sans-serif;
+    /* The border-left is now handled by hm-group-start */
+}
+.historical-movement-table tr:hover td {
+    background-color: #374151;
+}
+
+.historical-movement-table tbody td[data-dispatcher-name] {
+    cursor: pointer;
+}
+
+/* Reduces the font size of the dispatcher names */
+.hm-super-header {
+    font-size: 0.75rem; /* 12px */
+}
+
+/* Centers the 'Date' text vertically and horizontally */
+.hm-date-header {
+    justify-content: center;
+}
+
+#dispatcher-trend-modal .relative.flex {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr; /* Left, Center, Right columns */
+    align-items: center;
+    width: 100%;
+}
+
+.modal-header-left {
+    justify-self: start;
+}
+
+.modal-header-center {
+    justify-self: center;
+    display: flex;
+    align-items: center;
+}
+
+.historical-nav-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.historical-nav-date {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #9ca3af; /* gray-400 */
+    white-space: nowrap;
+}
+
+.historical-nav-controls button {
+    background-color: transparent;
+    color: #9ca3af; /* gray-400 */
+    border: none;
+    border-radius: 0.375rem; /* rounded-md */
+    padding: 0.25rem; /* p-1 */
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.historical-nav-controls button:hover:not(:disabled) {
+    background-color: #4b5563; /* gray-600 */
+    color: #e5e7eb; /* gray-200 */
+}
+
+.historical-nav-controls button:disabled {
+    color: #4b5563; /* gray-600 */
+    cursor: not-allowed;
+    background-color: transparent; /* Ensure disabled has no background */
+}
+
+/* --- Map RPM Legend (Smaller, single line) --- */
+.map-rpm-legend {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    z-index: 100;
+    width: 150px;
+    font-size: 8px;
+    color: #9ca3af; /* gray-400 */
+}
+.map-rpm-legend .legend-labels {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+}
+.map-rpm-legend .legend-gradient {
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(to right, #2563eb, #9ca3af, #dc2626);
+}
+.map-rpm-legend .legend-values {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 600;
+    color: #d1d5db; /* gray-300 */
+    margin-top: 3px;
+}
+
+/* --- NEW: Breakdown Comparison Table Redesign --- */
+.breakdown-table-compare th,
+.breakdown-table-compare td {
+    padding: 6px 8px;
+    vertical-align: middle;
+}
+.breakdown-table-compare th.group-header {
+    text-align: center;
+    border-bottom: 1px solid #4b5563; /* gray-600 */
+    border-left: 1px solid #4b5563;
+}
+.breakdown-table-compare th.state-header {
+    text-align: left;
+}
+.breakdown-table-compare th.sub-header {
+    text-align: center;
+    font-weight: 600;
+    padding-top: 2px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #6b7280;
+}
+.breakdown-table-compare td.group-start,
+.breakdown-table-compare th.sub-header.group-start {
+    border-left: 1px solid #4b5563;
+}
+
+/* --- NEW: Heatmap Modal - Detailed Load View Table --- */
+.heatmap-loads-table {
+    width: 100%;
+    table-layout: fixed;
+}
+.heatmap-loads-table th {
+    text-align: left;
+    padding: 4px 6px;
+    white-space: nowrap;
+}
+.heatmap-loads-table td {
+    padding: 3px 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; /* Adds '...' for long location names */
+}
+/* Alternating row colors */
+.heatmap-loads-table tbody tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.date-by-locked {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+.flow-line {
+    stroke: #f59e0b; /* amber-500 */
+    stroke-width: 1.5;
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.flow-marker {
+    fill: #ef4444; /* red-500 */
+    font-size: 14px;
+    font-weight: bold;
+    pointer-events: none;
+    text-anchor: middle;
+    alignment-baseline: middle;
+}
+
+.back-button {
+    cursor: pointer;
+}
+.origin-dot {
+    fill: #facc15; /* yellow-400 */
+    stroke: white;
+    stroke-width: 2px;
+    pointer-events: none;
+}
+
+/* in 1.DispatchHub/style.css */
+
+/* --- Custom Teal Range Slider for Heatmap Modal --- */
+#heatmap-cluster-size-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    background: #4b5563; /* gray-600 for the track */
+    outline: none;
+    border-radius: 3px;
+    transition: opacity .2s;
+}
+
+/* Thumb (the slider handle) - Webkit (Chrome, Safari) */
+#heatmap-cluster-size-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: #2dd4bf; /* teal-400 */
+    cursor: grab;
+    border-radius: 50%;
+    border: 2px solid #1f2937; /* gray-800 */
+    box-shadow: 0 0 5px rgba(45, 212, 191, 0.5);
+}
+
+#heatmap-cluster-size-slider:active::-webkit-slider-thumb {
+    cursor: grabbing;
+}
+
+/* Thumb (the slider handle) - Firefox */
+#heatmap-cluster-size-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: #2dd4bf; /* teal-400 */
+    cursor: grab;
+    border-radius: 50%;
+    border: 2px solid #1f2937; /* gray-800 */
+    box-shadow: 0 0 5px rgba(45, 212, 191, 0.5);
+}
+
+#heatmap-cluster-size-slider:active::-moz-range-thumb {
+    cursor: grabbing;
+}
+
+/* --- NEW: Paler Text Colors for Driver/Load Tables --- */
+.text-green-400-pale {
+    color: #86efac; /* A true, pale green */
+}
+
+.text-yellow-400-pale {
+    color: #fde047; /* A lighter, less saturated yellow */
+}
+
+.text-red-400-pale {
+    color: #fca5a5; /* A lighter, less saturated red */
+}
+
+.heatmap-loads-table td.text-white {
+    color: #e5e7eb; /* gray-200 */
+}
+
+html {
+    overflow: hidden; /* Prevent scrolling on the root element */
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(to bottom right, #1a202c, #2d3748);
+    min-height: 100vh;
+    color: #e2e8f0;
+    overflow: hidden; /* Prevent the body from creating its own scrollbars */
+}
+.sticky-header th {
+    position: sticky;
+    top: 0;
+    background-color: #374151; /* gray-700 */
+    z-index: 20;
+}
+
+.driver-flag-icon.flag-yellow { background-color: #eab308; }
+.driver-flag-icon.flag-cyan { background-color: #22d3ee; }
+/* --- Driver Heatmap Layout & List (v3 - More Compact) --- */
+
+/* Main layout: wider list, no gap */
+.driver-heatmap-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr; /* Wider list */
+    gap: 0;
+    height: 100%;
+    width: 100%;
+}
+
+.driver-heatmap-list-container {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-right: 1rem;
+}
+
+.driver-heatmap-map-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+/* List Header: more compact */
+.heatmap-list-header {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1.2fr 1.2fr;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem; /* Reduced vertical padding */
+    background-color: transparent;
+    border-bottom: 1px solid #4b5563;
+    color: #9ca3af;
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    flex-shrink: 0;
+    text-align: right;
+}
+
+.heatmap-list-header span:first-child {
+    text-align: left;
+    font-weight: 700;
+}
+
+/* List Body: scrollbar on left */
+.heatmap-list-body {
+    overflow-y: auto;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    direction: rtl; 
+}
+.heatmap-list-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+/* List Items: more compact */
+.heatmap-list-body li {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1.2fr 1.2fr;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem; /* Reduced vertical padding */
+    font-size: 0.75rem;
+    border-bottom: 1px solid #374151;
+    transition: background-color 0.2s;
+    direction: ltr;
+}
+
+.heatmap-list-body li:last-child {
+    border-bottom: none;
+}
+
+.heatmap-list-body li:hover {
+    background-color: #4b5563;
+}
+
+.heatmap-list-body .state-name {
+    font-weight: 600;
+    color: #e5e7eb;
+}
+
+.heatmap-list-body .state-count,
+.heatmap-list-body .state-rate,
+.heatmap-list-body .state-rpm {
+    text-align: right;
+    font-family: monospace;
+}
+
+.heatmap-list-body .state-rpm {
+    color: #facc15;
+}
+
+#profiles-modal-chart-container {
+    overflow: hidden;
+}
+
+/* New responsive tooltip for the map */
+.driver-heatmap-tooltip {
+    position: absolute;
+    text-align: center;
+    width: auto;
+    padding: 6px 10px;
+    font: 12px sans-serif;
+    background: #111827;
+    border: 1px solid #4b5563;
+    border-radius: 6px;
+    pointer-events: none;
+    color: #e5e7eb;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    z-index: 9999; /* Ensure it's on top */
+}
+
+/* --- Dispatch Table Column Dropdown Scroll --- */
+#dispatch-column-settings-dropdown {
+    max-height: 400px; /* Sets a maximum height for the dropdown */
+    overflow-y: auto;  /* Adds a vertical scrollbar when needed */
+}
+
+/* --- Login Password Toggle --- */
+.login-input {
+    /* Ensure padding-right is sufficient if not already added via Tailwind */
+    padding-right: 2.5rem;
+}
+
+#toggle-password-visibility {
+    /* Fine-tune positioning if needed */
+    right: 0.75rem; /* Adjust if needed */
+}
+
+/* Ensure icons within the button don't interfere with clicks */
+#toggle-password-visibility svg {
+    pointer-events: none;
+}
+
+/* --- NEW: Dedicated Summary Tooltip Style --- */
+.summary-tooltip {
+    position: absolute; /* Positioned relative to the body */
+    z-index: 10000; /* Ensure it's on top of everything, including sidebar */
+    background-color: #1f2937; /* gray-800 */
+    color: #e5e7eb; /* gray-200 */
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem; /* rounded-md */
+    border: 1px solid #4b5563; /* gray-600 */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+    pointer-events: none; /* Prevents interference */
+    font-size: 0.75rem; /* 12px */
+    line-height: 1.4;
+    max-width: 300px;
+    white-space: pre-line; /* Allows line breaks from tooltip text */
+    text-align: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+}
+
+.summary-tooltip.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.summary-tooltip.hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* --- Tooltip Tenure Table Styling --- */
+.tooltip-tenure-table {
+    width: 100%;
+    margin-top: 0.5rem; /* Add some space below the title */
+    border-collapse: collapse; /* Make borders clean */
+    font-size: 0.7rem; /* Slightly smaller text */
+}
+
+.tooltip-tenure-table th,
+.tooltip-tenure-table td {
+    padding: 3px 6px; /* Adjust padding */
+    text-align: left;
+    border-bottom: 1px solid #4b5563; /* gray-600 border */
+}
+
+.tooltip-tenure-table th {
+    font-weight: 600;
+    color: #9ca3af; /* gray-400 */
+    text-transform: uppercase;
+    background-color: rgba(75, 85, 99, 0.2); /* faint gray background for header */
+}
+
+.tooltip-tenure-table tbody tr:last-child td {
+    border-bottom: none; /* Remove border on last row */
+}
+
+.tooltip-tenure-table tbody tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02); /* Subtle zebra striping */
+}
+
+.tooltip-tenure-table td.text-center,
+.tooltip-tenure-table th.text-center { /* Allow headers to be centered too if needed */
+    text-align: center;
+}
+
+.tooltip-tenure-table td:nth-child(2) { /* Target the 'Wks' column */
+    font-weight: 600;
+    font-family: monospace;
+    color: #e5e7eb; /* gray-200 */
+}
+
+/* Adjust tooltip max-width if needed to fit the table */
+.dispatch-tooltip {
+    max-width: 450px; /* You might need to adjust this */
+}
+
+/* --- START: Tooltip Width & Flexbox Fix --- */
+
+/* 1. Make the tooltip box wider */
+.dispatch-tooltip {
+    max-width: 900px !important; /* Force it to be wide */
+}
+
+/* 2. Make the flex row fill the box */
+.tooltip-load-row-flex {
+    width: 100%;
+    overflow: hidden; /* Prevent children from overflowing */
+}
+
+/* 3. Tell Load ID, Driver Name, and Details NOT to shrink */
+.tooltip-load-row-flex > .font-bold, /* This targets the Load ID */
+.tooltip-driver-name,
+.tooltip-details-flex {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* 4. Tell the Route (Origin -> Dest) to shrink and truncate */
+.tooltip-route-flex {
+    flex-shrink: 1; /* ALLOW this to shrink */
+    min-width: 0;   /* REQUIRED for truncation to work */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 5. Keep the "Prev DO:..." details aligned to the right */
+.tooltip-details-flex {
+    margin-left: auto;
+}
+/* Custom Select for Delegation Modals & Filters */
+.delegation-select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.75rem center;
+    background-repeat: no-repeat;
+    background-size: 1.25em 1.25em;
+    padding-right: 2.5rem !important; /* Space for arrow */
+}
+/* --- NEW: Delegation Dispatcher Settings Styles --- */
+#ranking-rules-editor {
+    border: 1px solid #4b5563; 
+    padding: 1rem;
+    border-radius: 0.5rem;
+    background-color: #1f2937;
+}
+
+#ranking-rules-editor .rule-row {
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #374151;
+}
+
+#ranking-rules-editor .rule-row:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+#ranking-rules-editor .remove-threshold-btn {
+    color: #ef4444; 
+    padding: 0.25rem 0.5rem;
+    margin-left: 0.5rem;
+}
+
+.settings-select {
+    /* Existing select styles */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.75rem center;
+    background-repeat: no-repeat;
+    background-size: 1.25em 1.25em;
+    padding-right: 2.5rem !important; /* Space for arrow */
+}
+/* --- Driver Table Sticky Footer (Redesigned for Darker Color and Dropdown) --- */
+#profiles-driver-table-container table tfoot tr {
+    position: sticky;
+    bottom: 0;
+    background-color: #111827; 
+    box-shadow: 0 -3px 10px rgba(0,0,0,0.5);
+    z-index: 20;
+}
+
+#profiles-driver-table-container table tfoot tr.summary-footer-row {
+    height: 25px; 
+    background-color: #111827; 
+    border-top: 1px solid #374151; /* Subtle top border */
+}
+
+#profiles-driver-table-container tfoot td {
+    padding: 0.15rem 0.75rem; /* Minimal padding */
+    border-top: none;
+    font-weight: 600;
+}
+
+#profiles-driver-table-container tfoot .summary-mode-select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2360a5fa' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3csvg%3e");
+    background-position: right 0.4rem center; 
+    background-repeat: no-repeat;
+    background-size: 1.4em 1.4em; 
+    
+    padding: 0.2rem 1.8rem 0.2rem 0.5rem !important;
+    height: 25px; 
+    
+    background-color: #111827; 
+    color: #60a5fa; 
+    font-weight: 600;
+    border: 1px solid #60a5fa; 
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    cursor: pointer;
+    min-width: 120px;
+}
+/* --- NEW: Driver Table Summary Select Arrow Fix --- */
+#profiles-driver-table-container tfoot .summary-mode-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2360a5fa' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
+}
+/* --- Custom Wide Modal for Driver Deep Dive --- */
+.settings-modal-container.max-w-custom-wide {
+    max-width: 1500px !important; 
+}
+/* --- Delegation Settings Modal Tabs --- */
+.capacity-mode-switcher {
+    display: flex;
+    background-color: #1f2937;
+    border-radius: 6px;
+    padding: 4px;
+    gap: 4px;
+}
+.capacity-mode-switcher button {
+    font-size: 0.75rem;
+    padding: 6px 10px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+/* --- Delegation Capacity Rules Editor --- */
+.rule-row {
+    border-bottom: 1px solid #374151;
+    padding-bottom: 0.5rem;
+}
+.rule-input-criteria {
+    width: 60px;
+    text-align: center;
+    padding: 3px 6px;
+    font-size: 0.8rem;
+}
+.rule-input-cap {
+    width: 80px;
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: bold;
+    padding: 4px 8px;
+}
+
+#capacity-ranking-rules .rule-row:last-of-type {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+/* --- Delegation Capacity Rules Editor --- */
+.rule-row {
+    border-bottom: 1px solid #374151;
+    padding-bottom: 0.5rem;
+}
+.rule-input-criteria {
+    width: 60px;
+    text-align: center;
+    padding: 3px 6px;
+    font-size: 0.8rem;
+}
+.rule-input-cap {
+    width: 80px;
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: bold;
+    padding: 4px 8px;
+}
+
+#capacity-ranking-rules .rule-row:last-of-type {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+/* Force driver name hover color */
+.driver-link:hover {
+    color: #fb923c !important; /* orange-400 */
+    transition: color 0.2s ease-in-out;
+}
+
+/* Back button style matching Paystub navigation */
+#heatmap-back-btn {
+    background-color: transparent;
+    color: #9ca3af; /* gray-400 */
+    border: none;
+    border-radius: 0.375rem;
+    padding: 0.25rem;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#heatmap-back-btn:hover {
+    background-color: #4b5563; /* gray-700 */
+    color: #e5e7eb; /* gray-200 */
+}
+
+#hall-of-fame-btn:hover svg {
+    filter: drop-shadow(0 0 4px rgba(250, 204, 21, 0.5));
+}
+
+/* --- Hall of Fame Animations --- */
+@keyframes glow-gold {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.7); }
+    50% { box-shadow: 0 0 0 10px rgba(234, 179, 8, 0); }
+}
+
+.animate-glow-gold {
+    animation: glow-gold 2s infinite;
+    color: #facc15 !important; /* Force yellow text */
+}
+
+/* Pulsing border for new record cards */
+@keyframes pulse-border-gold {
+    0%, 100% { border-color: #a16207; box-shadow: 0 0 0 rgba(0,0,0,0); }
+    50% { border-color: #facc15; box-shadow: 0 0 15px rgba(250, 204, 21, 0.2); }
+}
+
+.record-card-new {
+    animation: pulse-border-gold 2s infinite;
+    position: relative;
+}
+
+.record-card-new::after {
+    content: 'NEW RECORD!';
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: #eab308;
+    color: black;
+    font-size: 0.6rem;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-bottom-left-radius: 6px;
+}
+
