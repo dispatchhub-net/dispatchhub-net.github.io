@@ -42,7 +42,7 @@ export const updateHallOfFameFromSession = async () => {
     Object.keys(existingRecords).forEach(key => {
         const rec = existingRecords[key];
         const isBad = badDataList.some(bad => 
-            rec.holder_name === bad.name && 
+            (rec.holder_name === bad.name || rec.dispatcher_name === bad.name) && 
             (rec.record_date || '').includes(bad.date)
         );
         
@@ -97,7 +97,7 @@ export const updateHallOfFameFromSession = async () => {
 
         // --- EXCLUSION: Skip Bad Data Records in Calculation ---
         if (driver === 'Akim Howell' && date === '2024-08-15') return;
-        if (driver === 'Aaron Jamison' && date === '2025-03-06') return;
+        if ((driver === 'Aaron Jamison' || disp === 'Aaron Jamison') && date === '2025-03-06') return;
 
         const dGross = parseFloat(stub.driver_gross || stub.pDriver_gross || 0);
         const margin = parseFloat(stub.margin || stub.margin_dollar || stub.pMargin_dollar || 0);
