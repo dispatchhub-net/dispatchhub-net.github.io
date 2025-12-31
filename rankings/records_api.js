@@ -164,12 +164,26 @@ export const updateHallOfFameFromSession = async () => {
         return match ? match[1] : null;
     };
 
+    // Define allowed statuses for Hall of Fame eligibility
+    const validHofStatuses = [
+        'Billed',
+        'Billed - Pending Acc.',
+        'Delivered',
+        'Delivered - Pending',
+        'Open Balance',
+        'Paid',
+        'Pending to Bill'
+    ];
+
     loads.forEach(load => {
         const driver = load.driver;
         const disp = load.dispatcher;
         const doDate = load.do_date;
         
         if (!driver || !disp || !doDate) return;
+
+        // Filter out loads that are not in a "closed" or valid status
+        if (!validHofStatuses.includes(load.status)) return;
 
         const type = (load.contract_type || load.contract || 'LOO').toUpperCase() === 'OO' ? 'OO' : 'LOO';
         const date = doDate.split('T')[0];
