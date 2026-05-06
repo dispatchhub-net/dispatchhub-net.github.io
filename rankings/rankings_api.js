@@ -849,6 +849,7 @@ export const processDataForMode = (isForStubs = false, singleDispatcherName = nu
 
             const consolidated = {
                 dispatcherName: group.records[0].dispatcherName,
+                company: group.records[0].company_name || group.records[0].company || '', // <-- ADDED THIS LINE
                 dispatcherTeam: [...new Set(group.records.map(r => r.dispatcherTeam))].join(', '),
                 date: group.records[0].date,
                 numDrivers: group.records.reduce((sum, r) => sum + (r.numDrivers || 0), 0),
